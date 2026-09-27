@@ -13,14 +13,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/craft.css">
 </head>
 <body>
 <noscript>StudyOS braucht JavaScript.</noscript>
+<script src="js/profiles.js"></script>
 <!-- Kurse: neue Kursdatei hier eintragen (und in sw.js) -->
 <script src="courses/dasc.js"></script>
 <script src="courses/kommu.js"></script>
 <script src="courses/eng3.js"></script>
 <script src="courses/bwl2.js"></script>
+<script src="courses/knit.js"></script>
+<script src="courses/crochet.js"></script>
 <script src="js/core.js"></script>
 <script src="js/w-generic.js"></script>
 <script src="js/w-dasc1.js"></script>
@@ -31,6 +35,10 @@
 <script src="js/gitlab.js"></script>
 <script src="js/account.js"></script>
 <script src="js/reset.js"></script>
-<script>App.boot();</script>
+<script src="js/yarn3d.js"></script>
+<script src="js/craft-tech.js"></script>
+<script src="js/craft.js"></script>
+<script src="js/craft-pages.js"></script>
+<script>if (window.STUDYOS_PID) App.boot(); else StudyProfiles.picker();</script>
 </body>
 </html>

@@ -25,7 +25,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 /* ---------------- first-run onboarding ---------------- */
 function onboarding() {
   if (S().profile.onboarded) return;
-  App.modal(`<div class="spread"><h2>Willkommen bei StudyOS 👋</h2></div><p>Deine Lern-App fürs 3. Semester Wirtschaftsinformatik. Alles läuft auf deinem Gerät, ohne Konto und ohne KI-Kosten.</p>
+  App.modal(`<div class="spread"><h2>Willkommen bei StudyOS 👋</h2></div><p>${App.WELCOME || "Deine Lern-App fürs 3. Semester Wirtschaftsinformatik. Alles läuft auf deinem Gerät, ohne Konto und ohne KI-Kosten."}</p>
     <label class="fld">Wie heißt du?<input type="text" id="ob-name" value="${esc(S().name)}"></label>
     <label class="fld">Optional: 4-stelliger PIN zum Sperren<input type="password" inputmode="numeric" maxlength="6" id="ob-pin" placeholder="leer lassen = kein PIN"></label>
     <div class="callout" style="font-size:13px">Tipp: Installiere StudyOS als App (Einstellungen → App installieren) und schalte Erinnerungen ein, damit dich die App an Abgaben und Prüfungen erinnert.</div>
@@ -45,7 +45,7 @@ async function pushGist() {
   const body = JSON.stringify(S()); const payload = { description: "StudyOS sync (private)", files: { [GIST_FILE]: { content: body } } };
   if (S().sync.gistId) await gh("/gists/" + S().sync.gistId, { method: "PATCH", body: JSON.stringify(payload) });
   else { const g = await gh("/gists", { method: "POST", body: JSON.stringify(Object.assign({ public: false }, payload)) }); S().sync.gistId = g.id; }
-  S().sync.last = Date.now(); try { localStorage.setItem("studyos.v2", JSON.stringify(S())); } catch (e) {}
+  S().sync.last = Date.now(); try { localStorage.setItem(App.STORE_KEY, JSON.stringify(S())); } catch (e) {}
 }
 async function pullGist() { const g = await gh("/gists/" + S().sync.gistId); const f = g.files[GIST_FILE]; if (!f) throw new Error("Datei fehlt im Gist"); let txt = f.content; if (f.truncated) txt = await (await fetch(f.raw_url)).text(); return JSON.parse(txt); }
 let syncBusy = false;
@@ -160,7 +160,7 @@ function installHTML() {
 }
 
 /* ---------------- boot hooks ---------------- */
-App.VERSION = "2.2.0";
+App.VERSION = "3.0.0";
 App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();

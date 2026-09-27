@@ -94,7 +94,7 @@ button.chip.on{border-color:var(--acc-line);color:var(--text);background:var(--a
 .stat span{font-size:12px;color:var(--muted)}
 .divider{height:1px;background:var(--line)}
 .kbd{font:500 11px var(--f-mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--muted)}
-input[type=text],input[type=number],textarea,select{background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit;width:100%}
+input[type=text],input[type=number],input[type=password],input[type=url],input[type=email],textarea,select{background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit;width:100%}
 textarea{resize:vertical}
 input[type=range]{width:100%;accent-color:var(--acc)}
 label.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}

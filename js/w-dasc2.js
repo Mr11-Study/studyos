@@ -17,6 +17,7 @@ Object.assign(App, { mean, median, pearson });
 /* derive the simulated outputs of pandas tasks from the dataset so they stay truthful */
 (function () {
   const busy = STUDENTS.rows.filter(r => r[1] > 5).map(r => r[4]);
+  if (!D.PY_TASKS.filter || !D.PY_TASKS.missing) return;
   D.PY_TASKS.filter.out = String(Math.round(mean(busy) * 10000) / 10000);
   const miss = STUDENTS.cols.map((c, i) => c.padEnd(16) + STUDENTS.rows.filter(r => r[i] === null).length);
   D.PY_TASKS.missing.out = miss.join("\n") + "\ndtype: int64";

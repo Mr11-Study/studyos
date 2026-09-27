@@ -14,7 +14,8 @@ const daysUntil = k => Math.round((new Date(k + "T00:00:00") - new Date(today() 
 Object.assign(App, { $, $$, esc, clamp, shuffle, dkey, today, fmtMin, fmtDate, daysUntil });
 
 /* ---------------- course registry ---------------- */
-const COURSES = (window.COURSE_DEFS || []).slice();
+const TRACK = window.STUDYOS_TRACK || "uni"; App.TRACK = TRACK;
+const COURSES = (window.COURSE_DEFS || []).filter(c => (c.track || "uni") === TRACK);
 const CBY = Object.fromEntries(COURSES.map(c => [c.id, c]));
 const TOPICS = {}, LESSONS = [], QUESTIONS = [], BOSSQ = [], FLASH = [];
 COURSES.forEach(c => {
@@ -32,9 +33,9 @@ const dasc = CBY.dasc || {};
 App.D = { PY_TASKS: dasc.pyTasks || {}, TOPICS, RESOURCES: dasc.resources || {} };
 
 /* ---------------- state ---------------- */
-const KEY = "studyos.v2", SECRET_KEY = "studyos.secrets";
+const KEY = window.STUDYOS_KEY || "studyos.v2", SECRET_KEY = window.STUDYOS_SECRET || "studyos.secrets"; App.STORE_KEY = KEY;
 const DEFAULT = () => ({
-  v: 2, updatedAt: 0, name: "Kevin", xp: 0, dailyGoal: 50, course: COURSES[0] ? COURSES[0].id : null,
+  v: 2, updatedAt: 0, name: window.STUDYOS_PNAME || "Kevin", xp: 0, dailyGoal: 50, course: COURSES[0] ? COURSES[0].id : null,
   settings: { unlockAll: false, level: "normal" },
   lessons: {}, topics: {}, days: {}, cards: {}, customCards: [], notes: {}, bookmarks: [],
   ach: {}, bosses: {}, py: {}, quizHist: [], widgets: {}, daily: {}, exams: [],
@@ -188,7 +189,7 @@ function go(v, p) { R = { v, p: p ?? null }; if (v === "course" && p && CBY[p]) 
 App.go = go;
 document.addEventListener("click", e => { const a = e.target.closest("[data-go]"); if (!a || a.disabled) return; e.preventDefault(); go(a.dataset.go, a.dataset.p || null); });
 
-const NAV = [
+const NAV = App.NAV = [
   ["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"], ["courses", "Meine Kurse", "◫"], ["path", "Lernpfad", "⤳"],
   ["quiz", "Quiz Arena", "?"], ["flash", "Karteikarten", "▭"], ["practice", "Übungen", "λ"], ["gitlab", "Git-Labor", "⑂"],
   ["challenges", "Challenges", "♛"], ["exam", "Prüfungstrainer", "⏱"], ["stats", "Statistik", "▟"], ["resources", "Ressourcen", "⎘"], ["bookmarks", "Lesezeichen", "★"]
@@ -200,10 +201,10 @@ function renderSide() {
   const due = App.dueCount ? App.dueCount() : 0, st = streak(), c = CBY[S.course];
   const alerts = App.urgentCount ? App.urgentCount() : 0;
   side.innerHTML = `
-    <div class="brand"><div class="logo">S</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
+    <div class="brand"><div class="logo">${App.BRAND ? App.BRAND.logo : "S"}</div><div><b>${App.BRAND ? App.BRAND.name : "StudyOS"}</b><small class="muted">${App.BRAND ? App.BRAND.sub : "Wirtschaftsinformatik · FH JOANNEUM"}</small></div></div>
     <div class="course-switch"><span class="eyebrow">Aktueller Kurs</span><div class="row" style="gap:8px;flex-wrap:nowrap"><span class="dot" style="--c:${c.color}"></span><select id="cswitch" aria-label="Kurs wählen">${COURSES.map(x => `<option value="${x.id}" ${x.id === S.course ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select></div></div>
     <nav class="nav" aria-label="Hauptmenü">
-      ${NAV.map(([v, t, i]) => `<button data-go="${v}" class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "flash" && due ? `<span class="badge">${due}</span>` : ""}${v === "plan" && alerts ? `<span class="badge" style="background:var(--bad-soft);color:var(--bad)">${alerts}</span>` : ""}</button>`).join("")}
+      ${App.NAV.map(([v, t, i]) => `<button data-go="${v}" class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "flash" && due ? `<span class="badge">${due}</span>` : ""}${v === "plan" && alerts ? `<span class="badge" style="background:var(--bad-soft);color:var(--bad)">${alerts}</span>` : ""}</button>`).join("")}
       <div class="eyebrow lbl">Konto</div>
       <button data-go="settings" class="${R.v === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button>
       <button data-go="profile" class="${R.v === "profile" ? "on" : ""}"><span class="ni">◉</span>Profil & Erfolge</button>
@@ -212,10 +213,12 @@ function renderSide() {
       <div class="me-top"><div class="avatar">${esc((S.name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S.name)}</div><div class="me-lvl tab">Level ${L} · ${S.xp.toLocaleString("de-AT")} XP</div></div></div>
       <div class="bar thin"><i style="width:${pct}%"></i></div>
       <div class="spread"><span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st} ${st === 1 ? "Tag" : "Tage"}</span><small class="tab">${hi - S.xp} XP bis L${L + 1}</small></div>
+      ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profil wechseln">⇄ Profil wechseln${StudyProfiles.list().length > 1 ? ` <small>(${StudyProfiles.list().length})</small>` : ""}</button>` : ""}
     </div>`;
+  const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   $("#cswitch").onchange = e => { S.course = e.target.value; save(); if (["path", "quiz", "flash", "practice", "exam", "resources", "stats"].includes(R.v)) { R.p = null; render(); } else if (R.v === "course") go("course", S.course); renderSide(); };
   const tb = $("#tb-stats"); if (tb) tb.innerHTML = `<span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st}</span><span class="chip acc tab">L${L} · ${S.xp} XP</span>`;
-  const bn = $("#bnav"); if (bn) bn.innerHTML = [["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["path", "Lernen", "⤳"], ["quiz", "Quiz", "?"], ["__more", "Mehr", "☰"]].map(([v, t, i]) => `<button ${v === "__more" ? 'id="bmore"' : `data-go="${v}"`} class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}</button>`).join("");
+  const bn = $("#bnav"); if (bn) bn.innerHTML = (App.BNAV || [["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["path", "Lernen", "⤳"], ["quiz", "Quiz", "?"], ["__more", "Mehr", "☰"]]).map(([v, t, i]) => `<button ${v === "__more" ? 'id="bmore"' : `data-go="${v}"`} class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}</button>`).join("");
   const bm = $("#bmore"); if (bm) bm.onclick = () => $("#side").classList.add("open");
 }
 App.renderSide = renderSide;
@@ -417,6 +420,8 @@ function renderBlock(b, i, l, st, lvl) {
   if (b.t === "lead") { div.className = "card"; div.innerHTML = `<p style="font-size:16px;max-width:70ch">${b.html}</p>`; }
   else if (b.t === "html") { div.innerHTML = b.html; }
   else if (b.t === "callout") { div.className = "callout"; div.innerHTML = b.html; }
+  else if (b.t === "tip") { div.className = "tip"; div.innerHTML = `<span>💡</span><span>${b.html}</span>`; }
+  else if (b.t === "warnbox") { div.className = "warnbox"; div.innerHTML = `<span>⚠️</span><span>${b.html}</span>`; }
   else if (b.t === "keys") { div.className = "card col"; div.innerHTML = `<span class="eyebrow">${de ? "Kernpunkte" : "Key points"}</span><ul class="keys">${b.items.map(x => `<li><span>${x}</span></li>`).join("")}</ul>`; }
   else if (b.t === "text") {
     div.className = "card col block-text"; let altI = -1;

@@ -104,3 +104,13 @@ Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update
 - **Python-Übungen** laden beim ersten Mal einen Python-Interpreter aus dem Internet (danach offline im Cache). NumPy/pandas werden im Browser nur vereinfacht simuliert – die echten Übungen machst du in VS Code mit `uv`.
 - Benachrichtigungen bei komplett geschlossener App hängen von Android/Xiaomi ab → Kalender-Export nutzen.
 - Daten liegen pro Browser/Gerät. Ohne Sync oder Backup gehen sie beim Löschen der Browserdaten verloren.
+
+## 9. Mehrere Profile (z. B. Kevin & Angi)
+
+StudyOS kann mehrere Personen auf einem Gerät: Jedes Profil hat eigene Kurse, eigenen Fortschritt und eigenes Design.
+
+- **Eigenes Handy (z. B. Angi):** Link öffnen → „Wer lernt heute?“ → Name eingeben → **Stricken & Häkeln** wählen → Profil erstellen. Danach wie gewohnt über Chrome „App installieren“.
+- **Gemeinsames Gerät:** Einstellungen → *Profile auf diesem Gerät* → **＋ Neues Profil**. Wechseln über „⇄ Profil wechseln“ unten in der Seitenleiste.
+- „Automatisch öffnen“ an = kein Auswahlbildschirm beim Start.
+
+Das Stricken-&-Häkeln-Profil enthält: Kurse Stricken und Häkeln, 3D-Studio (Maschen drehen & zoomen, Reihe für Reihe aufbauen), animierte Techniken, Musterdesigner mit Anleitungsgenerator, Maschenlexikon, Reihenzähler (Bildschirm bleibt an), Werkzeuge (Maschenprobe, Verteilen, Nadeln, US/UK) und Projekte mit Foto.
