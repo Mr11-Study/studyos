@@ -1,0 +1,66 @@
+/* ===== Collector theme (Pokémon TCG profile) ===== */
+[data-theme=tcg]{
+  color-scheme:dark;
+  --bg:#0C1016; --side:#0F141B; --card:#141A23; --card2:#19202B; --card3:#1F2733;
+  --line:#222B38; --line2:#2E3A4B; --text:#E9EEF4; --muted:#8F9BAE; --faint:#5F6B7D;
+  --acc:#F5C542; --acc2:#E3AE1F; --acc-ink:#1B1400; --acc-soft:rgba(245,197,66,.12); --acc-line:rgba(245,197,66,.4);
+  --good:#3FB950; --good-soft:rgba(63,185,80,.13); --bad:#F85149; --bad-soft:rgba(248,81,73,.12); --info:#58A6FF; --r:14px;
+}
+[data-theme=tcg] .logo{background:linear-gradient(135deg,#F5C542,#E36B2C);color:#1B1400}
+[data-theme=tcg] .course-switch{display:none}
+[data-theme=tcg] .btn.pri:hover{background:#FFD65C}
+[data-theme=tcg] code{color:#F5D77A}
+.up{color:var(--good)} .down{color:var(--bad)}
+.tcg-hero{position:relative;overflow:hidden;border-radius:20px;padding:22px;border:1px solid var(--line2);background:radial-gradient(120% 140% at 100% 0%,rgba(245,197,66,.20),transparent 55%),radial-gradient(120% 140% at 0% 100%,rgba(88,166,255,.14),transparent 55%),var(--card)}
+.tcg-hero .big{font:700 40px/1.05 var(--f-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tcg-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tcg-kpi{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tcg-kpi b{display:block;font:600 18px var(--f-display);font-variant-numeric:tabular-nums}
+.tcg-kpi small{font-size:12px}
+@media (max-width:640px){.tcg-kpis{grid-template-columns:repeat(2,1fr)}.tcg-hero .big{font-size:34px}}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tgrid>*{min-width:0}
+@media (max-width:520px){.tgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.tcard{position:relative;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:14px;background:var(--card);border:1px solid var(--line);cursor:pointer;text-align:left;color:inherit;transition:transform .15s,border-color .15s}
+.tcard:hover{transform:translateY(-2px);border-color:var(--line2)}
+.tcard .im{position:relative;aspect-ratio:63/88;border-radius:9px;overflow:hidden;background:linear-gradient(160deg,#1C2430,#121820)}
+.tcard .im img{width:100%;height:100%;object-fit:cover;display:block}
+.tcard .im .ph{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:10px;color:var(--muted);font-size:12px}
+.tcard .nm{font-weight:600;font-size:13.5px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcard .meta{display:flex;min-width:0;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.pr{font:600 14px var(--f-display);font-variant-numeric:tabular-nums;color:var(--acc)}
+.own{position:absolute;top:12px;right:12px;background:var(--acc);color:var(--acc-ink);font:700 11px var(--f-body);border-radius:999px;padding:2px 8px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.tcard.missing .im{opacity:.55;filter:grayscale(.4)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.stile{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:14px;background:var(--card);border:1px solid var(--line);cursor:pointer;text-align:left;color:inherit}
+.stile:hover{border-color:var(--line2)}
+.stile .lg{height:54px;display:flex;align-items:center}
+.stile .lg img{max-height:54px;max-width:100%;object-fit:contain}
+.stile .lg .fb{font:700 18px var(--f-display);color:var(--acc)}
+.holo{perspective:900px;display:flex;justify-content:center}
+.holo .hc{position:relative;width:min(300px,78vw);aspect-ratio:63/88;border-radius:14px;transform-style:preserve-3d;transition:transform .12s ease-out;box-shadow:0 20px 50px rgba(0,0,0,.55);overflow:hidden;background:#111}
+.holo .hc img{width:100%;height:100%;object-fit:cover;display:block}
+.holo .hc .gl{position:absolute;inset:0;background:radial-gradient(circle at var(--gx,50%) var(--gy,30%),rgba(255,255,255,.35),transparent 45%),linear-gradient(115deg,transparent 30%,rgba(255,240,180,.16) 45%,rgba(160,220,255,.16) 55%,transparent 70%);mix-blend-mode:screen;pointer-events:none;opacity:.9}
+.ptable td,.ptable th{white-space:nowrap;font-variant-numeric:tabular-nums}
+.ptable td:first-child{white-space:normal}
+.srow{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);cursor:pointer;text-align:left;color:inherit;width:100%}
+.srow:hover{border-color:var(--line2)}
+.srow .ic{width:52px;height:52px;border-radius:10px;background:var(--card3);display:grid;place-items:center;overflow:hidden}
+.srow .ic img{width:100%;height:100%;object-fit:cover}
+.srow .t{min-width:0}.srow .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.srow .t small{font-size:12px}
+.srow .v{text-align:right;font-variant-numeric:tabular-nums}
+.pl{font-size:12px;font-weight:600}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select,.filters input[type=text],.filters input[type=number]{width:auto;min-width:0;flex:1 1 140px;max-width:260px}
+.bars .bar-row{display:grid;grid-template-columns:minmax(90px,160px) 1fr auto;gap:10px;align-items:center;font-size:13px;padding:4px 0}
+.bars .bar-row i{display:block;height:10px;border-radius:6px;background:linear-gradient(90deg,var(--acc),#E36B2C)}
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:30px 16px}
+.stamp{font-size:11px;color:var(--muted)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;color:var(--muted);padding:9px 12px;cursor:pointer;border-bottom:2px solid transparent;font-weight:500;white-space:nowrap}
+.tabs button.on{color:var(--text);border-bottom-color:var(--acc)}
+.tcard .meta>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tcard .im .ph svg{display:block;margin:0 auto 6px}
+.sgrid>*{min-width:0}
+@media (max-width:520px){.sgrid{grid-template-columns:minmax(0,1fr)}.holo .hc{width:min(260px,70vw)}}

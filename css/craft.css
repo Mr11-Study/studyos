@@ -116,3 +116,22 @@
 .tip b{font-weight:600}
 .warnbox{display:flex;gap:10px;padding:12px 14px;border-radius:14px;background:var(--warn-soft);color:#7A5410;font-size:14px}
 @media (max-width:520px){ .cr-hero h1{font-size:24px} .cr-tiles{grid-template-columns:1fr 1fr} .cr-tile{min-height:110px;padding:14px} }
+
+/* ===== calm mode (no game elements) ===== */
+[data-nogame] .me-lvl,[data-nogame] .me .bar,[data-nogame] .me > .spread,[data-nogame] .xpfloat,[data-nogame] .streak{display:none!important}
+[data-nogame] .nav button[data-go=profile]{display:none}
+[data-nogame] .me{gap:8px}
+/* craft lessons: numbered step cards, calmer reading */
+[data-theme=craft] .page ol{list-style:none;counter-reset:st;padding-left:0!important;display:flex;flex-direction:column;gap:10px!important}
+[data-theme=craft] .page ol > li{counter-increment:st;position:relative;padding:12px 14px 12px 52px;background:var(--card);border:1px solid var(--line);border-radius:14px;line-height:1.5;box-shadow:var(--shadow)}
+[data-theme=craft] .page ol > li::before{content:counter(st);position:absolute;left:12px;top:11px;width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;font:600 14px/28px var(--f-body);text-align:center}
+[data-theme=craft] .page ul{padding-left:20px}
+[data-theme=craft] .block-text .body,[data-theme=craft] .page p{font-size:16px;line-height:1.62}
+.illu{border-radius:18px;background:linear-gradient(180deg,#FFFDFB,#F6EEE5);border:1px solid var(--line);padding:10px}
+.illu svg{display:block;width:100%;height:auto}
+.illu figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:6px}
+.guide-row{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px 4px;border-top:1px solid var(--line);text-align:left;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;cursor:pointer;color:inherit}
+.guide-row:first-child{border-top:0}
+.guide-row .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:19px;background:var(--acc-soft);color:var(--acc)}
+.guide-row b{font:600 16px var(--f-display)}
+.guide-row small{display:block;font-size:13px}

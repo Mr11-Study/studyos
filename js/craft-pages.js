@@ -7,7 +7,7 @@ const S = () => App.S(); const K = window.Craft, C = K.C, Y = window.Yarn3D;
 /* ---------------- shell configuration ---------------- */
 App.NAV.length = 0;
 [["dash", "Heute", "⌂"], ["courses", "Kurse", "◫"], ["path", "Lernpfad", "⤳"], ["studio", "3D-Studio", "◈"], ["tech", "Techniken", "✋"], ["designer", "Musterdesigner", "▦"], ["dict", "Maschenlexikon", "❋"],
- ["counter", "Reihenzähler", "#"], ["tools", "Werkzeuge", "⚖"], ["projects", "Projekte", "✿"], ["flash", "Karteikarten", "▭"], ["quiz", "Quiz", "?"], ["stats", "Statistik", "▟"], ["resources", "Videos & Links", "⎘"]].forEach(x => App.NAV.push(x));
+ ["counter", "Reihenzähler", "#"], ["tools", "Werkzeuge", "⚖"], ["projects", "Projekte", "✿"], ["flash", "Karteikarten", "▭"], ["quiz", "Wissen testen", "?"], ["resources", "Videos & Links", "⎘"]].forEach(x => App.NAV.push(x));
 App.BNAV = [["dash", "Heute", "⌂"], ["path", "Lernen", "⤳"], ["studio", "3D", "◈"], ["counter", "Zähler", "#"], ["__more", "Mehr", "☰"]];
 App.BRAND = { logo: "✿", name: "StudyOS", sub: "Stricken & Häkeln" };
 App.WELCOME = "Deine Lern-App fürs Stricken und Häkeln: Techniken Schritt für Schritt, Maschen in 3D, Musterdesigner und Reihenzähler. Alles bleibt auf deinem Gerät.";
@@ -40,32 +40,37 @@ const TIPS = [
 ];
 const dayIdx = () => Math.floor(Date.now() / 864e5);
 
-/* ---------------- Heute ---------------- */
+/* ---------------- Heute (calm guide, no game elements) ---------------- */
+const GUIDE = [
+  ["path", "⤳", "Lernpfad", "Alle Lektionen der Reihe nach – Stricken und Häkeln, vom ersten Faden bis zum fertigen Stück."],
+  ["tech", "✋", "Techniken", "Jede Masche Schritt für Schritt als Animation. Ideal, wenn du gerade mit Nadel in der Hand nachschauen willst."],
+  ["studio", "◈", "3D-Studio", "Maschen von allen Seiten ansehen, drehen und heranzoomen – so verstehst du, wie das Gestrick aufgebaut ist."],
+  ["dict", "❋", "Maschenlexikon", "Muster wie Rippen, Perlmuster oder Korbmuster mit Bild, Anleitung und 3D-Ansicht."],
+  ["designer", "▦", "Musterdesigner", "Eigene Muster zeichnen – die App schreibt dir die Anleitung Reihe für Reihe."],
+  ["counter", "#", "Reihenzähler", "Große Tasten zum Mitzählen, der Bildschirm bleibt an."],
+  ["tools", "⚖", "Werkzeuge", "Maschenprobe, gleichmäßig verteilen, Nadelgrößen, Abkürzungen Deutsch/Englisch."],
+  ["projects", "✿", "Projekte", "Deine Werkstücke mit Garn, Nadel, Notizen und Foto."],
+  ["flash", "▭", "Karteikarten", "Zum Nachschlagen und Wiederholen, wenn du magst."]
+];
+const RECENT_V = { lesson: "Lektion", tech: "Technik", studio: "3D-Studio", designer: "Musterdesigner", dict: "Maschenlexikon", tools: "Werkzeuge", counter: "Reihenzähler", projects: "Projekte" };
+const origGo = App.go;
+App.go = (v, p) => { try { if (RECENT_V[v]) { const c = C(); c.recent = (c.recent || []).filter(r => !(r.v === v && r.p === (p ?? null))); let title = RECENT_V[v]; if (v === "lesson" && App.LBYID[p]) title = App.LBYID[p].title; if (v === "tech" && p && CraftTech.TECH[p]) title = CraftTech.TECH[p].title; c.recent.unshift({ v, p: p ?? null, title, kind: RECENT_V[v], at: Date.now() }); c.recent = c.recent.slice(0, 6); } } catch (e) {} origGo(v, p); };
 PAGES.dash = el => {
   const s = S(), name = s.name || "du", h = new Date().getHours(), greet = h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend";
-  const L = App.levelOf(s.xp), st = App.streak(), due = App.dueCount ? App.dueCount() : 0;
-  const courses = App.COURSES; const act = C().projects.filter(p => p.status === "active");
-  const cont = courses.map(c => ({ c, next: App.nextLesson(c.id), pct: App.courseProgress(c.id) }));
+  const courses = App.COURSES; const act = C().projects.filter(p => p.status === "active"); const recent = (C().recent || []).filter(r => r.v !== "dash").slice(0, 4);
+  const cont = courses.map(c => { const ls = App.courseLessons(c.id); return { c, next: App.nextLesson(c.id), done: ls.filter(l => App.isDone(l.id)).length, all: ls.length }; });
   const tip = TIPS[dayIdx() % TIPS.length];
-  el.innerHTML = `<div class="page">
-    <div class="cr-hero"><svg class="yarnball" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#E3A08F"/><g fill="none" stroke="#C8664B" stroke-width="3" opacity=".8"><path d="M22 48c20-12 58-14 80 6"/><path d="M18 64c26-14 66-12 86 8"/><path d="M26 84c20-10 50-10 70 2"/><path d="M40 22c-6 26 2 62 26 82"/><path d="M60 16c-8 30 0 62 22 84"/></g><path d="M100 70c14 10 16 26 6 36" stroke="#C8664B" stroke-width="3" fill="none"/></svg>
+  el.innerHTML = `<div class="page" style="max-width:860px">
+    <div class="cr-hero"><svg class="yarnball" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="#E3A08F"/><g fill="none" stroke="#C8664B" stroke-width="3" opacity=".8"><path d="M22 48c20-12 58-14 80 6"/><path d="M18 64c26-14 66-12 86 8"/><path d="M26 84c20-10 50-10 70 2"/><path d="M40 22c-6 26 2 62 26 82"/><path d="M60 16c-8 30 0 62 22 84"/></g></svg>
       <span class="eyebrow" style="color:var(--acc2)">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span>
-      <h1 style="margin-top:6px">${greet}, ${esc(name)} ✿</h1><p class="muted" style="margin-top:6px;max-width:44ch">Was möchtest du heute stricken oder häkeln?</p>
-      <div class="cr-kpis" style="margin-top:16px;max-width:420px"><div class="cr-kpi"><b>${st}</b><small>Tage in Folge</small></div><div class="cr-kpi"><b>L${L}</b><small>${s.xp} XP</small></div><div class="cr-kpi"><b>${due}</b><small>Karten fällig</small></div></div></div>
-    <div class="grid g2">${cont.map(({ c, next, pct }) => `<div class="card col" style="gap:10px;border-top:3px solid ${c.color}"><div class="spread"><div class="row" style="gap:10px"><span style="font-size:22px;color:${c.color}">${c.icon}</span><div><b style="font:600 18px var(--f-display)">${esc(c.title)}</b><div><small class="muted">${pct} % geschafft</small></div></div></div>${App.ring(pct, 44, 5, c.color)}</div>
-      ${next ? `<div class="spread" style="gap:10px"><div><small class="eyebrow">Als Nächstes</small><div style="font-weight:600">${esc(next.title)}</div><small class="muted">${next.min} min · Welt ${next.world.n}: ${esc(next.world.title)}</small></div><button class="btn pri sm" data-go="lesson" data-p="${next.id}">Weiter</button></div>` : `<div class="tip"><span>🎉</span><span>Alles geschafft! Wiederhole mit Quiz und Karteikarten.</span></div>`}</div>`).join("")}</div>
-    <div class="cr-tiles">
-      <button class="cr-tile" data-go="studio"><span class="ic">◈</span><b>3D-Studio</b><small>Maschen drehen, zoomen, von allen Seiten sehen</small></button>
-      <button class="cr-tile sage" data-go="tech"><span class="ic">✋</span><b>Techniken</b><small>Schritt für Schritt animiert</small></button>
-      <button class="cr-tile gold" data-go="designer"><span class="ic">▦</span><b>Musterdesigner</b><small>Eigene Muster entwerfen</small></button>
-      <button class="cr-tile blue" data-go="dict"><span class="ic">❋</span><b>Maschenlexikon</b><small>Muster mit Vorschau & Anleitung</small></button>
-      <button class="cr-tile" data-go="counter"><span class="ic">#</span><b>Reihenzähler</b><small>${C().counters.length ? esc(C().counters[0].name) + ": " + C().counters[0].n : "Großer Zähler fürs Handy"}</small></button>
-      <button class="cr-tile sage" data-go="tools"><span class="ic">⚖</span><b>Werkzeuge</b><small>Maschenprobe, Verteilen, Nadeln, US/UK</small></button>
-      <button class="cr-tile gold" data-go="projects"><span class="ic">✿</span><b>Projekte</b><small>${act.length ? act.length + " in Arbeit" : "Deine Werkstücke"}</small></button>
-      <button class="cr-tile blue" data-go="flash"><span class="ic">▭</span><b>Karteikarten</b><small>${due ? due + " fällig" : "Wissen festigen"}</small></button>
-    </div>
-    <div class="card col" style="gap:8px;background:linear-gradient(135deg,#FFFFFF,#F7F1EA)"><span class="eyebrow" style="color:var(--sage)">Trick des Tages</span><p style="font:500 17px/1.45 var(--f-display)">${esc(tip)}</p><div><button class="btn ghost sm" id="tip-next">Noch einen Trick →</button></div></div>
+      <h1 style="margin-top:6px">${greet}, ${esc(name)}</h1><p class="muted" style="margin-top:6px;max-width:46ch">Schön, dass du da bist. Hier findest du alles rund ums Stricken und Häkeln – in deinem Tempo.</p></div>
+    ${recent.length ? `<div class="col" style="gap:8px"><span class="eyebrow">Zuletzt geöffnet</span><div class="row" style="gap:8px">${recent.map(r => `<button class="chip" data-go="${r.v}" ${r.p ? `data-p="${esc(r.p)}"` : ""}>${esc(r.title)} <small class="muted">· ${esc(r.kind)}</small></button>`).join("")}</div></div>` : ""}
+    <div class="grid g2">${cont.map(({ c, next, done, all }) => `<div class="card col" style="gap:10px;border-top:3px solid ${c.color}"><div class="row" style="gap:10px"><span style="font-size:22px;color:${c.color}">${c.icon}</span><div><b style="font:600 18px var(--f-display)">${esc(c.title)}</b><div><small class="muted">${done} von ${all} Lektionen gelesen</small></div></div></div>
+      ${next ? `<div class="spread" style="gap:10px"><div><small class="eyebrow">Hier geht's weiter</small><div style="font-weight:600">${esc(next.title)}</div><small class="muted">ca. ${next.min} min · ${esc(next.world.title)}</small></div><button class="btn pri sm" data-go="lesson" data-p="${next.id}">Öffnen</button></div>` : `<div class="tip"><span>🌿</span><span>Du hast alle Lektionen gelesen. Zum Nachschlagen sind sie jederzeit im Lernpfad.</span></div>`}</div>`).join("")}</div>
+    <div class="card col" style="gap:4px"><h2>Wo finde ich was?</h2><p class="muted" style="font-size:14px;margin-bottom:6px">Alles ist auch über das Menü erreichbar (☰ oben links bzw. „Mehr“ unten).</p>
+      ${GUIDE.map(([v, ic, t, d]) => `<button class="guide-row" data-go="${v}"><span class="ic">${ic}</span><span><b>${t}</b><small class="muted">${d}</small></span><span class="muted">›</span></button>`).join("")}</div>
     ${act.length ? `<div class="col" style="gap:10px"><h2>In Arbeit</h2>${act.slice(0, 3).map(projCard).join("")}</div>` : ""}
+    <div class="card col" style="gap:8px;background:linear-gradient(135deg,#FFFFFF,#F7F1EA)"><span class="eyebrow" style="color:var(--sage)">Tipp</span><p style="font:500 17px/1.45 var(--f-display)">${esc(tip)}</p><div><button class="btn ghost sm" id="tip-next">Noch ein Tipp →</button></div></div>
   </div>`;
   let ti = dayIdx(); $("#tip-next", el).onclick = e => { ti++; e.target.closest(".card").querySelector("p").textContent = TIPS[ti % TIPS.length]; };
 };

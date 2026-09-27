@@ -75,8 +75,8 @@ function levelOf(xp) { let L = 1; while (xp >= xpFor(L + 1)) L++; return L; }
 Object.assign(App, { day, xpFor, levelOf });
 function addXP(n, reason, el) {
   if (!n) return; const before = levelOf(S.xp);
-  S.xp += n; day().xp += n; touchNight(); floatXP(n, el);
-  const after = levelOf(S.xp); if (after > before) toast("Level " + after, "Du hast Level " + after + " erreicht.", "↑", true);
+  S.xp += n; day().xp += n; touchNight(); if (!App.NOGAME) floatXP(n, el);
+  const after = levelOf(S.xp); if (after > before && !App.NOGAME) toast("Level " + after, "Du hast Level " + after + " erreicht.", "↑", true);
   checkAch(); save(); renderSide();
 }
 App.addXP = addXP;
@@ -144,7 +144,7 @@ const ACH = (window.GLOBAL_ACH || []).concat([
   { id: "invest", name: "Kapitalwert-Profi", desc: "Alle Investitionsfälle korrekt lösen", icon: "€" }
 ]);
 App.ACH = ACH;
-function unlock(id) { if (S.ach[id]) return; S.ach[id] = Date.now(); const a = ACH.find(x => x.id === id); if (a) toast("Erfolg freigeschaltet", a.name, a.icon, true); save(); }
+function unlock(id) { if (S.ach[id]) return; S.ach[id] = Date.now(); const a = ACH.find(x => x.id === id); if (a && !App.NOGAME) toast("Erfolg freigeschaltet", a.name, a.icon, true); save(); }
 function checkAch() {
   if (mastery("unsup") >= 90) unlock("nolabels");
   if (mastery("gd") >= 90) unlock("gradient");
@@ -217,7 +217,7 @@ function renderSide() {
     </div>`;
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   $("#cswitch").onchange = e => { S.course = e.target.value; save(); if (["path", "quiz", "flash", "practice", "exam", "resources", "stats"].includes(R.v)) { R.p = null; render(); } else if (R.v === "course") go("course", S.course); renderSide(); };
-  const tb = $("#tb-stats"); if (tb) tb.innerHTML = `<span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st}</span><span class="chip acc tab">L${L} · ${S.xp} XP</span>`;
+  const tb = $("#tb-stats"); if (tb) tb.innerHTML = App.NOGAME ? (App.TOPBAR ? App.TOPBAR() : "") : `<span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st}</span><span class="chip acc tab">L${L} · ${S.xp} XP</span>`;
   const bn = $("#bnav"); if (bn) bn.innerHTML = (App.BNAV || [["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["path", "Lernen", "⤳"], ["quiz", "Quiz", "?"], ["__more", "Mehr", "☰"]]).map(([v, t, i]) => `<button ${v === "__more" ? 'id="bmore"' : `data-go="${v}"`} class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}</button>`).join("");
   const bm = $("#bmore"); if (bm) bm.onclick = () => $("#side").classList.add("open");
 }
@@ -470,7 +470,7 @@ PAGES.boss = (el, wid) => {
 /* ---------------- boot ---------------- */
 App.boot = function () {
   document.body.insertAdjacentHTML("afterbegin", `<div class="app"><aside class="side" id="side"></aside><div style="min-width:0">
-    <header class="topbar"><button class="btn sm" id="burger" aria-label="Menü öffnen">☰</button><b style="font-family:var(--f-display)">StudyOS</b><div class="row" id="tb-stats" style="gap:8px"></div></header>
+    <header class="topbar"><button class="btn sm" id="burger" aria-label="Menü öffnen">☰</button><b style="font-family:var(--f-display)">${App.BRAND ? App.BRAND.name : "StudyOS"}</b><div class="row" id="tb-stats" style="gap:8px"></div></header>
     <main class="main"><div id="page"></div><p class="faint" style="text-align:center;font-size:12px;margin-top:40px" id="sync"></p></main></div></div>
     <nav class="bottom-nav" id="bnav" aria-label="Schnellnavigation"></nav><div class="toasts" id="toasts" aria-live="polite"></div>`);
   $("#burger").onclick = () => $("#side").classList.toggle("open");

@@ -114,3 +114,19 @@ StudyOS kann mehrere Personen auf einem Gerät: Jedes Profil hat eigene Kurse, e
 - „Automatisch öffnen“ an = kein Auswahlbildschirm beim Start.
 
 Das Stricken-&-Häkeln-Profil enthält: Kurse Stricken und Häkeln, 3D-Studio (Maschen drehen & zoomen, Reihe für Reihe aufbauen), animierte Techniken, Musterdesigner mit Anleitungsgenerator, Maschenlexikon, Reihenzähler (Bildschirm bleibt an), Werkzeuge (Maschenprobe, Verteilen, Nadeln, US/UK) und Projekte mit Foto.
+Seit Version 3.1 ist das Stricken-&-Häkeln-Profil bewusst **ohne XP, Level und Serien**: Die Startseite zeigt „Zuletzt geöffnet“, wo es weitergeht und eine Übersicht „Wo finde ich was?“. Alle Lektionen sind sofort offen, und mehrere Lektionen haben neue Schaubilder (Garnstärken, Nadeln, Maschenprobe, Häkelmaschen-Höhen, Magic Ring, Granny Square …).
+
+## 10. Profil „Sammlung“ (Pokémon-Karten)
+
+Für Karten, Displays, ETBs, Booster, Tins usw. mit Cardmarket-Preisen.
+
+- **Anlegen:** Link öffnen → Name → **Sammlung** wählen → Profil erstellen (auf einem gemeinsamen Gerät: Einstellungen → Profile → ＋ Neues Profil).
+- **Karten erfassen:** *Sets* (alle Sets mit Logo, Setwert, Serie) oder *Karten suchen* (Deutsch oder Englisch, Filter nach Serie, Seltenheit, Preisbereich, Reverse) → Karte antippen → Bild in 6 Sprachen, Preistabelle → **Zur Sammlung** mit Variante (Normal/Holo/Reverse/Sonderdrucke), Sprache, Zustand (MT…PO), Anzahl, Kaufpreis, Datum, Gradierung.
+- **Sealed:** *Produkte* → Kategorie (Display, Elite Trainer Boxes, Booster, Tins, Blister …), Set-Filter, Preis-Sortierung.
+- **Sammlung:** Gesamtwert, Einkauf, Gewinn/Verlust, Filter (Typ, Set, Sprache, Zustand), Sortierung, Gruppierung nach Set, CSV-Export (Excel).
+- **Beobachtet:** Karten/Produkte mit Preisalarm (über/unter Zielpreis).
+
+**Woher kommen die Preise?** Aus dem offiziellen Cardmarket-Preisführer (Trendpreis, Ø 1/7/30 Tage, „ab“-Preis). Cardmarket veröffentlicht ihn einmal täglich; eine GitHub-Action (`.github/workflows/tcg-prices.yml`) holt ihn zweimal am Tag automatisch und legt kompakte Daten in den Branch `data`. Die App prüft beim Öffnen und alle 30 Minuten selbst, ob es neue Preise gibt – man muss nie manuell aktualisieren. Echte Sekunden-Livepreise gibt es nur über die Cardmarket-API, die eine eigene Freischaltung braucht.
+Hinweis: Der Preisführer fasst alle Sprachen zusammen und bezieht sich meist auf Near Mint. Für den Preis einer bestimmten Sprache/eines Zustands führt „Auf Cardmarket ansehen“ direkt zur Suche.
+
+Kartennamen, Bilder und Set-Daten kommen von TCGdex (freies Projekt). Die Sammlung selbst bleibt auf dem Gerät (Backup über Einstellungen).

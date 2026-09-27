@@ -5,7 +5,8 @@
   const SS = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { return null; } };
   const TRACKS = {
     uni: { label: "Studium", sub: "Wirtschaftsinformatik · Kurse, Prüfungen, Git", icon: "◆", color: "#8BD126" },
-    craft: { label: "Stricken & Häkeln", sub: "Techniken, 3D-Maschen, Muster, Projekte", icon: "✿", color: "#C8664B" }
+    craft: { label: "Stricken & Häkeln", sub: "Techniken, 3D-Maschen, Muster, Projekte", icon: "✿", color: "#C8664B" },
+    tcg: { label: "Sammlung", sub: "Pokémon-Karten & Sealed · Cardmarket-Preise", icon: "◈", color: "#F5C542" }
   };
   const keyOf = id => id === "main" ? "studyos.v2" : "studyos.v2." + id;
   const secretOf = id => id === "main" ? "studyos.secrets" : "studyos.secrets." + id;
@@ -18,7 +19,8 @@
   if (!active && list.length === 1) active = list[0].id;
   const P = byId(active);
   const applyTheme = track => {
-    document.documentElement.dataset.theme = track === "craft" ? "craft" : "";
+    document.documentElement.dataset.theme = track === "craft" || track === "tcg" ? track : "";
+    if (track === "tcg") { const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = "#0C1016"; }
     if (track === "craft") {
       const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"; document.head.appendChild(l);
       const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = "#FBF6F0";
@@ -42,7 +44,7 @@
         <div class="pick-brand"><div class="logo">S</div><b>StudyOS</b></div>
         ${creating ? `<h1>${list.length ? "Neues Profil" : "Willkommen"}</h1><p class="muted">${list.length ? "Jedes Profil hat eigene Kurse, eigenen Fortschritt und eigenes Design." : "Lege dein Profil an. Alles bleibt auf diesem Gerät."}</p>
           <label class="fld">Name<input type="text" id="pk-name" maxlength="24" placeholder="z. B. Angi" autocomplete="off" value="${esc(nameVal)}"></label>
-          <div class="eyebrow">Was möchtest du lernen?</div>
+          <div class="eyebrow">Wofür nutzt du die App?</div>
           <div class="pick-tracks">${Object.entries(TRACKS).map(([k, t]) => `<button class="pick-track ${k === track ? "on" : ""}" data-track="${k}" style="--c:${t.color}"><span class="pt-ic">${t.icon}</span><b>${t.label}</b><small>${t.sub}</small></button>`).join("")}</div>
           <label class="pick-rem"><input type="checkbox" id="pk-rem" checked> Auf diesem Gerät automatisch öffnen</label>
           <div class="pick-actions">${list.length ? `<button class="btn ghost" id="pk-back">Zurück</button>` : ""}<button class="btn pri" id="pk-create">Profil erstellen</button></div>`
