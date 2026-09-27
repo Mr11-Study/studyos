@@ -1,8 +1,8 @@
 /* StudyOS service worker: offline shell, runtime cache, background reminders */
-const VERSION = "studyos-v2.0.0";
+const VERSION = "studyos-v2.1.0";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css",
   "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js",
-  "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js",
+  "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("studyos-v") && k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

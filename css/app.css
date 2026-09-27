@@ -141,6 +141,7 @@ label.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(139,209,38,.45)}100%{box-shadow:0 0 0 10px rgba(139,209,38,0)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .codeq{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font:13px/1.6 var(--f-mono);white-space:pre;overflow-x:auto;color:#CFE1B6}
+.w .codeq{white-space:pre-wrap;overflow-wrap:anywhere}
 
 /* ---------- course & path ---------- */
 .course-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:end}

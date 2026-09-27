@@ -36,7 +36,18 @@ const TOPICS = {
   "linreg":     { name: "Linear Regression",         lesson: "w9-1" },
   "gd":         { name: "Gradient Descent",          lesson: "w10-1" },
   "logreg":     { name: "Logistic Regression",       lesson: "w11-1" },
-  "methods":    { name: "ML Methods (kNN, Trees…)",  lesson: "w12-1" }
+  "methods":    { name: "ML Methods overview",       lesson: "w12-1" },
+  "knn":        { name: "k-Nearest Neighbours",      lesson: "w12-2" },
+  "trees":      { name: "Decision Trees",            lesson: "w12-3" },
+  "kmeans":     { name: "k-Means Clustering",        lesson: "w12-4" },
+  "nbayes":     { name: "Naive Bayes",               lesson: "w12-5" },
+  "overfit":    { name: "Train/Test & Overfitting",  lesson: "w13-1" },
+  "metrics":    { name: "Evaluation Metrics",        lesson: "w13-2" },
+  "cv":         { name: "Cross Validation",          lesson: "w13-3" },
+  "modsim":     { name: "Models, Systems, Feedback", lesson: "w14-1" },
+  "ode":        { name: "Differential Equations",    lesson: "w14-2" },
+  "abm":        { name: "Agent-based Modeling",      lesson: "w14-3" },
+  "mcevo":      { name: "Monte Carlo & Evolution",   lesson: "w14-4" }
 };
 
 /* Lesson block types:
@@ -274,17 +285,169 @@ const WORLDS = [
   ]}
  ]},
 
- { id: "w12", n: 12, title: "Important ML Methods", sub: "From the syllabus: kNN, trees, k-means, naive Bayes", boss: null, lessons: [
-  { id: "w12-1", title: "Four methods at a glance", topic: "methods", min: 10, xp: 25, blocks: [
-    { t: "lead", html: "Preview based on the syllabus. Detailed lessons will be added when the lecture material arrives." },
+ { id: "w12", n: 12, title: "Important ML Methods", sub: "kNN, decision trees, k-means, naive Bayes", boss: { id: "boss-w12", title: "Methods Boss", topics: ["methods", "knn", "trees", "kmeans", "nbayes"] }, lessons: [
+  { id: "w12-1", title: "Four methods at a glance", topic: "methods", min: 8, xp: 25, blocks: [
+    { t: "lead", html: "Four classic methods that every data scientist knows. Three are <b>supervised</b> (kNN, decision tree, naive Bayes), one is <b>unsupervised</b> (k-means). The next lessons let you play with each of them." },
     { t: "widget", w: "methods" },
+    { t: "text", h: "Which one when?", levels: {
+      simple: "Need a quick first model on a small table? kNN or a tree. Need to explain the decision? Tree. Lots of text? Naive Bayes. No labels at all? k-means.",
+      normal: "All four are available in scikit-learn with the same interface: <code>model.fit(X_train, y_train)</code>, then <code>model.predict(X_test)</code> (k-means: <code>fit(X)</code> without y). That is why you can try several methods on the same data and compare them fairly with the evaluation methods from World 13.",
+      technical: "kNN is instance-based (lazy, no training phase, O(n) per prediction). Trees are greedy recursive partitioning (CART, Gini/entropy). Naive Bayes is a generative probabilistic model with a conditional independence assumption. k-means minimises within-cluster sum of squares (Lloyd’s algorithm, local optimum, depends on initialisation)." } },
     { t: "check", q: "Which method classifies a new point by a majority vote of the closest training points?", opts: ["k-Means", "k-Nearest Neighbours", "Naive Bayes", "Decision tree"], a: 1, why: "kNN looks at the k closest labelled points. k-Means is unsupervised clustering." },
-    { t: "check", q: "Naive Bayes is called “naive” because it assumes…", opts: ["the classes are equally likely", "the features are conditionally independent given the class", "the data is linear", "there are no missing values"], a: 1, why: "It multiplies per-feature likelihoods, which is only exact if features are independent given the class." }
+    { t: "check", q: "Which of the four methods does NOT need labels?", opts: ["kNN", "Decision tree", "k-Means", "Naive Bayes"], a: 2, why: "k-Means groups points only by similarity. The other three learn from labelled examples." }
+  ]},
+  { id: "w12-2", title: "k-Nearest Neighbours", topic: "knn", min: 10, xp: 30, blocks: [
+    { t: "lead", html: "“Tell me who your neighbours are and I’ll tell you who you are.” kNN stores all training points and, for a new point, lets the k closest ones vote." },
+    { t: "widget", w: "knn" },
+    { t: "text", h: "The two decisions you have to make", levels: {
+      simple: "1) How many neighbours (k)? 2) How do you measure “close”? Usually the straight-line distance.",
+      normal: "<b>Small k</b> (e.g. 1) follows every single point, including noise → overfitting. <b>Large k</b> smooths too much and ignores local structure → underfitting. Use an <b>odd k</b> for two classes to avoid ties. Because kNN uses distances, <b>scale your features</b> first: otherwise “income in €” (0–100 000) dominates “age” (0–100).",
+      technical: "Euclidean distance d(x, x′) = √Σ(xⱼ − x′ⱼ)². With StandardScaler each feature gets mean 0 and std 1. kNN suffers from the curse of dimensionality: in many dimensions all points are almost equally far apart. In scikit-learn: <code>KNeighborsClassifier(n_neighbors=5)</code>; choose k via cross validation." },
+      alt: [{ label: "Worked example", html: "Neighbours of a new student (sorted by distance): pass, pass, fail, fail, fail. k = 1 → pass. k = 3 → pass (2:1). k = 5 → fail (2:3). The prediction depends on k!" }] },
+    { t: "check", q: "Your kNN model with k = 1 is perfect on the training data but bad on new data. What should you try?", opts: ["k = 0", "A larger k, e.g. 7", "Remove the test data", "Use more features without scaling"], a: 1, why: "With k = 1 every point is its own nearest neighbour, so training accuracy is always 100 %. A larger k averages out noise." },
+    { t: "check", q: "Why should features be scaled before using kNN?", opts: ["Scaling makes the model train faster on the GPU", "Otherwise the feature with the largest numeric range dominates the distance", "kNN only works with values between 0 and 1", "Scaling removes outliers"], a: 1, why: "Distances add up squared differences. A feature measured in thousands swamps one measured in single digits." },
+    { t: "keys", items: ["kNN = lazy learner: no training, all work at prediction time", "small k → overfitting, large k → underfitting", "scale features first (StandardScaler)", "<code>KNeighborsClassifier(n_neighbors=k)</code>"] }
+  ]},
+  { id: "w12-3", title: "Decision trees", topic: "trees", min: 12, xp: 35, blocks: [
+    { t: "lead", html: "A decision tree is a flowchart of yes/no questions, learned from data. Its big advantage: you can read and explain every decision." },
+    { t: "html", html: `<div class="codeq" style="font-size:13px">hours ≤ 3.75 ?\n├─ yes → attendance ≥ 70 % ?\n│         ├─ yes → pass\n│         └─ no  → fail\n└─ no  → pass</div>` },
+    { t: "widget", w: "gini" },
+    { t: "text", h: "How the tree is built", levels: {
+      simple: "The algorithm tries every possible question and picks the one that separates the classes best. Then it repeats this inside each branch.",
+      normal: "At every node the algorithm (CART) searches all features and thresholds and chooses the split with the lowest <b>impurity</b> (Gini or entropy) of the resulting groups. It stops when a group is pure or a limit is reached. Without limits a tree grows until every leaf holds one training point → <b>overfitting</b>. Limit it with <code>max_depth</code> or <code>min_samples_leaf</code>.",
+      technical: "Gini(S) = 1 − Σₖ pₖ². Split quality = weighted impurity Σ |Sᵢ|/|S| · Gini(Sᵢ); information gain uses entropy H = −Σ pₖ log₂ pₖ. Trees are greedy (locally optimal splits), invariant to feature scaling and handle mixed feature types. Ensembles (Random Forest, Gradient Boosting) combine many trees to reduce variance." } },
+    { t: "check", q: "A node contains 5 pass and 5 fail students. What is its Gini impurity?", opts: ["0", "0.25", "0.5", "1"], a: 2, why: "1 − 0.5² − 0.5² = 0.5, the maximum for two classes." },
+    { t: "check", q: "Your unlimited decision tree reaches 100 % training accuracy but only 65 % on test data. Best fix?", opts: ["Allow deeper trees", "Limit the depth (max_depth) or leaf size", "Scale the features", "Use the test data for training"], a: 1, why: "A fully grown tree memorises the training data. Pruning or depth limits make it generalise better." },
+    { t: "keys", items: ["tree = learned flowchart of yes/no questions", "splits chosen by lowest impurity (Gini / entropy)", "easy to explain, no scaling needed", "overfits easily → max_depth, min_samples_leaf", "many trees together = Random Forest"] }
+  ]},
+  { id: "w12-4", title: "k-Means clustering", topic: "kmeans", min: 10, xp: 30, blocks: [
+    { t: "lead", html: "k-Means finds k groups in unlabelled data by repeating two steps: <b>assign</b> each point to its nearest centre, then <b>move</b> each centre to the mean of its points." },
+    { t: "widget", w: "cluster", topic: "kmeans" },
+    { t: "text", h: "Things to know", levels: {
+      simple: "You must choose how many groups (k) you want. The result can change depending on where the centres start.",
+      normal: "k-Means always converges, but maybe to a <b>local</b> optimum → run it several times with different starts (<code>n_init</code>). Choose k with the <b>elbow method</b>: plot the within-cluster distance for k = 1…10 and pick the point where the curve stops dropping steeply. k-Means assumes roughly round, similar-sized clusters and is sensitive to outliers and scaling.",
+      technical: "Objective: minimise the within-cluster sum of squares Σₖ Σ_{x∈Cₖ} ‖x − μₖ‖² (inertia). Lloyd’s algorithm alternates assignment and update; each step never increases the objective. k-means++ initialisation spreads the starting centres. For non-convex shapes use DBSCAN or hierarchical clustering." } },
+    { t: "check", q: "What happens in the “update” step of k-means?", opts: ["Each point gets a new label from the teacher", "Each centre moves to the mean of the points assigned to it", "k is increased by one", "The farthest point is deleted"], a: 1, why: "Assignment and update alternate until the centres stop moving." },
+    { t: "check", q: "How do you usually choose k for k-means?", opts: ["Always k = 2", "Elbow method / domain knowledge", "k = number of data points", "k is learned automatically"], a: 1, why: "k is a hyperparameter. The elbow in the inertia curve or the business question (e.g. “we can handle 4 marketing segments”) guides the choice." }
+  ]},
+  { id: "w12-5", title: "Naive Bayes", topic: "nbayes", min: 10, xp: 30, blocks: [
+    { t: "lead", html: "Naive Bayes updates a belief with evidence: start with how common spam is (prior) and let every word shift the odds." },
+    { t: "widget", w: "nbayes" },
+    { t: "text", h: "Bayes’ theorem in one line", levels: {
+      simple: "How likely is spam, given these words? Take how common spam is and multiply by how typical the words are for spam compared to normal mail.",
+      normal: "P(spam | words) ∝ P(spam) · P(word₁ | spam) · P(word₂ | spam) · … The model is “naive” because it assumes the words are <b>independent</b> given the class, which is false in real language (“New” and “York”), but it still works surprisingly well and is very fast. Great for text classification and as a baseline.",
+      technical: "Posterior P(C|x) = P(x|C)·P(C) / P(x). With conditional independence P(x|C) = Πⱼ P(xⱼ|C). In practice sums of logs are used to avoid underflow and Laplace smoothing (+1) avoids zero probabilities for unseen words. Variants: MultinomialNB (word counts), BernoulliNB (word present), GaussianNB (continuous features)." } },
+    { t: "check", q: "Why is naive Bayes called “naive”?", opts: ["It only works on small datasets", "It assumes features are conditionally independent given the class", "It ignores the prior", "It cannot output probabilities"], a: 1, why: "It multiplies per-feature likelihoods, which is only exact if features are independent given the class." },
+    { t: "check", q: "A word never appeared in any spam email during training. Without smoothing, what happens if it appears in a new spam email?", opts: ["Nothing", "P(spam | email) becomes exactly 0", "The prior is doubled", "The email is always spam"], a: 1, why: "P(word | spam) = 0 makes the whole product zero. Laplace smoothing adds a small count to every word to avoid this." }
   ]}
  ]},
 
- { id: "w13", n: 13, title: "Model Evaluation", sub: "Material pending", pending: ["Train / test split", "Confusion matrix", "Precision, recall, F1", "Cross validation", "Over- and underfitting"], lessons: [] },
- { id: "w14", n: 14, title: "Modeling & Simulation", sub: "Part 2 · W. Granigg · material pending", pending: ["Introduction to modeling and simulation", "Modeling with differential equations", "Agent-based modeling", "Outlook: genetic/evolutionary methods, Monte Carlo"], lessons: [] }
+ { id: "w13", n: 13, title: "Model Evaluation", sub: "How good is the model really?", boss: { id: "boss-w13", title: "Evaluation Boss", topics: ["overfit", "metrics", "cv", "linreg"] }, lessons: [
+  { id: "w13-1", title: "Train / test split & overfitting", topic: "overfit", min: 12, xp: 35, blocks: [
+    { t: "lead", html: "A model that is only tested on the data it learned from is like a student who memorised last year’s exam. The real question is: how does it do on <b>new</b> data?" },
+    { t: "text", h: "The split", levels: {
+      simple: "Put some data aside (e.g. 20 %) before training. Train on the rest. Only at the end check the model on the part you put aside.",
+      normal: "<code>train_test_split(X, y, test_size=0.2, random_state=42)</code> splits the data randomly. The <b>training set</b> fits the model, the <b>test set</b> estimates performance on unseen data. For tuning (choosing k, depth, degree…) use a third <b>validation set</b> or cross validation – never the test set, otherwise it is no longer “unseen”.",
+      technical: "Typical splits: 80/20 or 60/20/20 (train/val/test). Use <code>stratify=y</code> to keep class ratios for imbalanced data. For time series split chronologically (train on the past, test on the future) to avoid leakage. Any preprocessing (scaling, imputation) must be fitted on the training set only – ideally inside a scikit-learn <code>Pipeline</code>." } },
+    { t: "widget", w: "overfit" },
+    { t: "text", h: "Under- vs. overfitting", levels: {
+      simple: "Too simple: misses the pattern. Too complex: learns the noise. Just right: follows the pattern and ignores the noise.",
+      normal: "<b>Underfitting</b> (high bias): high error on training and test data – the model is too simple. <b>Overfitting</b> (high variance): very low training error, high test error – the model memorises noise. Remedies for overfitting: more data, simpler model, regularisation, early stopping. Remedies for underfitting: more features, more complex model.",
+      technical: "Bias–variance trade-off: expected test error = bias² + variance + irreducible noise. Increasing model capacity lowers bias and raises variance. Regularisation (L2/Ridge, L1/Lasso) penalises large weights; for trees limit depth, for neural nets use dropout and early stopping." } },
+    { t: "check", q: "Training accuracy 99 %, test accuracy 71 %. Diagnosis?", opts: ["Underfitting", "Overfitting", "Perfect model", "Data leakage in the test set"], a: 1, why: "A large gap between training and test performance is the classic sign of overfitting." },
+    { t: "check", q: "You tried 20 hyperparameter settings and picked the one with the best <b>test</b> score. What is the problem?", opts: ["None", "The test score is now optimistically biased – the test set was used for model selection", "You should have used fewer settings", "The training set is too small"], a: 1, why: "The test set must stay untouched until the very end. Use a validation set or cross validation for tuning." },
+    { t: "keys", items: ["split before you train: <code>train_test_split</code>", "tune on validation / CV, report on test", "underfitting: bad everywhere", "overfitting: great on train, bad on test", "fit preprocessing on train only (Pipeline)"] }
+  ]},
+  { id: "w13-2", title: "Confusion matrix, precision & recall", topic: "metrics", min: 14, xp: 40, blocks: [
+    { t: "lead", html: "Accuracy alone can lie. If 1 % of transactions are fraud, a model that always says “no fraud” has 99 % accuracy and is useless." },
+    { t: "widget", w: "confusion" },
+    { t: "text", h: "Four boxes, four questions", levels: {
+      simple: "Precision: when the model says “yes”, how often is it right? Recall: of all real “yes” cases, how many did it find?",
+      normal: "<b>Precision</b> = TP / (TP + FP) – important when false alarms are expensive (spam filter, fraud blocking a card). <b>Recall</b> (sensitivity) = TP / (TP + FN) – important when misses are expensive (cancer screening, defect detection). <b>F1</b> is the harmonic mean of both. Raising the threshold usually increases precision and lowers recall.",
+      technical: "Accuracy = (TP+TN)/N, specificity = TN/(TN+FP), F1 = 2PR/(P+R). The ROC curve plots recall vs. false positive rate for all thresholds; AUC summarises it (0.5 = random, 1 = perfect). For heavily imbalanced data the precision–recall curve is more informative. scikit-learn: <code>confusion_matrix</code>, <code>classification_report</code>, <code>roc_auc_score</code>." },
+      alt: [{ label: "Worked example", html: "100 patients, 10 sick. The test flags 12: 8 sick, 4 healthy. TP = 8, FP = 4, FN = 2, TN = 86. Precision = 8/12 = 67 %, recall = 8/10 = 80 %, accuracy = 94/100 = 94 %." }] },
+    { t: "check", q: "TP = 30, FP = 10, FN = 20, TN = 140. What is the precision?", opts: ["60 %", "75 %", "85 %", "30 %"], a: 1, why: "Precision = 30 / (30 + 10) = 0.75. Recall would be 30 / (30 + 20) = 60 %." },
+    { t: "check", q: "For an airport weapon scanner, which metric matters most?", opts: ["Precision", "Recall", "Specificity", "Training accuracy"], a: 1, why: "Missing a weapon (FN) is unacceptable; a false alarm just means a manual check." },
+    { t: "check", q: "95 % of emails in a dataset are not spam. A model predicts “not spam” for everything. Accuracy and recall for spam?", opts: ["95 % / 0 %", "95 % / 95 %", "5 % / 100 %", "50 % / 50 %"], a: 0, why: "It is right for all 95 % normal emails but finds none of the spam → recall 0. That is why accuracy is misleading for imbalanced data." },
+    { t: "text", h: "Metrics for regression", levels: {
+      simple: "For numbers (prices, scores) you measure how far the predictions are off on average.",
+      normal: "<b>MAE</b> = mean absolute error (average distance, same unit as y). <b>MSE</b> = mean squared error (punishes big errors more). <b>RMSE</b> = √MSE (back in the unit of y). <b>R²</b> = share of the variance explained by the model (1 = perfect, 0 = no better than always predicting the mean).",
+      technical: "R² = 1 − SS_res / SS_tot with SS_res = Σ(yᵢ − ŷᵢ)², SS_tot = Σ(yᵢ − ȳ)². R² can be negative on test data if the model is worse than the mean. scikit-learn: <code>mean_absolute_error</code>, <code>mean_squared_error</code>, <code>r2_score</code>." } },
+    { t: "check", q: "Predictions 50, 60, 70 for true values 52, 57, 70. MAE?", opts: ["1.67", "5", "4.33", "2.5"], a: 0, why: "|−2| + |3| + |0| = 5; 5 / 3 ≈ 1.67." }
+  ]},
+  { id: "w13-3", title: "Cross validation", topic: "cv", min: 10, xp: 30, blocks: [
+    { t: "lead", html: "One random split can be lucky or unlucky. Cross validation repeats the split k times so that every data point is used for testing exactly once." },
+    { t: "widget", w: "kfold" },
+    { t: "text", h: "How to use it", levels: {
+      simple: "Split the data into k parts. Train k times, each time leaving a different part out for testing. Average the k scores.",
+      normal: "<code>cross_val_score(model, X, y, cv=5)</code> returns 5 scores; report mean ± standard deviation. Use it to compare models or choose hyperparameters (<code>GridSearchCV</code> does this automatically). Keep a final test set aside for the very last check.",
+      technical: "Stratified k-fold keeps class proportions per fold (default for classifiers in scikit-learn). Leave-one-out (k = n) has low bias but high variance and cost. Nested CV (outer loop for evaluation, inner loop for tuning) gives an unbiased estimate when hyperparameters are tuned. Group k-fold prevents the same subject/customer from appearing in train and test." } },
+    { t: "check", q: "With 5-fold cross validation on 1 000 rows, how many models are trained and on how many rows each?", opts: ["1 model on 1 000 rows", "5 models on 800 rows each", "5 models on 200 rows each", "1 000 models on 999 rows"], a: 1, why: "Each round leaves one fold (200 rows) out and trains on the remaining 800." },
+    { t: "check", q: "What is the main advantage of cross validation over a single train/test split?", opts: ["It is faster", "More reliable estimate: every point is tested once and you see the spread", "It needs no test data at all", "It prevents all overfitting"], a: 1, why: "Averaging over k splits reduces the luck of one particular split and the standard deviation shows how stable the model is." },
+    { t: "keys", items: ["k-fold: k rounds, each fold is test set once", "report mean ± std", "use CV for tuning, keep a final test set", "<code>cross_val_score</code>, <code>GridSearchCV</code>"] }
+  ]}
+ ]},
+
+ { id: "w14", n: 14, title: "Modeling & Simulation", sub: "Part 2 · W. Granigg · systems, ODEs, agents, Monte Carlo", boss: { id: "boss-w14", title: "Simulation Boss", topics: ["modsim", "ode", "abm", "mcevo"] }, lessons: [
+  { id: "w14-1", title: "Models, systems and feedback", topic: "modsim", min: 12, xp: 35, blocks: [
+    { t: "callout", html: "<b>Own material</b> based on the syllabus and the recommended books (Bossel: <i>Systeme, Dynamik, Simulation</i>; Sayama: <i>Introduction to the Modeling and Analysis of Complex Systems</i>). Compare with the lecture slides once Part 2 starts." },
+    { t: "lead", html: "Machine learning learns patterns from data. <b>Simulation</b> works the other way round: you describe <i>how</i> a system works and let the computer play out what happens." },
+    { t: "text", h: "What is a model?", levels: {
+      simple: "A model is a simplified picture of reality that keeps only what matters for your question. A city map ignores the colour of the houses – and that is fine.",
+      normal: "A <b>system</b> consists of elements, their relations and a boundary to the environment. A <b>model</b> is a purposeful simplification of a system. A <b>simulation</b> runs the model over time to answer “what if?” questions: What if the interest rate rises? What if 60 % stay home? Simulation is useful when experiments are too expensive, dangerous, slow or impossible.",
+      technical: "Model types: static vs. dynamic, deterministic vs. stochastic, continuous (differential equations) vs. discrete (difference equations, events, agents). Modelling cycle: question → system boundary → structure (causal diagram) → equations → implementation → validation against data → experiments. “All models are wrong, but some are useful” (G. Box)." } },
+    { t: "text", h: "Stocks, flows and feedback loops", levels: {
+      simple: "A stock is something that accumulates (water in a tub, money in an account, people who are ill). Flows fill or empty it. Feedback: the stock itself changes its flows.",
+      normal: "<b>Reinforcing loop (+)</b>: more leads to even more – interest on savings, viral growth, rumours. <b>Balancing loop (−)</b>: the system pulls itself towards a goal – thermostat, a draining tub, market saturation. Most interesting behaviour (S-curves, oscillations, overshoot and collapse) comes from combinations of these loops.",
+      technical: "System dynamics (J. Forrester) writes a stock as an integral of its net flow: S(t) = S(0) + ∫(inflow − outflow) dt, i.e. dS/dt = inflow − outflow. Delays inside balancing loops cause oscillations (inventory “bullwhip effect”). Causal loop diagrams mark each link with + or −; a loop with an even number of − is reinforcing." } },
+    { t: "widget", w: "stockflow" },
+    { t: "check", q: "A savings account earns interest on its balance. Which structure is that?", opts: ["Balancing loop", "Reinforcing loop", "No feedback", "Random process"], a: 1, why: "More balance → more interest → even more balance: exponential growth." },
+    { t: "check", q: "In the bathtub model with inflow 8 and outflow 0.1·stock, where does the stock end up?", opts: ["0", "8", "80", "It grows forever"], a: 2, why: "Equilibrium when inflow = outflow: 8 = 0.1·S → S = 80." },
+    { t: "keys", items: ["model = purposeful simplification", "simulation = run the model over time, test “what if”", "stock accumulates, flows change it", "reinforcing loop → growth; balancing loop → goal seeking", "all models are wrong, some are useful"] }
+  ]},
+  { id: "w14-2", title: "Modeling with differential equations", topic: "ode", min: 15, xp: 40, blocks: [
+    { t: "lead", html: "A differential equation describes <b>how fast</b> something changes depending on its current state. The computer turns this rule into a trajectory with small time steps." },
+    { t: "text", h: "From growth to saturation", levels: {
+      simple: "Bacteria double regularly – until the food runs out. Then growth slows down and stops at a maximum.",
+      normal: "<b>Exponential growth</b>: dN/dt = r·N (reinforcing loop only). <b>Logistic growth</b>: dN/dt = r·N·(1 − N/K) – the factor (1 − N/K) is a balancing loop that slows growth as N approaches the capacity K. Result: the famous S-curve (market adoption, epidemics, populations).",
+      technical: "Exponential: N(t) = N₀·e^{rt}. Logistic: N(t) = K / (1 + (K/N₀ − 1)·e^{−rt}), inflection point at N = K/2 with maximum growth rK/4. Most real models have no closed-form solution and are solved numerically (Euler, Runge–Kutta; in Python <code>scipy.integrate.solve_ivp</code>)." } },
+    { t: "widget", w: "euler" },
+    { t: "text", h: "The Euler method", levels: {
+      simple: "Look at the current speed of change, take a small step in that direction, repeat.",
+      normal: "N(t + Δt) ≈ N(t) + Δt · f(N(t)). Small Δt → accurate but many steps. Large Δt → fast but inaccurate, it can even produce oscillations that do not exist in reality. Check your result by halving Δt: if the curve barely changes, the step size is fine.",
+      technical: "Euler is first order: the global error shrinks proportionally to Δt. Runge–Kutta 4 is fourth order (error ∝ Δt⁴) and evaluates f four times per step. Stiff systems need implicit methods. In Python:<br><code>from scipy.integrate import solve_ivp<br>sol = solve_ivp(lambda t, n: [r*n[0]*(1-n[0]/K)], (0, 12), [5])</code>" } },
+    { t: "widget", w: "lotka" },
+    { t: "check", q: "Which equation describes growth that slows down near a capacity K?", opts: ["dN/dt = r·N", "dN/dt = r·N·(1 − N/K)", "dN/dt = −r·N", "N(t+1) = N(t) + r"], a: 1, why: "The factor (1 − N/K) goes to 0 as N approaches K, so growth stops." },
+    { t: "check", q: "Your Euler simulation oscillates around K although the real system does not. What do you do first?", opts: ["Increase Δt", "Decrease Δt and compare", "Change K", "Ignore it"], a: 1, why: "Oscillations from too large steps are a numerical artefact. Halving Δt shows whether the result is stable." },
+    { t: "check", q: "In the predator–prey model, what happens right after the prey population peaks?", opts: ["Predators peak slightly later", "Both die out immediately", "Prey keeps growing forever", "Predators peak slightly earlier"], a: 0, why: "Predators need food first: their peak lags behind the prey peak, creating cycles." }
+  ]},
+  { id: "w14-3", title: "Agent-based modeling", topic: "abm", min: 12, xp: 35, blocks: [
+    { t: "lead", html: "Instead of one equation for the whole population, give every individual (agent) simple rules and watch what the crowd does." },
+    { t: "widget", w: "abm" },
+    { t: "text", h: "Bottom-up instead of top-down", levels: {
+      simple: "Each agent only knows its own rules and its neighbours. The overall pattern – the epidemic curve, a traffic jam, a market crash – appears by itself. That is called emergence.",
+      normal: "Agent-based models (ABM) are useful when individuals are <b>different</b> (age, behaviour, location), interact <b>locally</b> or adapt. Examples: traffic, evacuation, spread of opinions, supply chains, Schelling’s segregation model. Because rules contain randomness, you run a simulation <b>many times</b> and look at the distribution of outcomes.",
+      technical: "An ABM has agents (state + rules), an environment (grid, network, continuous space) and a scheduler. Compared with the SIR differential equations (dS/dt = −βSI/N, dI/dt = βSI/N − γI, dR/dt = γI) the ABM can include heterogeneity and networks, but is harder to calibrate and analyse. Python: <code>Mesa</code>; classic tool: NetLogo." } },
+    { t: "check", q: "What is “emergence” in agent-based models?", opts: ["A bug in the simulation", "A global pattern that arises from simple local rules without being programmed directly", "The start of the simulation", "The agent with the highest score"], a: 1, why: "No agent “knows” the epidemic curve, yet it appears from their interactions." },
+    { t: "check", q: "Why do you run a stochastic simulation many times?", opts: ["To make it slower", "Because single runs vary randomly; you need the distribution of outcomes", "To use more memory", "Because the first run is always wrong"], a: 1, why: "Random events make each run different. Averages and ranges over many runs are what you can trust." }
+  ]},
+  { id: "w14-4", title: "Outlook: Monte Carlo & evolutionary methods", topic: "mcevo", min: 12, xp: 35, blocks: [
+    { t: "lead", html: "Two powerful ideas that both use randomness on purpose: <b>Monte Carlo</b> estimates results by sampling, <b>evolutionary algorithms</b> search for good solutions by imitating natural selection." },
+    { t: "widget", w: "montecarlo" },
+    { t: "text", h: "Monte Carlo simulation", levels: {
+      simple: "If something is too complicated to calculate, try it randomly very often and count.",
+      normal: "Business uses: risk of a project (draw uncertain costs and durations 10 000 times → distribution of total cost), portfolio risk, queue waiting times, inventory planning. The precision grows with the number of runs, but slowly: error ∝ 1/√n.",
+      technical: "Estimate E[f(X)] ≈ (1/n) Σ f(xᵢ) with xᵢ drawn from the input distribution. Standard error = σ/√n. Variance-reduction techniques (antithetic variates, importance sampling) improve efficiency. In NumPy: <code>rng = np.random.default_rng(); x = rng.random(n); y = rng.random(n); pi = 4*np.mean(x**2 + y**2 <= 1)</code>." } },
+    { t: "widget", w: "evo" },
+    { t: "text", h: "Genetic / evolutionary algorithms", levels: {
+      simple: "Create many random solutions, keep the better ones, mix them and change them a little. After many generations the solutions become good.",
+      normal: "Components: <b>population</b> of candidate solutions, <b>fitness function</b> (how good is a solution?), <b>selection</b>, <b>crossover</b> and <b>mutation</b>. Useful for hard optimisation problems without a formula for the gradient: timetables, routing, design parameters. No guarantee of the global optimum, but often good solutions quickly.",
+      technical: "Mutation keeps diversity (exploration), selection drives improvement (exploitation). Too little mutation → premature convergence; too much → random search. Elitism keeps the best individual. Related methods: evolution strategies, simulated annealing, particle swarm optimisation. Compared with gradient descent (World 10) they need no derivatives." } },
+    { t: "check", q: "A Monte Carlo estimate with 10 000 samples has an error of about 0.02. Roughly how many samples for an error of 0.002?", opts: ["20 000", "100 000", "1 000 000", "10 001"], a: 2, why: "Error ∝ 1/√n: 10× more precision needs 100× more samples." },
+    { t: "check", q: "In a genetic algorithm, what is the role of mutation?", opts: ["It removes the best solution", "It introduces new variation so the search does not get stuck", "It calculates the gradient", "It sorts the population"], a: 1, why: "Without mutation the population can only recombine existing bits and may never find missing pieces." },
+    { t: "keys", items: ["Monte Carlo: repeat random experiments, count, average", "error ∝ 1/√n", "GA: population, fitness, selection, crossover, mutation", "no derivatives needed, no optimum guarantee"] }
+  ]}
+ ]}
 ];
 
 /* Question bank. type: mc | tf | fill */
@@ -348,7 +511,35 @@ const QUESTIONS = [
  { id: "q57", topic: "mlbasics", q: "“Machine learning: the structure of the model is induced, parameters are learned.” The induced structure is called…", opts: ["inductive bias", "survivorship bias", "gradient", "label"], a: 0, why: "Assumptions built into the model class.", ex: "Choosing a straight line for linear regression." },
  { id: "q58", topic: "classes", q: "Adaptive controls are the lecture’s example for…", opts: ["unsupervised learning", "reinforcement learning", "supervised learning", "semi-supervised learning"], a: 1, why: "An agent learns a control strategy from rewards.", ex: "A thermostat learning when to heat." },
  { id: "q59", topic: "classes", q: "A spam filter is the lecture’s example for…", opts: ["classification", "clustering", "regression", "dimensionality reduction"], a: 0, why: "Spam / not spam.", ex: "Supervised, binary." },
- { id: "q60", topic: "classes", q: "Feature extraction is the lecture’s example for…", opts: ["clustering", "dimensionality reduction", "regression", "RL"], a: 1, why: "Fewer, more informative variables.", ex: "Compressing images to key features." }
+ { id: "q60", topic: "classes", q: "Feature extraction is the lecture’s example for…", opts: ["clustering", "dimensionality reduction", "regression", "RL"], a: 1, why: "Fewer, more informative variables.", ex: "Compressing images to key features." },
+ { id: "q61", topic: "knn", q: "kNN with k = 5: the five nearest neighbours are A, A, B, B, B. Prediction?", opts: ["A", "B", "Tie", "No prediction possible"], a: 1, why: "Majority vote 3:2 for B.", ex: "A new customer is assigned to the segment most of the 5 most similar customers belong to." },
+ { id: "q62", topic: "knn", q: "Which statement about kNN is true?", opts: ["Training is slow, prediction is fast", "There is almost no training, but prediction must compare with all stored points", "kNN learns weights with gradient descent", "kNN cannot be used for classification"], a: 1, why: "kNN is a lazy learner: it just stores the data and does the work at prediction time." },
+ { id: "q63", topic: "trees", q: "What does a leaf in a decision tree contain?", opts: ["A feature to split on", "The final prediction", "The learning rate", "The test data"], a: 1, why: "Inner nodes ask questions, leaves give the answer (class or value)." },
+ { id: "q64", topic: "trees", q: "Which is a strength of decision trees?", opts: ["They never overfit", "They are easy to interpret and need no feature scaling", "They always find the global optimum", "They only work with images"], a: 1, why: "Every prediction can be followed as a path of yes/no questions, and thresholds don’t care about units." },
+ { id: "q65", topic: "trees", q: "A node has 8 pass and 0 fail students. Gini impurity?", opts: ["0", "0.5", "1", "0.8"], a: 0, why: "Pure node: 1 − 1² − 0² = 0." },
+ { id: "q66", topic: "kmeans", q: "k-Means gives different clusters on two runs. Why?", opts: ["It is broken", "The random initial centres lead to different local optima", "The data changed", "k changes automatically"], a: 1, why: "Lloyd’s algorithm converges to a local optimum that depends on the start. Use several initialisations (n_init)." },
+ { id: "q67", topic: "kmeans", q: "Which data problem hurts k-means most?", opts: ["Many rows", "Strong outliers and unscaled features", "Integer values", "Sorted data"], a: 1, why: "Centres are means, so outliers pull them away; unscaled features dominate the distance." },
+ { id: "q68", topic: "nbayes", q: "Naive Bayes is especially popular for…", opts: ["Image generation", "Text classification such as spam filtering", "Reinforcement learning", "Time series forecasting"], a: 1, why: "It is fast, needs little data and works well with word features." },
+ { id: "q69", topic: "overfit", q: "What is the purpose of the test set?", opts: ["To train the model", "To tune hyperparameters", "To estimate performance on unseen data at the very end", "To fill missing values"], a: 2, why: "The test set must stay untouched until the final evaluation." },
+ { id: "q70", topic: "overfit", q: "Both training and test error are high. Diagnosis?", opts: ["Overfitting", "Underfitting", "Data leakage", "Perfect fit"], a: 1, why: "The model is too simple to capture the pattern." },
+ { id: "q71", topic: "overfit", q: "You scale the whole dataset with StandardScaler and then split into train/test. What is wrong?", opts: ["Nothing", "Information from the test set leaks into training via mean and std", "Scaling must happen after training", "StandardScaler only works on test data"], a: 1, why: "Fit the scaler on the training data only, then transform both – best inside a Pipeline." },
+ { id: "q72", topic: "metrics", q: "Recall is defined as…", opts: ["TP / (TP + FP)", "TP / (TP + FN)", "(TP + TN) / all", "TN / (TN + FP)"], a: 1, why: "Recall: of all actual positives, how many were found." },
+ { id: "q73", topic: "metrics", q: "Raising the classification threshold usually…", opts: ["increases recall, lowers precision", "increases precision, lowers recall", "changes nothing", "increases both"], a: 1, why: "The model says “positive” less often: fewer false alarms, but more misses." },
+ { id: "q74", topic: "metrics", q: "R² = 0 for a regression model means…", opts: ["perfect predictions", "no better than always predicting the mean", "all predictions are 0", "the model is overfitted"], a: 1, why: "R² compares the model’s squared error with that of the mean predictor." },
+ { id: "q75", topic: "metrics", q: "Why is RMSE often preferred over MSE for reporting?", opts: ["It is always smaller", "It is in the same unit as the target variable", "It ignores outliers", "It is a classification metric"], a: 1, why: "MSE is in squared units (e.g. €²); the square root brings it back to €." },
+ { id: "q76", topic: "cv", q: "In 10-fold cross validation, each data point is used for testing…", opts: ["never", "exactly once", "ten times", "randomly"], a: 1, why: "Each fold is the test fold in exactly one round." },
+ { id: "q77", topic: "cv", q: "Which scikit-learn function evaluates a model with k-fold CV in one line?", opts: ["train_test_split", "cross_val_score", "fit_transform", "confusion_matrix"], a: 1, why: "cross_val_score(model, X, y, cv=5) returns one score per fold." },
+ { id: "q78", topic: "modsim", q: "Which is NOT a typical reason to use simulation?", opts: ["Real experiments are too dangerous", "Real experiments are too expensive or slow", "To answer what-if questions", "Because you already have the exact answer"], a: 3, why: "Simulation is used when experiments are impractical or you want to explore scenarios." },
+ { id: "q79", topic: "modsim", q: "A thermostat heating a room is an example of…", opts: ["a reinforcing loop", "a balancing loop", "random noise", "a stock without flows"], a: 1, why: "The system moves towards a goal temperature and counteracts deviations." },
+ { id: "q80", topic: "modsim", q: "In system dynamics, a “stock” is…", opts: ["something that accumulates over time", "a rate of change", "a random variable", "a parameter that never changes"], a: 0, why: "Stocks (water, money, infected people) are changed by in- and outflows." },
+ { id: "q81", topic: "ode", q: "dN/dt = r·N with r > 0 produces…", opts: ["linear growth", "exponential growth", "an S-curve", "oscillations"], a: 1, why: "The growth rate is proportional to N itself: a pure reinforcing loop." },
+ { id: "q82", topic: "ode", q: "One Euler step: N = 50, dN/dt = 10, Δt = 0.5. New N?", opts: ["55", "60", "50.5", "45"], a: 0, why: "N + Δt·dN/dt = 50 + 0.5·10 = 55." },
+ { id: "q83", topic: "ode", q: "Which Python function solves ODE systems numerically?", opts: ["np.mean", "scipy.integrate.solve_ivp", "pd.read_csv", "sklearn.fit"], a: 1, why: "solve_ivp integrates dy/dt = f(t, y) with adaptive Runge–Kutta methods by default." },
+ { id: "q84", topic: "abm", q: "What distinguishes agent-based models from differential equation models?", opts: ["ABMs have no randomness", "ABMs model individuals with their own rules and interactions", "ABMs cannot show time", "ABMs only work for physics"], a: 1, why: "ODEs describe aggregated quantities; ABMs describe individuals and let the aggregate emerge." },
+ { id: "q85", topic: "abm", q: "In the SIR model, what does R stand for?", opts: ["Random", "Recovered (or removed)", "Rate", "Risk"], a: 1, why: "Susceptible → Infected → Recovered/Removed." },
+ { id: "q86", topic: "mcevo", q: "To estimate π with random points in the unit square, you count points with…", opts: ["x + y ≤ 1", "x² + y² ≤ 1", "x = y", "x·y ≤ 0.5"], a: 1, why: "Those points lie inside the quarter circle whose area is π/4." },
+ { id: "q87", topic: "mcevo", q: "Which is a typical business use of Monte Carlo simulation?", opts: ["Spell checking", "Estimating the risk distribution of project costs", "Sorting a list", "Encrypting passwords"], a: 1, why: "Draw uncertain inputs many times and look at the distribution of outcomes." },
+ { id: "q88", topic: "mcevo", q: "Which step of a genetic algorithm prefers better solutions?", opts: ["Mutation", "Selection", "Initialisation", "Randomisation"], a: 1, why: "Selection gives fitter individuals a higher chance to become parents." }
 ];
 
 /* Boss questions combine concepts. */
@@ -358,7 +549,13 @@ const BOSS_EXTRA = [
  { id: "b3", topic: "bias", q: "The bank’s training data only contains applicants who were <i>approved</i> in the past. What problem hides here?", opts: ["Survivorship / selection bias", "Overshooting", "Frequency illusion", "Too few features"], a: 0, why: "Rejected applicants never got a label; the model never sees them." },
  { id: "b4", topic: "corr", q: "A model finds that users of the premium app churn less. Management wants to give everyone premium for free to reduce churn. The flaw?", opts: ["Premium is regression", "Correlation is read as causation; engaged users choose premium", "The model is too precise", "No flaw"], a: 1, why: "Engagement is a likely confounder." },
  { id: "b5", topic: "rl", q: "A warehouse robot should learn efficient routes by trial and error, getting points for fast deliveries. Which class?", opts: ["Supervised", "Unsupervised", "Reinforcement learning", "Semi-supervised"], a: 2, why: "Actions, states, rewards." },
- { id: "b6", topic: "accprec", q: "A temperature model is always 2 °C too warm but very consistent. What helps most?", opts: ["More randomness", "Correct the systematic offset (bias)", "Lower precision", "Nothing"], a: 1, why: "Precise but not accurate → fix the systematic error." }
+ { id: "b6", topic: "accprec", q: "A temperature model is always 2 °C too warm but very consistent. What helps most?", opts: ["More randomness", "Correct the systematic offset (bias)", "Lower precision", "Nothing"], a: 1, why: "Precise but not accurate → fix the systematic error." },
+ { id: "b7", topic: "metrics", q: "A fraud model flags 1 % of transactions. 90 % of flagged cases are real fraud, but it finds only 40 % of all fraud. Which statement fits?", opts: ["High recall, low precision", "High precision, low recall", "High accuracy means it is perfect", "It overfits"], a: 1, why: "90 % of alarms are correct (precision), but most fraud is missed (recall 40 %)." },
+ { id: "b8", topic: "overfit", q: "Your team reports 98 % accuracy. You learn they normalised the full dataset and picked the best of 50 models on the test set. Your verdict?", opts: ["Great result", "The 98 % is optimistic: leakage and test-set tuning", "They should use accuracy only", "They need more epochs"], a: 1, why: "Preprocessing and model selection must not see the test data." },
+ { id: "b9", topic: "ode", q: "A logistic model uses K = 1 000 customers. After 5 years the simulation shows 1 300 customers and then oscillates. Most likely cause?", opts: ["The market is larger", "Euler step size too large", "Negative growth rate", "Too many agents"], a: 1, why: "Logistic growth never overshoots K in reality; overshooting is a sign of too large time steps." },
+ { id: "b10", topic: "abm", q: "An ABM of shoppers produces a different queue length in every run. How do you report the result?", opts: ["Take the first run", "Take the best run", "Run many times and report mean and spread", "Remove the randomness completely"], a: 2, why: "Stochastic models need many replications to give reliable statements." },
+ { id: "b11", topic: "knn", q: "kNN works well on 2 features but gets worse when you add 200 more random features. Why?", opts: ["kNN cannot handle numbers", "Irrelevant dimensions dilute the distance (curse of dimensionality)", "k was too small", "The labels changed"], a: 1, why: "With many irrelevant features, all points look almost equally far apart." },
+ { id: "b12", topic: "trees", q: "Which model would you choose if the bank must explain every credit decision to the customer?", opts: ["A deep neural network", "A shallow decision tree", "k-means", "Monte Carlo"], a: 1, why: "A small tree gives a readable rule for every decision." }
 ];
 
 const FLASHCARDS = [
@@ -395,7 +592,25 @@ const FLASHCARDS = [
  { id: "f31", cat: "Python", topic: "git", front: "Commit cycle", back: "git status → git add . → git commit -m \"msg\" → git push" },
  { id: "f32", cat: "Exam Questions", topic: "lifecycle", front: "Stages of the Team Data Science Process", back: "Business understanding → Data acquisition & understanding → Modeling → Deployment → Customer acceptance (with loops back)." },
  { id: "f33", cat: "Exam Questions", topic: "mlbasics", front: "Classical software vs. ML", back: "Classical: rules + input → output. ML: input + known output → learned rule set (model)." },
- { id: "f34", cat: "Exam Questions", topic: "llm", front: "Three reasons for LLM success", back: "Transformer architecture · back-propagation + gradient descent · GPU compute." }
+ { id: "f34", cat: "Exam Questions", topic: "llm", front: "Three reasons for LLM success", back: "Transformer architecture · back-propagation + gradient descent · GPU compute." },
+ { id: "f35", cat: "ML methods", topic: "knn", front: "kNN: effect of k", back: "Small k → overfitting (follows noise). Large k → underfitting (too smooth). Odd k for 2 classes. Scale features!" },
+ { id: "f36", cat: "ML methods", topic: "trees", front: "Gini impurity", back: "1 − Σ pₖ². 0 = pure node, 0.5 = 50/50 (two classes). Tree picks the split with the lowest weighted Gini." },
+ { id: "f37", cat: "ML methods", topic: "trees", front: "Stop a tree from overfitting", back: "max_depth, min_samples_leaf, pruning – or use a Random Forest." },
+ { id: "f38", cat: "ML methods", topic: "kmeans", front: "k-Means algorithm", back: "1) place k centres 2) assign points to nearest centre 3) move centres to mean 4) repeat until stable. Choose k with the elbow method." },
+ { id: "f39", cat: "ML methods", topic: "nbayes", front: "Naive Bayes formula", back: "P(C | x) ∝ P(C) · Π P(xⱼ | C). “Naive”: features independent given the class." },
+ { id: "f40", cat: "Evaluation", topic: "overfit", front: "Overfitting vs underfitting", back: "Overfitting: train good, test bad (too complex). Underfitting: both bad (too simple)." },
+ { id: "f41", cat: "Evaluation", topic: "overfit", front: "train / validation / test", back: "Train: fit. Validation (or CV): tune hyperparameters. Test: final, untouched estimate." },
+ { id: "f42", cat: "Evaluation", topic: "metrics", front: "Precision", back: "TP / (TP + FP) – when the model says yes, how often is it right? Important if false alarms are costly." },
+ { id: "f43", cat: "Evaluation", topic: "metrics", front: "Recall", back: "TP / (TP + FN) – how many real positives were found? Important if misses are costly." },
+ { id: "f44", cat: "Evaluation", topic: "metrics", front: "F1 score", back: "2 · P · R / (P + R), harmonic mean of precision and recall." },
+ { id: "f45", cat: "Evaluation", topic: "metrics", front: "MAE · MSE · RMSE · R²", back: "MAE: mean |error|. MSE: mean error². RMSE: √MSE (unit of y). R²: share of variance explained (1 perfect, 0 = mean)." },
+ { id: "f46", cat: "Evaluation", topic: "cv", front: "k-fold cross validation", back: "Split into k folds, train k times, each fold is test once, report mean ± std. cross_val_score(model, X, y, cv=5)" },
+ { id: "f47", cat: "Simulation", topic: "modsim", front: "Reinforcing vs balancing loop", back: "Reinforcing: more → more (interest, virality). Balancing: moves toward a goal (thermostat, saturation)." },
+ { id: "f48", cat: "Simulation", topic: "ode", front: "Logistic growth", back: "dN/dt = r·N·(1 − N/K). S-curve, fastest growth at N = K/2." },
+ { id: "f49", cat: "Simulation", topic: "ode", front: "Euler method", back: "N(t+Δt) = N(t) + Δt · f(N(t)). Smaller Δt = more accurate. Check by halving Δt." },
+ { id: "f50", cat: "Simulation", topic: "abm", front: "Agent-based model", back: "Individuals with simple local rules + environment + time steps. Global patterns emerge. Run many replications." },
+ { id: "f51", cat: "Simulation", topic: "mcevo", front: "Monte Carlo", back: "Estimate by repeated random sampling. Error ∝ 1/√n." },
+ { id: "f52", cat: "Simulation", topic: "mcevo", front: "Genetic algorithm", back: "Population → fitness → selection → crossover → mutation → next generation. No gradient needed." }
 ];
 
 /* Python lab tasks. `test` is appended to user code when a real interpreter is available;
@@ -500,7 +715,15 @@ const RESOURCES = {
     { title: "Grundkurs Künstliche Intelligenz (4. Aufl.)", author: "Ertel, 2016, Springer-Vieweg", tag: "Supplementary" },
     { title: "Pattern Recognition and Machine Learning", author: "Bishop, 2006, Springer", tag: "Supplementary" },
     { title: "Systeme, Dynamik, Simulation", author: "Bossel, 2004, BoD", tag: "Part 2" },
-    { title: "Introduction to the Modeling and Analysis of Complex Systems", author: "Sayama, 2015, Open SUNY Textbooks", tag: "Part 2" }
+    { title: "Introduction to the Modeling and Analysis of Complex Systems", author: "Sayama, 2015, Open SUNY Textbooks (free)", url: "https://open.umn.edu/opentextbooks/textbooks/233", tag: "Part 2" }
+  ],
+  extra: [
+    { title: "scikit-learn: Model evaluation (metrics)", url: "https://scikit-learn.org/stable/modules/model_evaluation.html", note: "Precision, recall, F1, ROC, regression metrics" },
+    { title: "scikit-learn: Cross-validation", url: "https://scikit-learn.org/stable/modules/cross_validation.html", note: "train_test_split, cross_val_score, GridSearchCV" },
+    { title: "scikit-learn: Nearest neighbors, trees, naive Bayes, clustering", url: "https://scikit-learn.org/stable/supervised_learning.html", note: "Official user guide with examples" },
+    { title: "SciPy solve_ivp", url: "https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html", note: "Solve differential equations in Python" },
+    { title: "Mesa – agent-based modeling in Python", url: "https://mesa.readthedocs.io/", note: "Framework for ABM, used in many courses" },
+    { title: "NetLogo Models Library", url: "https://ccl.northwestern.edu/netlogo/models/", note: "Classic ABM examples (Virus, Wolf Sheep Predation, Segregation)" }
   ],
   lectures: [
     { title: "Teil 1 — Grundlagen und Maschinelles Lernen", note: "Goals, Python/Linux first, knowledge assessment, literature" },

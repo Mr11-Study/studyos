@@ -262,7 +262,7 @@ PAGES.resources = el => {
   const c = cur(), s = S();
   const link = r => `<div class="spread" style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="min-width:0">${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}${r.note ? `<div><small>${esc(r.note)}</small></div>` : ""}</div>${r.personal ? `<span class="chip">&lt;fhj-username&gt; ersetzen</span>` : ""}</div>`;
   let sections = [], books = [];
-  if (c.id === "dasc") { const R = c.resources; sections = [["Kurslinks", R.course], ["Git & SSH", R.git], ["Python", R.python], ["Unterlagen", R.lectures]]; books = R.books; }
+  if (c.id === "dasc") { const R = c.resources; sections = [["Kurslinks", R.course], ["Git & SSH", R.git], ["Python", R.python], ["Vertiefung: Methoden, Evaluation, Simulation", R.extra || []], ["Unterlagen", R.lectures]]; books = R.books; }
   else if (c.resources) { sections = (c.resources.sections || []).map(x => [x.title, x.items]); books = c.resources.books || []; }
   const notes = Object.entries(s.notes).filter(([id, n]) => n.text && n.text.trim() && App.LBYID[id] && App.LBYID[id].course === c.id);
   el.innerHTML = `<div class="page"><div><h1>Ressourcen · ${esc(c.title)}</h1></div>${courseChips(c.id)}
