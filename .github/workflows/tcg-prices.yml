@@ -1,0 +1,30 @@
+name: TCG prices (Cardmarket price guide)
+on:
+  schedule:
+    - cron: "17 5,13 * * *"   # twice a day (UTC); Cardmarket publishes the guide once per day
+  workflow_dispatch: {}
+  push:
+    paths: ["tools/build_tcg.py", ".github/workflows/tcg-prices.yml"]
+permissions:
+  contents: write
+concurrency: { group: tcg-prices, cancel-in-progress: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Card database (TCGdex)
+        run: git clone --depth 1 --filter=blob:none https://github.com/tcgdex/cards-database.git /tmp/tcgdb
+      - name: Cardmarket price guide + sealed catalogue
+        run: |
+          curl -fsSL --retry 3 -o /tmp/pg.json https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_6.json
+          curl -fsSL --retry 3 -o /tmp/sealed.json https://downloads.s3.cardmarket.com/productCatalog/productList/products_nonsingles_6.json
+      - name: Build
+        run: python3 tools/build_tcg.py --db /tmp/tcgdb --prices /tmp/pg.json --sealed /tmp/sealed.json --out /tmp/out/tcg
+      - name: Publish to the 'data' branch (no history, overwritten each run)
+        run: |
+          cd /tmp/out
+          git init -q -b data
+          git config user.name "StudyOS Bot"; git config user.email "actions@users.noreply.github.com"
+          git add -A && git commit -qm "Cardmarket prices $(date -u +%F)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
