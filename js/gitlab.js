@@ -7,10 +7,26 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 /* ---------------- model ---------------- */
 function fresh() {
-  return { user: { name: "", email: "" }, cwd: "~", dirs: {}, c: {}, R: {}, ssh: { gen: false, added: false, tested: false }, host: "github", events: [], log: [], mission: null, done: {}, stepsDone: {}, tab: "code", repoView: null, prView: null };
+  return { user: { name: "", email: "" }, cwd: "~", dirs: {}, c: {}, R: {}, ssh: { gen: false, added: false, tested: false }, host: "github", events: [], log: [], mission: null, done: {}, stepsDone: {}, flags: {}, base: {}, worlds: {}, v3: true, tab: "code", repoView: null, prView: null };
 }
 let G = null;
-function load() { G = S().git && S().git.c ? S().git : fresh(); S().git = G; }
+function load() {
+  G = S().git && S().git.c ? S().git : fresh(); S().git = G;
+  /* v3: every mission has its own sandbox; earlier versions could tick steps automatically, so their mission progress is not trustworthy */
+  if (!G.v3) { G.done = {}; G.stepsDone = {}; G.flags = {}; G.base = {}; G.worlds = {}; G.v3 = true; if (G.mission) G.base[G.mission] = null; }
+  G.flags = G.flags || {}; G.base = G.base || {}; G.worlds = G.worlds || {};
+}
+const PROG = ["done", "stepsDone", "flags", "base", "host", "mission", "worlds", "v3"];
+const worldKeys = () => Object.keys(G).filter(k => !PROG.includes(k));
+function saveWorld() { if (!G.mission) return; const w = {}; worldKeys().forEach(k => w[k] = G[k]); G.worlds[G.mission] = clone(w); }
+function loadWorld(id, forceNew) {
+  const saved = !forceNew && G.worlds[id];
+  worldKeys().forEach(k => delete G[k]);
+  const f = fresh(); PROG.forEach(k => delete f[k]);
+  Object.assign(G, saved ? clone(saved) : f);
+  G.mission = id;
+  if (!saved) { const m = M.find(x => x.id === id); m.setup(); G.base[id] = rawState(m); G.flags[id] = []; }
+}
 function persist() { if (G.log.length > 400) G.log.splice(0, G.log.length - 400); App.save(); }
 const HOSTN = () => G.host === "gitlab" ? "gitlab.itplus.fh-joanneum.at" : "github.com";
 const PR = () => G.host === "gitlab" ? "Merge Request" : "Pull Request";
@@ -164,20 +180,28 @@ const M = [
     steps: [["Status: Was ist untracked?", () => (G.stat || 0) > 0], [".gitignore anlegen: echo \".venv/\" > .gitignore", () => /\.venv/.test((G.dirs["ds-projekt"] || {}).files[".gitignore"] || "")], ["Auch secrets.env ignorieren: echo \"secrets.env\" >> .gitignore", () => /secrets\.env/.test((G.dirs["ds-projekt"] || {}).files[".gitignore"] || "")], [".gitignore committen", () => { const r = G.dirs["ds-projekt"]; return r && treeOf(r.branches.main)[".gitignore"] !== undefined && !treeOf(r.branches.main)["secrets.env"]; }], ["main.py kaputt machen: echo \"oops\" > main.py", () => ((G.dirs["ds-projekt"] || {}).files || {})["main.py"] === "oops\n" || G.m6r], ["Zurücksetzen: git restore main.py", () => { const r = G.dirs["ds-projekt"]; if (r && r.files["main.py"] !== "oops\n" && G.log.some(l => l[1].includes("git restore main.py"))) G.m6r = true; return !!G.m6r; }]] },
   { id: "free", title: "Freies Üben", goal: "Sandbox ohne Vorgaben. Alles ist erlaubt.", setup() {}, steps: [] }
 ];
-function stepsState(m) {
-  G.flags = G.flags || {}; const f = G.flags[m.id] = G.flags[m.id] || [];
-  return m.steps.map((s, i) => { if (f[i]) return true; let ok = false; try { ok = !!s[1](); } catch (e) {} if (ok) f[i] = true; return ok; });
+function rawState(m) { return m.steps.map(s => { try { return !!s[1](); } catch (e) { return false; } }); }
+/* display only: which steps were really done by the user */
+function stepsState(m) { const f = G.flags[m.id] || []; return m.steps.map((s, i) => !!f[i]); }
+/* called after user actions: a step counts when its condition became true and was not already true when the mission started */
+function evalSteps(m) {
+  const f = G.flags[m.id] = G.flags[m.id] || [], base = G.base[m.id] || [], now = rawState(m);
+  now.forEach((ok, i) => { if (ok && !base[i]) f[i] = true; if (!ok && base[i]) base[i] = false; });
+  G.base[m.id] = base; return stepsState(m);
 }
 function afterCmd() {
-  const m = M.find(x => x.id === G.mission); if (!m || !m.steps.length) return; const st = stepsState(m); const key = m.id; const prev = G.stepsDone[key] || 0, now = st.filter(Boolean).length;
+  const m = M.find(x => x.id === G.mission); if (!m || !m.steps.length) return; const st = evalSteps(m); const key = m.id; const prev = G.stepsDone[key] || 0, now = st.filter(Boolean).length;
   if (now > prev) { G.stepsDone[key] = now; App.rec("git", 1); }
   if (st.every(Boolean) && !G.done[m.id]) { G.done[m.id] = Date.now(); App.addXP(40, "git"); App.toast("Mission geschafft", m.title, "⑂", true); }
   persist();
 }
 
+App.resetGitLab = () => { S().git = fresh(); load(); G.mission = "m1"; G.base.m1 = rawState(M[0]); G.flags.m1 = []; persist(); };
+App._git = { M, rawState, get G() { return G; } };
+
 /* ---------------- page ---------------- */
 PAGES.gitlab = el => {
-  load(); if (!G.mission) G.mission = "m1";
+  load(); if (!G.mission) G.mission = "m1"; if (!G.base[G.mission]) G.base[G.mission] = rawState(M.find(x => x.id === G.mission));
   let hist = [], hi = 0;
   const host = () => G.host === "gitlab" ? "GitLab" : "GitHub";
   const draw = () => {
@@ -186,7 +210,7 @@ PAGES.gitlab = el => {
     el.innerHTML = `<div class="page" style="max-width:1320px"><div class="spread"><div><h1>Git-Labor</h1><p class="muted" style="margin-top:6px">Simuliertes Terminal + ${host()}-Weboberfläche. Nichts verlässt dein Gerät. Befehle wie im echten Leben; <code>help</code> zeigt alle.</p></div>
       <div class="row"><span class="chip acc tab">${nDone}/${M.length - 1} Missionen</span><select id="gl-host" style="width:auto"><option value="github" ${G.host === "github" ? "selected" : ""}>GitHub-Stil</option><option value="gitlab" ${G.host === "gitlab" ? "selected" : ""}>GitLab-Stil (FH)</option></select><button class="btn ghost sm" id="gl-reset">Labor zurücksetzen</button></div></div>
       <div class="row" style="gap:8px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px">${M.map(x => `<button class="mission-card ${x.id === G.mission ? "active" : ""}" data-m="${x.id}" style="min-width:190px"><b style="font-size:13px">${esc(x.title)}</b><small class="muted">${G.done[x.id] ? "✓ geschafft" : x.steps.length ? (G.stepsDone[x.id] || 0) + "/" + x.steps.length + " Schritte" : "Sandbox"}</small></button>`).join("")}</div>
-      <div class="card col" style="gap:8px"><div class="spread"><div><b>${esc(m.title)}</b> <small class="muted">${esc(m.goal)}</small></div>${m.id === "m3" ? `<button class="btn sm" id="ev-lect">Lehrender pusht Übung 2</button>` : ""}${m.id === "m5" ? `<button class="btn sm" id="ev-anna">Teamkollege (Anna) pusht</button>` : ""}</div>
+      <div class="card col" style="gap:8px"><div class="spread"><div><b>${esc(m.title)}</b> <small class="muted">${esc(m.goal)}</small></div>${m.id === "m3" ? `<button class="btn sm" id="ev-lect">Lehrender pusht Übung 2</button>` : ""}<div class="row" style="gap:6px">${m.id === "m5" ? `<button class="btn sm" id="ev-anna">Teamkollege (Anna) pusht</button>` : ""}<button class="btn ghost sm" data-mreset="${m.id}" title="Sandbox und Schritte dieser Mission zurücksetzen">↺ Mission neu starten</button></div></div>
         ${m.steps.length ? `<div class="mission">${m.steps.map((s, i) => `<div class="ms ${st[i] ? "done" : ""}"><i>${st[i] ? "✓" : ""}</i>${esc(s[0].replace(/HOST/g, HOSTN()))}</div>`).join("")}</div>` : ""}</div>
       <div class="gl"><div class="term" style="display:flex;flex-direction:column;min-height:460px"><div class="term-bar"><i></i><i></i><i></i><span style="margin-left:8px">bash · ${esc(G.cwd)}</span></div><div class="term-out" id="gl-out" style="flex:1;height:auto;min-height:340px;max-height:520px">${G.log.map(([c, t]) => `<span class="${c}">${c === "p" ? esc(t) : t}</span>`).join("\n")}</div>
         <form class="term-in" id="gl-form"><span>$</span><input id="gl-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Befehl eingeben … (help)" aria-label="Terminal"></form>
@@ -199,7 +223,7 @@ PAGES.gitlab = el => {
     $("#gl-form", el).onsubmit = e => { e.preventDefault(); const v = inp.value; if (!v.trim()) return; hist.push(v); hi = hist.length; v.split("&&").forEach(c => run(c.trim())); persist(); draw(); };
     inp.onkeydown = e => { if (e.key === "ArrowUp" && hi > 0) { hi--; inp.value = hist[hi]; e.preventDefault(); } if (e.key === "ArrowDown") { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; } if (e.key === "Tab") { e.preventDefault(); const cmds = ["git status", "git add .", "git commit -m \"\"", "git push", "git pull", "git switch ", "git log --oneline", "git branch", "git merge ", "git restore ", "git remote add origin ", "git clone "]; const m2 = cmds.find(c => c.startsWith(inp.value) && c !== inp.value); if (m2) inp.value = m2; } };
     $("#gl-host", el).onchange = e => { G.host = e.target.value; persist(); draw(); };
-    $("#gl-reset", el).onclick = () => { App.modal(`<h2>Labor zurücksetzen?</h2><p class="muted">Alle simulierten Repos, Commits und Missionsfortschritte im Labor werden gelöscht. XP bleiben.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="rs-y">Zurücksetzen</button></div>`, (mm, close) => { $("#rs-y", mm).onclick = () => { S().git = fresh(); load(); G.mission = "m1"; persist(); close(); draw(); }; }); };
+    $("#gl-reset", el).onclick = () => { App.modal(`<h2>Labor zurücksetzen?</h2><p class="muted">Alle simulierten Repos, Commits und Missionsfortschritte im Labor werden gelöscht. XP bleiben.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="rs-y">Zurücksetzen</button></div>`, (mm, close) => { $("#rs-y", mm).onclick = () => { App.resetGitLab(); load(); close(); draw(); }; }); };
     const ev1 = $("#ev-lect", el); if (ev1) ev1.onclick = () => { if (!G.R[LECT]) M[2].setup(); webEdit(LECT, "main", "ex02/students.csv", "student,hours,exam_score\nAnna,2,52\nBen,3,58\n", "Exercise 2: data", "Lecturer"); out("(Der Lehrende hat „Exercise 2: data“ gepusht. Tipp: git pull)", "g"); afterCmd(); draw(); };
     const ev2 = $("#ev-anna", el); if (ev2) ev2.onclick = () => { if (!G.m5base) M[4].setup(); webEdit("kevin/ds-projekt", "main", "README.md", "# Mein Projekt\nDaten: students.csv (Quelle: Anna, bereinigt)\n", "Update data description", "Anna"); G.annaPushed = G.R["kevin/ds-projekt"].branches.main; out("(Anna hat eine Änderung an README.md gepusht. Ändere jetzt lokal dieselbe Zeile, z. B. mit nano README.md.)", "g"); afterCmd(); draw(); };
     if (G.editing) wireEditor();
@@ -248,7 +272,13 @@ PAGES.gitlab = el => {
     const branches = Object.keys(R.branches); return `${branches.length > 1 ? `<form id="gh-prf" class="gh-box" style="padding:10px;display:flex;flex-direction:column;gap:8px"><b>New ${PR().toLowerCase()}</b><div class="row" style="gap:6px">base: <select id="pr-base" style="width:auto">${branches.map(b => `<option ${b === "main" ? "selected" : ""}>${esc(b)}</option>`).join("")}</select> ← compare: <select id="pr-head" style="width:auto">${branches.map(b => `<option ${b !== "main" ? "selected" : ""}>${esc(b)}</option>`).join("")}</select></div><input id="pr-title" placeholder="Titel"><div><button class="gh-btn" type="submit">Create ${PR().toLowerCase()}</button></div></form>` : `<p class="gh-muted">Push erst einen zweiten Branch, dann kannst du einen ${PR()} öffnen.</p>`}
       <div class="gh-box">${R.prs.slice().reverse().map(p => `<div class="gh-row"><a href="#" data-pr="${p.n}" style="color:#E6EDF3">${esc(p.title)} <span class="gh-muted">#${p.n} · ${esc(p.head)} → ${esc(p.base)}</span></a><span class="gh-pill ${p.state}">${p.state}</span></div>`).join("") || `<div class="gh-row gh-muted">Keine ${PR()}s</div>`}</div>`; };
   const webEditDialog = (R, br, path) => { App.modal(`<h2>${esc(path)} bearbeiten (${esc(br)})</h2><textarea rows="8" id="we-t" class="mono">${esc(treeOf(R.branches[br])[path] || "")}</textarea><label class="fld">Commit message<input type="text" id="we-m" value="Update ${esc(path)}"></label><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="we-s">Commit changes</button></div>`, (m, close) => { $("#we-s", m).onclick = () => { let v = $("#we-t", m).value; if (v && !v.endsWith("\n")) v += "\n"; webEdit(R.full, br, path, v, $("#we-m", m).value || "Update", G.user.name || "kevin"); out("(Im Web auf " + br + " committet. Lokal: git pull)", "g"); close(); afterCmd(); draw(); }; }); };
-  el.addEventListener("click", e => { const m = e.target.closest("[data-m]"); if (!m) return; G.mission = m.dataset.m; const mm = M.find(x => x.id === G.mission); mm.setup(); out("── Mission: " + mm.title + " ──", "g"); afterCmd(); draw(); });
+  el.addEventListener("click", e => {
+    const rs = e.target.closest("[data-mreset]");
+    if (rs) { const id = rs.dataset.mreset, mm = M.find(x => x.id === id); delete G.done[id]; G.stepsDone[id] = 0; G.flags[id] = []; loadWorld(id, true); out("── Mission neu gestartet: " + mm.title + " ──", "g"); persist(); draw(); return; }
+    const m = e.target.closest("[data-m]"); if (!m || m.dataset.m === G.mission) return;
+    saveWorld(); loadWorld(m.dataset.m); const mm = M.find(x => x.id === G.mission);
+    if (!G.log.some(l => l[1] && l[1].includes("── Mission: " + mm.title))) out("── Mission: " + mm.title + " ──", "g");
+    persist(); draw(); });
   el.addEventListener("change", e => { if (e.target.id === "gh-br") { G.webBranch = e.target.value; drawWeb(); } });
   if (!G.log.length) out("Willkommen im Git-Labor. Tippe <b>help</b> für alle Befehle. Starte mit Mission 1.", "g");
   draw();
