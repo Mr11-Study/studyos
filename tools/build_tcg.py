@@ -131,7 +131,7 @@ def main():
     for sf in glob.glob(os.path.join(data, "*.ts")):
         t = open(sf, encoding="utf-8").read(); sid = field(t, "id")
         if sid and sid != "tcgp": series[os.path.basename(sf)[:-3]] = {"id": sid, "n": names(t)}  # skip the digital TCG Pocket
-    sets_out, n_cards = [], 0
+    sets_out, n_cards, index = [], 0, []
     for serie_dir, ser in series.items():
         sdir = os.path.join(data, serie_dir)
         if not os.path.isdir(sdir): continue
@@ -179,9 +179,11 @@ def main():
             n_cards += len(cards)
             val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
             top = max(cards, key=lambda c: (c.get("p") or [0])[0] or 0)
+            for c in cards: index.append([set_id, c["l"], c["n"].get("de") or c["n"].get("en"), c["n"].get("en") or c["n"].get("de"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0]])
             json.dump({"id": set_id, "u": updated, "cards": cards}, open(os.path.join(a.out, "sets", set_id + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
             sets_out.append({"id": set_id, "s": ser["id"], "sn": ser["n"], "n": names(st), "d": field(st, "releaseDate"), "c": (re.search(r'official\s*:\s*(\d+)', st) or [0, 0])[1] and int(re.search(r'official\s*:\s*(\d+)', st).group(1)), "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else None, "v": val, "top": top["l"] if (top.get("p") or [0])[0] else None})
     sets_out.sort(key=lambda s: (s["d"] or "0000"), reverse=True)
+    json.dump({"u": updated, "c": index}, open(os.path.join(a.out, "index.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(sets_out, open(os.path.join(a.out, "sets.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     n_sealed = 0
     if a.sealed and os.path.exists(a.sealed):
