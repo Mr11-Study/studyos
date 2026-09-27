@@ -6,8 +6,8 @@ const S = () => App.S(), SEC = () => App.secrets();
 /* ---------------- PIN lock ---------------- */
 async function hash(pin) { const data = new TextEncoder().encode("studyos:" + pin); try { const h = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { let x = 5381; for (const c of data) x = ((x << 5) + x + c) >>> 0; return "djb" + x; } }
 function lockScreen() {
-  if (!S().profile.pinHash || $(".lock")) return; App.locked = true; let pin = "", err = "";
-  const box = document.createElement("div"); box.className = "lock";
+  if (!S().profile.pinHash || $(".lockscreen")) return; App.locked = true; let pin = "", err = "";
+  const box = document.createElement("div"); box.className = "lockscreen";
   const draw = () => { box.innerHTML = `<div class="lock-box"><div class="logo" style="width:56px;height:56px;font-size:24px;border-radius:14px">S</div><div><h2>StudyOS</h2><p class="muted">Hallo ${esc(S().name)}, PIN eingeben</p></div>
     <div class="pin-dots">${[0, 1, 2, 3].map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("")}${S().profile.pinLen > 4 ? [4, 5].slice(0, S().profile.pinLen - 4).map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("") : ""}</div><div class="pin-err">${esc(err)}</div>
     <div class="pin-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "⌫"].map(k => k === "" ? "<span></span>" : `<button data-k="${k}" aria-label="${k === "⌫" ? "Löschen" : k}">${k}</button>`).join("")}</div>
@@ -160,7 +160,7 @@ function installHTML() {
 }
 
 /* ---------------- boot hooks ---------------- */
-App.VERSION = "2.1.1";
+App.VERSION = "2.1.2";
 App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();

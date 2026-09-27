@@ -1,5 +1,5 @@
 /* StudyOS service worker: offline shell, runtime cache, background reminders */
-const VERSION = "studyos-v2.1.1";
+const VERSION = "studyos-v2.1.2";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css",
   "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js",
   "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js",
