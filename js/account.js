@@ -90,7 +90,11 @@ window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferr
 const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 function registerSW() {
   if (!("serviceWorker" in navigator) || !/^https?:/.test(location.protocol)) return;
-  navigator.serviceWorker.register("sw.js").then(reg => {
+  const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+    reg.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
     reg.addEventListener("updatefound", () => { const nw = reg.installing; nw && nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) { const t = document.createElement("div"); t.className = "toast ach"; t.innerHTML = `<div class="ti">↻</div><div><div class="eyebrow">Update verfügbar</div><div>Neue Version von StudyOS.</div></div><button class="btn sm pri">Neu laden</button>`; $("button", t).onclick = () => location.reload(); $("#toasts").appendChild(t); } }); });
   }).catch(() => {});
 }
@@ -156,7 +160,7 @@ function installHTML() {
 }
 
 /* ---------------- boot hooks ---------------- */
-App.VERSION = "2.1.0";
+App.VERSION = "2.1.1";
 App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();
