@@ -104,3 +104,4 @@ Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update
 - **Python-Übungen** laden beim ersten Mal einen Python-Interpreter aus dem Internet (danach offline im Cache). NumPy/pandas werden im Browser nur vereinfacht simuliert – die echten Übungen machst du in VS Code mit `uv`.
 - Benachrichtigungen bei komplett geschlossener App hängen von Android/Xiaomi ab → Kalender-Export nutzen.
 - Daten liegen pro Browser/Gerät. Ohne Sync oder Backup gehen sie beim Löschen der Browserdaten verloren.
+  
