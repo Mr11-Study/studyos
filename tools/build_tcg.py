@@ -15,6 +15,7 @@ Outputs (compact JSON, UTF-8):
 Price array p / rv = [trend, avg, low, avg1, avg7, avg30] (EUR, 2 decimals, null if missing).
 """
 import argparse, json, os, re, sys, datetime, glob
+from collections import Counter
 
 LANGS = ["de", "en", "fr", "it", "es", "pt"]
 KV = re.compile(r'''(["']?)([\w-]+)\1\s*:\s*(["'])((?:\\.|(?!\3).)*)\3''')
@@ -202,6 +203,67 @@ def main():
                 return {"en": base["en"] + en_s, "de": base["de"] + de_s}
         return {"en": base["en"], "de": base["de"]}
 
+    # --- Cardmarket catalogue: expansion language + language siblings (JP / Chinese / Korean / Indonesian-Thai editions) ---
+    prod, by_em, exp_meta, exp_lang = {}, {}, {}, {}
+    if a.singles and os.path.exists(a.singles):
+        try:
+            for p_ in json.load(open(a.singles, encoding="utf-8")).get("products", []):
+                pid, e, m = p_["idProduct"], p_.get("idExpansion"), p_.get("idMetacard")
+                prod[pid] = (e, m); by_em.setdefault((e, m), []).append(pid); exp_meta.setdefault(e, set()).add(m)
+            for v in by_em.values(): v.sort()
+        except Exception as ex: print("singles catalogue unavailable:", ex)
+    if a.sealed and os.path.exists(a.sealed):
+        LANG_RX = [("zh-cn", r"simplified chinese|\bs-?chinese"), ("zh-tw", r"traditional chinese|\bt-?chinese"), ("ko", r"\bkorean\b"), ("id", r"indonesian|\bthai\b"), ("ja", r"\bjp\b|japanese")]
+        for p_ in json.load(open(a.sealed, encoding="utf-8")).get("products", []):
+            n_ = (p_.get("name") or "").lower()
+            for lg, rx in LANG_RX:
+                if re.search(rx, n_): exp_lang.setdefault(p_.get("idExpansion"), lg); break
+    intl_exps = set()  # Cardmarket expansions used by international (English/European) cards
+    def same_card(pid, target_exp):
+        """the product for the same card in another language edition (same metacard, same rank)."""
+        if pid not in prod: return None
+        e, m = prod[pid]; src = by_em.get((e, m), []); dst = by_em.get((target_exp, m), [])
+        if not dst: return None
+        return dst[min(src.index(pid), len(dst) - 1)]
+    def fix_asia(cards):
+        """TCGdex sometimes links Japanese cards to the Chinese Cardmarket edition -> move to the Japanese edition,
+        and attach prices of the other Asian editions (Chinese, Korean, Indonesian/Thai) as c['alt'] = {lang: [idProduct, trend, low]}."""
+        exps = Counter(prod[c["cm"]][0] for c in cards if c.get("cm") in prod)
+        if not exps: return
+        main = exps.most_common(1)[0][0]
+        metas = {prod[c["cm"]][1] for c in cards if c.get("cm") in prod}
+        ids = [c["cm"] for c in cards if c.get("cm") in prod]; lo, hi = min(ids) - 60000, max(ids) + 60000
+        sibs = [x for x, ms in exp_meta.items() if x != main and len(metas & ms) >= 0.5 * len(metas) and any(lo <= q <= hi for q in by_em.get((x, next(iter(metas & ms))), []))]
+        lang_main = exp_lang.get(main)
+        ja = main if lang_main in (None, "ja") else (next((x for x in sibs if exp_lang.get(x) == "ja"), None)
+              or next((x for x in sorted(sibs, key=lambda x: -len(metas & exp_meta[x])) if exp_lang.get(x) is None and x not in intl_exps), None))
+        for c in cards:
+            if not c.get("cm") or c["cm"] not in prod: continue
+            orig = c["cm"]
+            if ja is None:  # only a non-Japanese edition known: don't show a wrong price
+                c.pop("p", None); c.pop("rv", None); c["cml"] = lang_main; continue
+            if ja != main:
+                np_ = same_card(c["cm"], ja)
+                if np_:
+                    c["cm"] = np_; pa = price_arr(guide.get(np_)); c.pop("p", None); c.pop("rv", None)
+                    if pa: c["p"] = pa
+                    rv = price_arr(guide.get(np_), True)
+                    if rv and "reverse" in (c.get("vt") or []): c["rv"] = rv
+                    for x in c.get("sp") or []:
+                        q = same_card(x[1], ja)
+                        if q: x[1] = q; x[2] = (price_arr(guide.get(q)) or [None])[0]
+                else: c.pop("p", None); c.pop("rv", None); c["cml"] = lang_main
+            alt = {}
+            for x in sibs + ([main] if ja != main else []):
+                if x == ja: continue
+                lg = exp_lang.get(x)
+                if lg in ("zh-cn", "zh-tw", "ko", "id") and lg not in alt:
+                    q = same_card(c["cm"], x) if x != main or ja == main else orig
+                    if q:
+                        pa = price_arr(guide.get(q)) or [None] * 6
+                        alt[lg] = [q, pa[0], pa[2]]
+            if alt: c["alt"] = alt
+
     def build_card(ct, lid, nm):
         vs = variants(ct)
         base = next((v for v in vs if v["cm"] and not v["stamp"] and not v["sub"] and not v["foil"] and v["type"] != "reverse"), None) or next((v for v in vs if v["cm"] and not v["stamp"] and not v["foil"]), None) or next((v for v in vs if v["cm"]), None)
@@ -292,9 +354,11 @@ def main():
                                 cur = dex.get(d)
                                 if not cur or len(nm["de"]) < len(cur["de"]): dex[d] = {"de": nm["de"], "en": nm["en"]}
                         c = build_card(ct, lid, nm)
+                        if c.get("cm") in prod: intl_exps.add(prod[c["cm"]][0])
                     cards.append(c)
                 if not cards: continue
                 attach_tp(cards, tp_groups_for(set_names, abbr.group(1) if abbr else None, real_id, asia), asia)
+                if asia and prod: fix_asia(cards)
                 cards.sort(key=lambda c: natkey(c["l"]))
                 n_cards += len(cards)
                 val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
