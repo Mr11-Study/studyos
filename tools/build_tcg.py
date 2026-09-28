@@ -126,12 +126,20 @@ def label(v):
 def natkey(s):
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', s)]
 
+def nnum(x):
+    """'006/165' -> '6', 'GG01/GG70' -> 'GG1', 'SWSH050' -> 'SWSH50'"""
+    x = str(x or "").split("/")[0].strip().upper()
+    return re.sub(r"(?<![0-9])0+(?=[0-9])", "", x)
+
+def norm_name(x):
+    return re.sub(r"[^a-z0-9]+", " ", (x or "").lower().replace("&", "and").replace("pokémon", "").replace("pokemon", "")).strip()
+
 LANG_ORDER = ["de", "en", "fr", "it", "es", "pt"]
 def index_row(set_id, c):
-    """[set, nr, nameDe, nameEn, rarity, trend, reverseTrend, category, types, illustrator, hp, languageMask, cmId, specialCount]"""
+    """[set, nr, nameDe, nameEn, rarity, trend, reverseTrend, category, types, illustrator, hp, languageMask, cmId, specialCount, tcgplayerImageId]"""
     mask = c.get("lm") or sum(1 << i for i, l in enumerate(LANG_ORDER) if c["n"].get(l))
     return [set_id, c["l"], c["n"].get("de") or c["n"].get("en") or c["n"].get("ja") or c["n"].get("ko"), c["n"].get("en") or c["n"].get("de") or c["n"].get("ja") or c["n"].get("ko"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0],
-            c.get("k"), "/".join(c.get("ty") or []) or None, c.get("i"), c.get("hp"), mask, c.get("cm"), len(c.get("sp") or [])]
+            c.get("k"), "/".join(c.get("ty") or []) or None, c.get("i"), c.get("hp"), mask, c.get("cm"), len(c.get("sp") or []), c.get("tp")]
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--db", required=True); ap.add_argument("--prices"); ap.add_argument("--sealed"); ap.add_argument("--tcgp"); ap.add_argument("--out", required=True)
@@ -143,6 +151,40 @@ def main():
     os.makedirs(os.path.join(a.out, "sets"), exist_ok=True)
     sets_out, index = [], []
     n_cards = 0
+    # --- TCGplayer single-card images (fallback when TCGdex has no picture) ---
+    tp_groups, tp_by_group = [], {}
+    if a.tcgp and os.path.exists(a.tcgp):
+        try:
+            tpd = json.load(open(a.tcgp, encoding="utf-8")); tp_groups = tpd.get("groups", [])
+            for pid, gid, number, name in tpd.get("singles", []):
+                tp_by_group.setdefault(gid, {}).setdefault(nnum(number), []).append((pid, (name or "").lower()))
+        except Exception as e: print("tcgplayer singles unavailable:", e)
+    def tp_groups_for(set_names, abbr, real_id, asia):
+        out = []
+        en = norm_name(set_names.get("en") or "")
+        for gid, cat, gname, gabbr, pub in tp_groups:
+            if gid not in tp_by_group: continue
+            if asia:
+                if cat == 3: continue
+                pre = (gname or "").split(":")[0].strip().lower()
+                if (gabbr or "").lower() == real_id.lower() or pre == real_id.lower(): out.append(gid)
+            else:
+                if cat != 3: continue
+                ab = (abbr or "").split(":")[0].lower()
+                gn = norm_name((gname or "").split(":")[-1])
+                if (ab and (gabbr or "").lower() == ab and (not en or en in gn or gn in en or len(gn) < 4)) or (en and gn == en): out.append(gid)
+        return out
+    def attach_tp(cards, gids, asia):
+        if not gids: return 0
+        n = 0
+        for c in cards:
+            cands = [x for g in gids for x in tp_by_group[g].get(nnum(c["l"]), [])]
+            if not cands: continue
+            en = (c["n"].get("en") or "").lower().split(" ")[0]
+            pick = next((x for x in cands if en and en in x[1]), None) if not asia else None
+            if pick is None and (asia or len(cands) == 1 or not en): pick = cands[0]
+            if pick: c["tp"] = pick[0]; n += 1
+        return n
     en2de = {}  # English -> German card names from the international data (to give Japanese cards German names)
     dex = {}    # national dex number -> shortest {de, en} base name seen in the international data
 
@@ -252,6 +294,7 @@ def main():
                         c = build_card(ct, lid, nm)
                     cards.append(c)
                 if not cards: continue
+                attach_tp(cards, tp_groups_for(set_names, abbr.group(1) if abbr else None, real_id, asia), asia)
                 cards.sort(key=lambda c: natkey(c["l"]))
                 n_cards += len(cards)
                 val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
@@ -260,7 +303,7 @@ def main():
                 json.dump({"id": set_id, "u": updated, "cards": cards}, open(os.path.join(a.out, "sets", set_id + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
                 if asia: set_names = {"de": real_id + " · " + (set_names.get("ja") or set_names.get("ko")), "ja": set_names.get("ja"), "ko": set_names.get("ko"), "en": real_id + " · " + (set_names.get("en") or set_names.get("id") or set_names.get("ja") or set_names.get("ko"))}
                 off = re.search(r'official\s*:\s*(\d+)', st)
-                so = {"id": set_id, "s": ser["id"], "sn": ser["n"], "n": {k: v for k, v in set_names.items() if v}, "d": release(st, asia), "c": int(off.group(1)) if off else 0, "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else (real_id if asia else None), "v": val, "top": top["l"] if (top.get("p") or [0])[0] else None}
+                so = {"id": set_id, "s": ser["id"], "sn": ser["n"], "n": {k: v for k, v in set_names.items() if v}, "d": release(st, asia), "c": int(off.group(1)) if off else 0, "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else (real_id if asia else None), "v": val, "top": top["l"] if (top.get("p") or [0])[0] else cards[0]["l"], "tt": (top if (top.get("p") or [0])[0] else cards[0]).get("tp")}
                 if asia: so.update({"rg": "ja", "rid": real_id, "rs": ser["rid"], "il": img_lang})
                 sets_out.append(so)
     sets_out.sort(key=lambda s: (s["d"] or "0000"), reverse=True)

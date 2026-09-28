@@ -97,3 +97,23 @@
 .tcard .im img.pimg{object-fit:contain;background:#fff;padding:8px}
 .pshow{display:flex;justify-content:center;background:#fff;border-radius:16px;padding:14px}
 .pshow img{max-width:100%;max-height:min(300px,40vh);object-fit:contain}
+/* box art for products without photo */
+.sart{position:relative;width:100%;height:100%;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px}
+.sart-box{position:relative;width:78%;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(145deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 2px rgba(255,255,255,.25),8px 8px 0 -2px rgba(0,0,0,.35),0 12px 24px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;overflow:hidden;transform:perspective(500px) rotateY(-10deg)}
+.sart-box::before{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.25) 50%,transparent 65%)}
+.sart-box img{max-width:85%;max-height:55%;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.sart-box b{font:700 11px/1.2 var(--f-display);color:#fff;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.5);max-width:100%;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.sart-cat{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pshow.art{background:radial-gradient(circle at 50% 30%,#232C3A,#141A23);min-height:220px}
+.pshow.art .sart-box{width:min(260px,70%)}
+.pshow.art .sart-box b{font-size:15px}
+/* nicer card placeholder when no image exists */
+.tcard .im .ph{background:linear-gradient(160deg,#2A3342,#171D27);border:3px solid #C9A227;border-radius:9px;color:#E9EEF4;font-weight:600;font-size:13px}
+.mini-art{width:44px;height:36px;border-radius:6px;background:linear-gradient(145deg,var(--c1),var(--c2));display:grid;place-items:center;box-shadow:3px 3px 0 -1px rgba(0,0,0,.35);overflow:hidden}
+.mini-art img{max-width:88%;max-height:80%;object-fit:contain}
+.mini-art svg{width:26px}
+.jp-logo{display:flex;align-items:center;gap:10px;height:100%}
+.jp-logo img.topcard{height:100%;aspect-ratio:63/88;object-fit:cover;border-radius:4px;transform:rotate(-6deg);box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.jp-logo b{font:700 18px var(--f-display);color:var(--acc)}
+.set-head .stile .lg{height:64px}
+.set-head .jp-logo b{display:none}.set-head .jp-logo{justify-content:center}
