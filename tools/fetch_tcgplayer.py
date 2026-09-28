@@ -2,7 +2,8 @@
 """Fetch sealed Pokémon products (boxes, ETBs, blisters, tins …) with product images from TCGCSV
 (a free daily mirror of the TCGplayer catalogue, https://tcgcsv.com). Singles are skipped.
 
-Output: JSON {cats:{id:name}, groups:[[gid,cat,name,abbr,published]], items:[[productId,gid,name,imageUrl]]}
+Output: JSON {cats:{id:name}, groups:[[gid,cat,name,abbr,published]], items:[[productId,gid,name,imageUrl]] (sealed),
+              singles:[[productId,gid,number,name]]}  (card images: https://tcgplayer-cdn.tcgplayer.com/product/<id>_400w.jpg)
 """
 import json, sys, time, urllib.request
 
@@ -25,18 +26,22 @@ def is_single(p):
 def main(out):
     cats = get(BASE + "/categories")["results"]
     poke = {c["categoryId"]: c["name"] for c in cats if "pokemon" in (c.get("name") or "").lower() and "pocket" not in (c.get("name") or "").lower()}
-    groups, items = [], []
+    groups, items, singles = [], [], []
     for cid in poke:
         for g in get(f"{BASE}/{cid}/groups")["results"]:
             groups.append([g["groupId"], cid, g.get("name"), g.get("abbreviation"), (g.get("publishedOn") or "")[:10]])
             try: prods = get(f"{BASE}/{cid}/{g['groupId']}/products")["results"]
             except Exception as e: print("skip group", g["groupId"], e, file=sys.stderr); continue
             for p in prods:
-                if is_single(p) or not p.get("imageUrl"): continue
+                if not p.get("imageUrl"): continue
+                if is_single(p):
+                    ext = {e.get("name"): e.get("value") for e in p.get("extendedData") or []}
+                    if ext.get("Number"): singles.append([p["productId"], g["groupId"], ext.get("Number"), p.get("name")])
+                    continue
                 items.append([p["productId"], g["groupId"], p.get("name"), p.get("imageUrl")])
             time.sleep(0.05)
-    json.dump({"cats": poke, "groups": groups, "items": items}, open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-    print(f"categories={list(poke.values())} groups={len(groups)} sealed={len(items)}")
+    json.dump({"cats": poke, "groups": groups, "items": items, "singles": singles}, open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    print(f"categories={list(poke.values())} groups={len(groups)} sealed={len(items)} singles={len(singles)}")
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else "tcgp.json")
