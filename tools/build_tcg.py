@@ -205,20 +205,36 @@ def main():
 
     # --- Cardmarket catalogue: expansion language + language siblings (JP / Chinese / Korean / Indonesian-Thai editions) ---
     prod, by_em, exp_meta, exp_lang = {}, {}, {}, {}
+    pname, by_en, exp_name = {}, {}, {}  # Cardmarket product names -> lines for the Wants "add deck list" import
     if a.singles and os.path.exists(a.singles):
         try:
             for p_ in json.load(open(a.singles, encoding="utf-8")).get("products", []):
                 pid, e, m = p_["idProduct"], p_.get("idExpansion"), p_.get("idMetacard")
                 prod[pid] = (e, m); by_em.setdefault((e, m), []).append(pid); exp_meta.setdefault(e, set()).add(m)
+                pname[pid] = p_.get("name") or ""; by_en.setdefault((e, pname[pid]), []).append(pid)
             for v in by_em.values(): v.sort()
         except Exception as ex: print("singles catalogue unavailable:", ex)
     if a.sealed and os.path.exists(a.sealed):
         LANG_RX = [("zh-cn", r"simplified chinese|\bs-?chinese"), ("zh-tw", r"traditional chinese|\bt-?chinese"), ("ko", r"\bkorean\b"), ("id", r"indonesian|\bthai\b"), ("ja", r"\bjp\b|japanese")]
         for p_ in json.load(open(a.sealed, encoding="utf-8")).get("products", []):
-            n_ = (p_.get("name") or "").lower()
+            nm_ = p_.get("name") or ""
+            if nm_.endswith(" Booster") and (p_.get("categoryName") or "").endswith("Booster"):
+                e_ = p_.get("idExpansion"); cand = nm_[:-len(" Booster")]
+                if e_ not in exp_name or len(cand) < len(exp_name[e_]): exp_name[e_] = cand
+            n_ = nm_.lower()
             for lg, rx in LANG_RX:
                 if re.search(rx, n_): exp_lang.setdefault(p_.get("idExpansion"), lg); break
     intl_exps = set()  # Cardmarket expansions used by international (English/European) cards
+    def wants_line(pid, fallback_exp=None):
+        """'Charizard ex [Brave Wing | Explosive Vortex]' -> 'Charizard ex Brave Wing Explosive Vortex (V.2) (151)'"""
+        if pid not in pname: return None
+        e = prod[pid][0]; n = pname[pid]
+        line = re.sub(r"\s+", " ", n.replace("[", " ").replace("]", " ").replace("|", " ")).strip()
+        same = by_en.get((e, n), [])
+        if len(same) > 1: line += f" (V.{sorted(same).index(pid) + 1})"
+        ex = exp_name.get(e) or fallback_exp
+        if ex: line += f" ({ex})"
+        return line
     def same_card(pid, target_exp):
         """the product for the same card in another language edition (same metacard, same rank)."""
         if pid not in prod: return None
@@ -261,7 +277,7 @@ def main():
                     q = same_card(c["cm"], x) if x != main or ja == main else orig
                     if q:
                         pa = price_arr(guide.get(q)) or [None] * 6
-                        alt[lg] = [q, pa[0], pa[2]]
+                        alt[lg] = [q, pa[0], pa[2], wants_line(q)]
             if alt: c["alt"] = alt
 
     def build_card(ct, lid, nm):
@@ -359,6 +375,13 @@ def main():
                 if not cards: continue
                 attach_tp(cards, tp_groups_for(set_names, abbr.group(1) if abbr else None, real_id, asia), asia)
                 if asia and prod: fix_asia(cards)
+                if pname:
+                    for c in cards:
+                        w = wants_line(c.get("cm"), (set_names.get("en") or "").split(" · ")[-1] if not asia else None)
+                        if w: c["wl"] = w
+                        for x in c.get("sp") or []:
+                            w2 = wants_line(x[1])
+                            if w2 and len(x) == 3: x.append(w2)
                 cards.sort(key=lambda c: natkey(c["l"]))
                 n_cards += len(cards)
                 val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)

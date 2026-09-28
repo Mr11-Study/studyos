@@ -23,7 +23,7 @@ const fmtStamp = s => { if (!s) return "–"; const d = new Date(s); return isNa
 
 /* ---------------- shell ---------------- */
 App.NAV.length = 0;
-[["dash", "Übersicht", "⌂"], ["portfolio", "Sammlung", "◆"], ["sets", "Sets", "▦"], ["cards", "Karten suchen", "⌕"], ["sealed", "Produkte", "▣"], ["watch", "Beobachtet", "☆"], ["path", "Sammler-Guide", "?"]].forEach(x => App.NAV.push(x));
+[["dash", "Übersicht", "⌂"], ["portfolio", "Sammlung", "◆"], ["sets", "Sets", "▦"], ["cards", "Karten suchen", "⌕"], ["sealed", "Produkte", "▣"], ["wish", "Wunschliste", "♡"], ["watch", "Beobachtet", "☆"], ["path", "Sammler-Guide", "?"]].forEach(x => App.NAV.push(x));
 App.BNAV = [["dash", "Übersicht", "⌂"], ["portfolio", "Sammlung", "◆"], ["cards", "Suchen", "⌕"], ["sealed", "Produkte", "▣"], ["__more", "Mehr", "☰"]];
 App.BRAND = { logo: "◆", name: "Sammlung", sub: "Pokémon · Cardmarket-Preise" };
 App.WELCOME = "Deine Sammlungs-App: Karten und Sealed-Produkte erfassen, Preise aus dem Cardmarket-Preisführer, Gesamtwert und Entwicklung. Alles bleibt auf deinem Gerät.";
@@ -86,6 +86,19 @@ const lpKey = (o) => o.kind === "sealed" ? `S|${o.id}|${o.lang}|${o.cond || ""}`
 const lpOf = o => LP()[lpKey(o)] || null;
 const setLp = (o, v) => { const k = lpKey(o); if (v == null) delete LP()[k]; else LP()[k] = { v: Math.round(v * 100) / 100, at: today() }; };
 function itemUnit(it) { if (hasOwn(it)) return +it.own; const lp = lpOf(it); if (lp) return lp.v; const b = it.last && it.last.t != null ? it.last.t : null; return adjPrice(b, it.lang, it.cond, it.kind, it.rg); }
+/* ---------------- Wunschliste (export as Cardmarket "Wants" deck list) ---------------- */
+const WL = () => { const t = T(); t.wish = t.wish || []; return t.wish; };
+function wantsOf(c, s, variant, lang) {
+  if (lang && c.alt && c.alt[lang] && c.alt[lang][3]) return c.alt[lang][3];
+  if (variant && variant.startsWith("sp:")) { const x = (c.sp || []).find(y => y[0] === variant.slice(3)); if (x && x[3]) return x[3]; }
+  return c.wl || `${c.n.en || cardName(c)} (${(s.n && s.n.en) || setName(s)})`;
+}
+const wishKey = w => w.kind === "sealed" ? `S|${w.id}|${w.lang}|${w.cond}` : `${w.set}|${w.l}|${w.variant}|${w.lang}|${w.cond}`;
+function wishAdd(w, d = 1) { const L = WL(); const k = wishKey(w); const ex = L.find(x => wishKey(x) === k);
+  if (ex) { ex.qty += d; if (ex.qty <= 0) L.splice(L.indexOf(ex), 1); } else if (d > 0) L.push(Object.assign({ uid: "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), qty: d, added: Date.now() }, w));
+  App.save(); App.renderSide(); }
+const wishCount = w => { const x = WL().find(y => wishKey(y) === wishKey(w)); return x ? x.qty : 0; };
+function cardWish(c, s, setId, variant, lang, cond) { const arr = priceOfLang(c, variant, lang); return { kind: "card", set: setId, l: c.l, variant, lang, cond, name: cardName(c), nameEn: c.n.en, sub: `${setName(s)} · #${c.l} · ${variantLabel(c, variant)}`, wl: wantsOf(c, s, variant, lang), rev: variant === "reverse", price: trendOf(arr), cm: cmOf(c, variant, lang), tp: c.tp }; }
 function totals(filter) { let value = 0, buy = 0, cards = 0, sealedN = 0, unpriced = 0; T().items.filter(filter || (() => true)).forEach(it => { const u = itemUnit(it); if (u == null) unpriced += it.qty; else value += u * it.qty; buy += (it.buy || 0) * it.qty; if (it.kind === "card") cards += it.qty; else sealedN += it.qty; }); return { value, buy, pl: value - buy, plPct: buy ? (value - buy) / buy * 100 : null, cards, sealed: sealedN, unpriced }; }
 async function refreshPrices(force) {
   const t = T(); let changed = false;
@@ -236,18 +249,21 @@ PAGES.set = guard(async (el, id) => {
     <div class="tabs"><button data-tab="cards" class="on">Karten</button><button data-tab="sealed">Sealed-Produkte</button></div>
     <div id="qa"></div><div id="fb"></div><small class="muted" id="cn"></small><div class="tgrid" id="cg"></div></div>`;
   /* quick add: pick language / condition / variant once, then + / − directly on every card */
-  const QA = t.qa = Object.assign({ on: false, lang: t.lang, cond: "NM", rev: false }, t.qa || {});
+  const QA = t.qa = Object.assign({ on: false, lang: t.lang, cond: "NM", rev: false, target: "col" }, t.qa || {});
   const qaLangs = isAsia(s) ? ["ja"].concat([...new Set(sd.cards.flatMap(c => Object.keys(c.alt || {})))]).concat(sd.cards.some(c => c.n.ko) ? ["ko"] : []) : NAME_LANGS.concat(["ja", "ko"]);
   if (!qaLangs.includes(QA.lang)) QA.lang = qaLangs[0];
   const qaVar = c => QA.rev && (c.rv || (c.vt || []).includes("reverse")) ? "reverse" : variantsOf(c)[0][0];
   const qaMatch = (i, c) => i.kind === "card" && i.set === id && i.l === c.l && i.lang === QA.lang && i.cond === QA.cond && (i.variant || "normal") === qaVar(c) && !i.grade;
-  const qaCount = c => t.items.filter(i => qaMatch(i, c)).reduce((a, i) => a + i.qty, 0);
+  const qaWish = c => cardWish(c, s, id, qaVar(c), QA.lang, QA.cond);
+  const qaCount = c => QA.target === "wish" ? wishCount(qaWish(c)) : t.items.filter(i => qaMatch(i, c)).reduce((a, i) => a + i.qty, 0);
   const drawQA = () => { $("#qa", el).innerHTML = `<div class="qa-bar ${QA.on ? "on" : ""}"><button class="btn ${QA.on ? "pri" : ""}" data-qa-toggle>⚡ Schnell erfassen${QA.on ? " · an" : ""}</button>
       ${QA.on ? `<div class="seg qa-lang">${qaLangs.map(l => `<button data-qa-lang="${l}" class="${QA.lang === l ? "on" : ""}">${l.split("-")[0].toUpperCase()}${l.includes("-") ? "·" + l.split("-")[1].toUpperCase() : ""}</button>`).join("")}</div>
       <select data-qa-cond aria-label="Zustand">${CONDS.map(([k, l]) => `<option value="${k}" ${QA.cond === k ? "selected" : ""}>${k} – ${l}</option>`).join("")}</select>
       <div class="seg"><button data-qa-rev="0" class="${QA.rev ? "" : "on"}">Normal/Holo</button><button data-qa-rev="1" class="${QA.rev ? "on" : ""}">Reverse</button></div>
-      <small class="muted">Tippe + / − auf einer Karte: ${esc(LANGS[QA.lang] || QA.lang)} · ${QA.cond} · ${QA.rev ? "Reverse Holo" : "Normal/Holo"}</small>` : `<small class="muted">Karten mit + / − direkt in einer Sprache zur Sammlung hinzufügen</small>`}</div>`; };
-  const qaChange = (c, d) => { const ex = t.items.filter(i => qaMatch(i, c));
+      <div class="seg"><button data-qa-target="col" class="${QA.target === "wish" ? "" : "on"}">◆ in Sammlung</button><button data-qa-target="wish" class="${QA.target === "wish" ? "on" : ""}">♡ auf Wunschliste</button></div>
+      ${QA.target === "wish" ? `<button class="btn sm" data-qa-missing>♡ Alle fehlenden dieses Sets auf die Wunschliste</button>` : ""}
+      <small class="muted">Tippe + / − auf einer Karte: ${QA.target === "wish" ? "Wunschliste" : "Sammlung"} · ${esc(LANGS[QA.lang] || QA.lang)} · ${QA.cond} · ${QA.rev ? "Reverse Holo" : "Normal/Holo"}</small>` : `<small class="muted">Karten mit + / − direkt in einer Sprache zur Sammlung hinzufügen</small>`}</div>`; };
+  const qaChange = (c, d) => { if (QA.target === "wish") return wishAdd(qaWish(c), d); const ex = t.items.filter(i => qaMatch(i, c));
     if (d > 0) { if (ex.length) ex[0].qty++; else { const v = qaVar(c), arr = priceOfLang(c, v, QA.lang); t.items.push({ uid: "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: "card", set: id, rg: s.rg || undefined, tp: c.tp || undefined, l: c.l, name: cardName(c), nameEn: c.n.en, short: `#${c.l} · ${s.a || setName(s)}`, sub: `${setName(s)} · #${c.l} · ${variantLabel(c, v)}`, rar: c.r, variant: v, lang: QA.lang, cond: QA.cond, qty: 1, buy: 0, date: today(), added: Date.now(), last: trendOf(arr) != null ? { t: trendOf(arr), a7: arr[4], a30: arr[5], at: sd.u } : null }); } }
     else if (ex.length) { const i = ex[ex.length - 1]; i.qty--; if (i.qty <= 0) t.items.splice(t.items.indexOf(i), 1); }
     ownedQty[c.l] = t.items.filter(i => i.kind === "card" && i.set === id && i.l === c.l).reduce((a, i) => a + i.qty, 0); if (!ownedQty[c.l]) delete ownedQty[c.l];
@@ -277,6 +293,8 @@ PAGES.set = guard(async (el, id) => {
     if (e.target.closest("[data-qa-toggle]")) { QA.on = !QA.on; App.save(); drawQA(); drawCards(); return; }
     const ql = e.target.closest("[data-qa-lang]"); if (ql) { QA.lang = ql.dataset.qaLang; App.save(); drawQA(); drawCards(); return; }
     const qr = e.target.closest("[data-qa-rev]"); if (qr) { QA.rev = qr.dataset.qaRev === "1"; App.save(); drawQA(); drawCards(); return; }
+    const qt = e.target.closest("[data-qa-target]"); if (qt) { QA.target = qt.dataset.qaTarget; App.save(); drawQA(); drawCards(); return; }
+    if (e.target.closest("[data-qa-missing]")) { let n = 0; sd.cards.forEach(c => { if (!ownedQty[c.l] && !wishCount(qaWish(c))) { wishAdd(qaWish(c), 1); n++; } }); App.toast("Wunschliste", `${n} fehlende Karten hinzugefügt (${LANGS[QA.lang] || QA.lang} · ${QA.cond})`, "♡"); drawCards(); return; }
     const qc = e.target.closest("[data-qa]"); if (qc) { const b = e.target.closest("[data-qm],[data-qp]"); if (b) { const c = sd.map[qc.dataset.qa]; qaChange(c, b.hasAttribute("data-qp") ? 1 : -1); $("b", qc).textContent = qaCount(c); const tile = qc.closest(".tcard"); tile.classList.toggle("missing", !!(nOwned && !ownedQty[c.l])); let ow = $(".own", tile); if (ownedQty[c.l]) { if (!ow) { ow = document.createElement("span"); ow.className = "own"; $(".im", tile).appendChild(ow); } ow.textContent = "✓ " + ownedQty[c.l]; } else if (ow) ow.remove(); b.classList.add("pulse"); setTimeout(() => b.classList.remove("pulse"), 250); } return; }
     const c = e.target.closest("[data-card]"); if (c) return openCard(id, c.dataset.card); const tb = e.target.closest("[data-tab]"); if (tb) { tab = tb.dataset.tab; $$("[data-tab]", el).forEach(b => b.classList.toggle("on", b === tb)); $("#fb", el).style.display = tab === "cards" ? "" : "none"; tab === "cards" ? drawCards() : drawSealed(); return; } const sr = e.target.closest("[data-sealed]"); if (sr) openSealed(+sr.dataset.sealed); };
   drawCards();
@@ -336,7 +354,7 @@ async function openCard(setId, lid) {
       <div class="grid g2"><label class="fld">Eigener Preis / Stück (€)<input type="number" id="ao" step="0.01" inputmode="decimal" placeholder="leer = Schätzwert"></label><label class="fld">Anzahl<input type="number" id="aq" value="1" min="1" inputmode="numeric"></label></div>
       <div class="grid g2"><label class="fld">Kaufpreis / Stück (€)<input type="number" id="ab" step="0.01" inputmode="decimal" placeholder="optional"></label><label class="fld">Kaufdatum<input type="date" id="ad" value="${today()}"></label></div>
       <div class="grid g2"><label class="fld">Gradierung (optional)<input type="text" id="ag" placeholder="z. B. PSA 10"></label><label class="fld">Notiz<input type="text" id="an" placeholder="optional"></label></div>
-      <button class="btn pri" id="add">＋ Zur Sammlung</button></div>
+      <div class="row" style="gap:8px"><button class="btn pri" id="add" style="flex:1">＋ Zur Sammlung</button><button class="btn" id="wsh">♡ Wunschliste</button></div></div>
     ${mine.length ? `<div class="col" style="gap:6px"><span class="eyebrow">In deiner Sammlung</span>${mine.map(i => `<button class="srow" data-edit="${i.uid}"><span class="ic" style="font-weight:700">×${i.qty}</span><span class="t"><b>${esc(variantLabel(c, i.variant))} · ${esc(LANGS[i.lang] || i.lang)} · ${esc(i.cond)}</b><small class="muted">${esc(basis(i))} · Kauf ${eur(i.buy)} / Stück${i.grade ? " · " + esc(i.grade) : ""}</small></span><span class="v"><b>${eur(itemUnit(i) != null ? itemUnit(i) * i.qty : null)}</b></span></button>`).join("")}</div>` : ""}`, (m, close) => {
     const hc = $(".hc", m); const ho = $("#ho", m);
     ho.onpointermove = e => { const r = hc.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; if (x < -0.2 || x > 1.2 || y < -0.2 || y > 1.2) return; hc.style.transform = `rotateY(${(x - .5) * 22}deg) rotateX(${(.5 - y) * 22}deg)`; hc.style.setProperty("--gx", x * 100 + "%"); hc.style.setProperty("--gy", y * 100 + "%"); };
@@ -354,6 +372,7 @@ async function openCard(setId, lid) {
         box.innerHTML = L.length ? L.map(r => { const ss = D.setMap[r[0]]; return `<button class="srow" data-oc="${esc(r[0])}|${esc(r[1])}"><span class="ic"><img loading="lazy" src="${cardImg(r[0], r[1], "low", undefined, r[14])[0]}" data-fb="${esc(cardImg(r[0], r[1], "low", undefined, r[14])[1])}" onerror="tcgImgErr(this)" alt=""></span><span class="t"><b>${rgBadge(ss)}${esc(setName(ss))}</b><small class="muted">#${esc(r[1])}${r[4] ? " · " + esc(r[4]) : ""}${ss && ss.d ? " · " + ss.d.slice(0, 4) : ""}</small></span><span class="v"><b class="pr">${eur(r[5])}</b></span></button>`; }).join("") : `<small class="muted">Keine andere Version mit genau diesem Namen gefunden.</small>`;
       } catch (err) { box.innerHTML = `<small class="muted">Konnte nicht geladen werden.</small>`; } };
     m.addEventListener("click", e => { const il = e.target.closest("[data-il]"); if (il) { $$("[data-il]", m).forEach(b => b.classList.toggle("on", b === il)); const [a, b] = cardImg(setId, lid, "high", il.dataset.il); const img = $(".hc img", m); img.style.display = ""; const ph = $(".hc .ph", m); if (ph) ph.style.display = "none"; img.dataset.fb = b; img.src = a; const al = $("#al", m); if (al) { al.value = il.dataset.il; upd(); } } const ed = e.target.closest("[data-edit]"); if (ed) { close(); editItem(ed.dataset.edit); } if (e.target.closest("[data-go]")) close(); const oc = e.target.closest("[data-oc]"); if (oc) { close(); const [a, b] = oc.dataset.oc.split("|"); openCard(a, b); } });
+    $("#wsh", m).onclick = () => { const w = cardWish(c, s, setId, $("#av", m).value, $("#al", m).value, $("#ac", m).value); wishAdd(w, Math.max(1, +$("#aq", m).value || 1)); App.toast("Auf der Wunschliste", `${w.name} · ${LANGS[w.lang] || w.lang} · ${w.cond}`, "♡"); close(); };
     $("#wt", m).onclick = () => { close(); watchForm({ kind: "card", set: setId, l: lid, name: cardName(c) + " (" + setName(s) + ")", variant: $("#av", m).value, cur: trendOf(priceOf(c, $("#av", m).value)) }); };
     $("#add", m).onclick = () => { const variant = $("#av", m).value; const arr = priceOfLang(c, variant, $("#al", m).value); const it = { uid: "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: "card", set: setId, rg: s.rg || undefined, tp: c.tp || undefined, l: lid, name: cardName(c), nameEn: c.n.en, short: `#${lid} · ${s.a || setName(s)}`, sub: `${setName(s)} · #${lid} · ${variantLabel(c, variant)}`, rar: c.r, variant, lang: $("#al", m).value, cond: $("#ac", m).value, qty: Math.max(1, +$("#aq", m).value || 1), own: numIn($("#ao", m).value), buy: numIn($("#ab", m).value) || 0, date: $("#ad", m).value, grade: $("#ag", m).value.trim(), note: $("#an", m).value.trim(), added: Date.now(), last: trendOf(arr) != null ? { t: trendOf(arr), a7: arr[4], a30: arr[5], at: sd.u } : null };
       if (it.own == null) delete it.own; t.items.push(it); snapshot(); App.save(); App.renderSide(); App.toast("Hinzugefügt", `${it.qty}× ${it.name}`, "◆"); close(); if (["set", "portfolio", "dash"].includes(App.route().v)) App.render(); };
@@ -399,12 +418,13 @@ async function openSealed(id) {
       <div class="grid g2"><label class="fld">Eigener Preis / Stück (€)<input type="number" id="ao" step="0.01" inputmode="decimal" placeholder="leer = Schätzwert"></label><label class="fld">Anzahl<input type="number" id="aq" value="1" min="1" inputmode="numeric"></label></div>
       <div class="grid g2"><label class="fld">Kaufpreis / Stück (€)<input type="number" id="ab" step="0.01" inputmode="decimal" placeholder="optional"></label><label class="fld">Kaufdatum<input type="date" id="ad" value="${today()}"></label></div>
       <label class="fld">Notiz<input type="text" id="an" placeholder="optional"></label>
-      <button class="btn pri" id="add">＋ Zur Sammlung</button></div>
+      <div class="row" style="gap:8px"><button class="btn pri" id="add" style="flex:1">＋ Zur Sammlung</button><button class="btn" id="wsh">♡ Wunschliste</button></div></div>
     ${mine.length ? `<div class="col" style="gap:6px"><span class="eyebrow">In deiner Sammlung</span>${mine.map(i => `<button class="srow" data-edit="${i.uid}"><span class="ic" style="font-weight:700">×${i.qty}</span><span class="t"><b>${esc(LANGS[i.lang] || i.lang)} · ${esc((SEALED_COND.find(c => c[0] === i.cond) || [0, i.cond])[1])}</b><small class="muted">${esc(basis(i))} · Kauf ${eur(i.buy)} / Stück</small></span><span class="v"><b>${eur(itemUnit(i) != null ? itemUnit(i) * i.qty : null)}</b></span></button>`).join("")}</div>` : ""}`, (m, close) => {
     const upd = () => { const l = $("#al", m).value; const o = { kind: "sealed", id, lang: l, cond: $("#ac", m).value }; $("#est", m).innerHTML = langPriceHTML(o, x.p); bindLangPrice($("#est", m), o, x.p, upd); const a = $("#cml", m); a.href = cmUrl(id, { lang: l }); a.textContent = `Angebote: ${LANGS[l] || l} ↗`; };
     $("#al", m).onchange = upd; $("#ac", m).onchange = upd; upd();
     m.addEventListener("click", e => { const ed = e.target.closest("[data-edit]"); if (ed) { close(); editItem(ed.dataset.edit); } if (e.target.closest("[data-go]")) close(); });
     $("#wt", m).onclick = () => { close(); watchForm({ kind: "sealed", id, name: x.n, cur: trendOf(x.p) }); };
+    $("#wsh", m).onclick = () => { wishAdd({ kind: "sealed", id, name: x.n, sub: x.c, lang: $("#al", m).value, cond: "", wl: x.n, price: trendOf(x.p), cm: id, img: x.img, cat: x.c, e: x.e }, Math.max(1, +$("#aq", m).value || 1)); App.toast("Auf der Wunschliste", x.n, "♡"); close(); };
     $("#add", m).onclick = () => { const it = { uid: "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: "sealed", id, img: x.img || undefined, name: x.n, cat: x.c, e: x.e, short: x.c, sub: `${x.c}${s ? " · " + setName(s) : ""}`, lang: $("#al", m).value, cond: $("#ac", m).value, qty: Math.max(1, +$("#aq", m).value || 1), own: numIn($("#ao", m).value), buy: numIn($("#ab", m).value) || 0, date: $("#ad", m).value, note: $("#an", m).value.trim(), added: Date.now(), last: trendOf(x.p) != null ? { t: trendOf(x.p), a7: x.p[4], a30: x.p[5], at: D.meta && D.meta.updated } : null };
       if (it.own == null) delete it.own; t.items.push(it); snapshot(); App.save(); App.renderSide(); App.toast("Hinzugefügt", `${it.qty}× ${it.name}`, "▣"); close(); if (["portfolio", "dash", "sealed"].includes(App.route().v)) App.render(); };
   });
@@ -538,6 +558,44 @@ function editItem(uid) {
   });
   if (card && !D.setData[i.set]) setData(i.set).catch(() => null);
 }
+
+/* ---------------- Wunschliste page ---------------- */
+PAGES.wish = guard(async el => {
+  await sets().catch(() => null); const L = WL(); const OPEN = {};
+  if (L.some(w => w.kind === "sealed")) await sealed().catch(() => null);
+  const draw = () => {
+    const groups = {}; L.forEach(w => (groups[w.lang] = groups[w.lang] || []).push(w));
+    const langs = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+    const sum = arr => arr.reduce((a, w) => a + (w.price || 0) * w.qty, 0);
+    const lineOf = w => `${w.qty} ${w.wl}`;
+    el.innerHTML = `<div class="page" style="max-width:900px"><div class="spread"><div><h1>Wunschliste</h1><p class="muted" style="margin-top:6px">Karten und Produkte, die du kaufen willst – als Liste für Cardmarket („Wants“) zum Kopieren oder Herunterladen.</p></div>${L.length ? `<button class="btn ghost sm" id="wclr">Liste leeren</button>` : ""}</div>
+      ${!L.length ? `<div class="card empty-state"><b>Noch leer</b><small class="muted">Im Kartenfenster auf „♡ Wunschliste“ tippen – oder im Set „⚡ Schnell erfassen“ → „♡ auf Wunschliste“ und mit + / − füllen. Dort gibt es auch „Alle fehlenden dieses Sets“.</small><div class="row"><button class="btn pri" data-go="sets">Sets öffnen</button></div></div>` : ""}
+      ${langs.map(lg => { const arr = groups[lg]; const lines = arr.map(lineOf); const chunks = []; for (let i = 0; i < lines.length; i += 150) chunks.push(lines.slice(i, i + 150));
+        return `<div class="card col" style="gap:10px"><div class="spread"><h2>${esc(LANGS[lg] || lg)} <small class="muted" style="font-size:14px">· ${arr.reduce((a, w) => a + w.qty, 0)} Stück · Richtwert ≈ ${eur(sum(arr))}</small></h2></div>
+          <div class="col" style="gap:6px">${arr.slice(0, OPEN[lg] ? arr.length : 12).map(w => `<div class="srow" style="cursor:default" data-w="${w.uid}"><span class="ic ${w.kind === "card" ? "" : "pbg"}">${w.kind === "card" ? thumbImg(w) : sealedThumb(w.img, w.cat, w.e)}</span><span class="t"><b>${esc(w.name)}</b><small class="muted">${esc(w.sub || "")}${w.cond ? " · " + esc(w.cond) : ""}${w.rev ? " · <span style='color:var(--acc)'>Reverse Holo</span>" : ""}</small><small class="basis" style="color:var(--muted)">${esc(w.wl)}</small></span><span class="v"><span class="qa-ctl mini"><button data-wm>−</button><b>${w.qty}</b><button data-wp>+</button></span><small class="muted">${eur(w.price)}</small></span></div>`).join("")}${arr.length > 12 && !OPEN[lg] ? `<button class="btn ghost sm" data-open="${lg}">Alle ${arr.length} anzeigen</button>` : ""}</div>
+          ${chunks.map((ch, ci) => `<div class="col" style="gap:6px"><span class="eyebrow">Cardmarket-Liste${chunks.length > 1 ? ` ${ci + 1}/${chunks.length} (max. 150 Einträge je Wants-Liste)` : ""}</span><textarea readonly class="wl-text" rows="${Math.min(8, ch.length + 1)}">${esc(ch.join("\n"))}</textarea>
+            <div class="row" style="gap:8px"><button class="btn pri sm" data-copy="${lg}|${ci}">📋 Kopieren</button><button class="btn sm" data-txt="${lg}|${ci}">⤓ .txt</button><button class="btn sm ghost" data-csv="${lg}">⤓ CSV</button><a class="btn sm ghost" href="https://www.cardmarket.com/de/Pokemon/Wants" target="_blank" rel="noopener">Cardmarket Wants ↗</a></div></div>`).join("")}
+          ${arr.some(w => w.rev) ? `<small class="muted">Reverse-Holo-Karten: auf Cardmarket beim jeweiligen Eintrag „Reverse Holo“ anhaken (die Import-Liste kennt das nicht).</small>` : ""}</div>`; }).join("")}
+      ${L.length ? `<div class="card col" style="gap:6px;background:var(--card2)"><h3>So kommt die Liste auf Cardmarket</h3><ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px">
+        <li>Oben bei der Sprache auf <b>„📋 Kopieren“</b> tippen (oder .txt herunterladen).</li>
+        <li>Auf Cardmarket einloggen → <b>Wants</b> → neue Wants-Liste anlegen (z. B. „Papa Deutsch“).</li>
+        <li>In das Feld zum <b>Hinzufügen einer Deckliste</b> einfügen und auf <b>Hinzufügen</b> tippen. Jede Zeile ist eine Karte mit Anzahl, Name, Attacken, Version (V.x) und Erweiterung – so findet Cardmarket genau die richtige Karte.</li>
+        <li>In der Wants-Liste <b>Sprache</b> (z. B. Deutsch) und <b>Mindestzustand</b> einstellen – die Liste ist deshalb schon nach Sprachen getrennt.</li>
+        <li>Mit dem <b>Shopping Wizard</b> findet Cardmarket die günstigste Kombination aus Verkäufern.</li></ol>
+        <small class="muted">Meldet Cardmarket bei einer Zeile „keine Treffer“, die Karte dort einfach per Suche hinzufügen.</small></div>` : ""}</div>`;
+    const clr = $("#wclr", el); if (clr) clr.onclick = () => { if (confirm("Wunschliste komplett leeren?")) { L.length = 0; App.save(); draw(); } };
+  };
+  const linesFor = (lg, ci) => { const arr = L.filter(w => w.lang === lg).map(w => `${w.qty} ${w.wl}`); return arr.slice(ci * 150, ci * 150 + 150).join("\n"); };
+  el.onclick = async e => {
+    const op = e.target.closest("[data-open]"); if (op) { OPEN[op.dataset.open] = true; draw(); return; }
+    const r = e.target.closest("[data-w]"); if (r && e.target.closest("[data-wm],[data-wp]")) { const w = L.find(x => x.uid === r.dataset.w); w.qty += e.target.closest("[data-wp]") ? 1 : -1; if (w.qty <= 0) L.splice(L.indexOf(w), 1); App.save(); App.renderSide(); draw(); return; }
+    const cp = e.target.closest("[data-copy]"); if (cp) { const [lg, ci] = cp.dataset.copy.split("|"); const txt = linesFor(lg, +ci); try { await navigator.clipboard.writeText(txt); } catch (err) { const ta = cp.closest(".col").querySelector("textarea"); ta.select(); document.execCommand && document.execCommand("copy"); } App.toast("Kopiert", "Jetzt auf Cardmarket in eine Wants-Liste einfügen", "📋"); return; }
+    const tx = e.target.closest("[data-txt]"); if (tx) { const [lg, ci] = tx.dataset.txt.split("|"); App.download(`cardmarket-wants-${lg}${+ci ? "-" + (+ci + 1) : ""}.txt`, linesFor(lg, +ci), "text/plain"); return; }
+    const cv = e.target.closest("[data-csv]"); if (cv) { const lg = cv.dataset.csv; const rows = [["Anzahl", "Cardmarket-Zeile", "Name", "Set / Kategorie", "Nummer", "Variante", "Sprache", "Zustand", "Richtwert/Stk"]].concat(L.filter(w => w.lang === lg).map(w => [w.qty, w.wl, w.name, w.kind === "card" ? setName(D.setMap[w.set]) : w.sub, w.l || "", w.kind === "card" ? variantLabel({}, w.variant) : "", LANGS[w.lang] || w.lang, w.cond || "", w.price != null ? w.price.toFixed(2) : ""]));
+      App.download(`wunschliste-${lg}.csv`, "\ufeff" + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(";")).join("\n"), "text/csv"); return; }
+  };
+  draw();
+});
 
 /* ---------------- Beobachtet (watchlist + price alerts) ---------------- */
 function watchForm(w) {
