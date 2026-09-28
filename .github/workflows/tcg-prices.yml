@@ -4,7 +4,7 @@ on:
     - cron: "17 5,13 * * *"   # twice a day (UTC); Cardmarket publishes the guide once per day
   workflow_dispatch: {}
   push:
-    paths: ["tools/build_tcg.py", ".github/workflows/tcg-prices.yml"]
+    paths: ["tools/build_tcg.py", "tools/fetch_tcgplayer.py", ".github/workflows/tcg-prices.yml"]
 permissions:
   contents: write
 concurrency: { group: tcg-prices, cancel-in-progress: true }
@@ -19,8 +19,14 @@ jobs:
         run: |
           curl -fsSL --retry 3 -o /tmp/pg.json https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_6.json
           curl -fsSL --retry 3 -o /tmp/sealed.json https://downloads.s3.cardmarket.com/productCatalog/productList/products_nonsingles_6.json
+      - name: Sealed product images (TCGCSV / TCGplayer catalogue)
+        continue-on-error: true
+        run: python3 tools/fetch_tcgplayer.py /tmp/tcgp.json
       - name: Build
-        run: python3 tools/build_tcg.py --db /tmp/tcgdb --prices /tmp/pg.json --sealed /tmp/sealed.json --out /tmp/out/tcg
+        run: |
+          python3 tools/build_tcg.py --db /tmp/tcgdb --prices /tmp/pg.json --sealed /tmp/sealed.json --tcgp /tmp/tcgp.json --out /tmp/out/tcg
+          mkdir -p /tmp/out/src && cp /tmp/tcgp.json /tmp/out/src/tcgp.json 2>/dev/null || true
+          python3 -c "import json;d=json.load(open('/tmp/sealed.json'));json.dump(d,open('/tmp/out/src/cm_sealed.json','w'))" || true
       - name: Publish to the 'data' branch (no history, overwritten each run)
         run: |
           cd /tmp/out
