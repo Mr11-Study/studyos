@@ -67,10 +67,39 @@ const WORLDS = [
     { t: "html", html: `<ol><li><b>Penny Sleeve</b> (weiche Hülle) für jede wertvolle Karte.</li><li>Zusätzlich <b>Toploader</b> oder Magnethülle für Karten über ca. 20 €.</li><li><b>Ordner mit Seitenlade-Taschen</b> (Side-Loading) statt Ringordner – Ringe drücken Dellen.</li><li>Trocken, dunkel, nicht zu warm lagern. Keine Gummibänder!</li><li>Sealed-Produkte aufrecht, vor Sonne geschützt; ETBs nicht stapeln (Druckstellen).</li></ol>` },
     { t: "check", q: "Warum sind Ringordner schlecht für Karten?", opts: ["Sie sind zu teuer", "Die Ringe können Dellen in die Karten drücken", "Sie sind zu klein", "Sie sind nicht bunt"], a: 1, why: "Karten nahe den Ringen bekommen leicht Druckstellen." }
   ]}
+ ]},
+ { id: "tgw3", n: 3, title: "Praxis & Markt", sub: "Sprachen, Grading, Cardmarket, Sets erkennen", boss: null, lessons: [
+  { id: "tg3-1", title: "Sprache & Preis", topic: "tg-preis", min: 4, xp: 0, blocks: [
+    { t: "lead", html: "Dieselbe Karte kostet je nach Sprache oft unterschiedlich viel. Englische und japanische Karten sind meist am gefragtesten, deutsche häufig etwas günstiger – bei manchen Karten ist es aber umgekehrt." },
+    { t: "html", html: `<div class="table-wrap"><table class="dt"><thead><tr><th>Wert in der App</th><th>Bedeutung</th></tr></thead><tbody>
+      <tr><td><b>Cardmarket-Trend</b></td><td>Richtwert aus dem offiziellen Preisführer – <b>alle Sprachen zusammen</b>, meist Near Mint.</td></tr>
+      <tr><td><b>Sprach-/Zustandsfaktor</b></td><td>Dein eigener Prozentsatz pro Sprache bzw. Zustand (Einstellungen → Preise anpassen). Standard 100 %.</td></tr>
+      <tr><td><b>Eigener Preis</b></td><td>Den trägst du pro Eintrag ein, z. B. nachdem du auf Cardmarket die deutschen NM-Angebote angesehen hast. Er hat immer Vorrang.</td></tr></tbody></table></div>` },
+    { t: "tip", html: "Im Kartenfenster führt <b>„Angebote auf Cardmarket“</b> direkt zur Karte – schon gefiltert auf die gewählte Sprache und den Zustand. Den günstigsten passenden Preis dort als „Eigenen Preis“ eintragen, fertig." },
+    { t: "callout", html: "Warum nicht automatisch pro Sprache? Cardmarket veröffentlicht frei nur den zusammengefassten Preisführer. Preise je Sprache gibt es nur über die Cardmarket-Schnittstelle, die eine eigene Freischaltung braucht." }
+  ]},
+  { id: "tg3-2", title: "Grading: PSA, CGC, BGS", topic: "tg-zust", min: 5, xp: 0, blocks: [
+    { t: "lead", html: "Beim Grading bewertet eine Firma die Karte, versiegelt sie in einem Plastik-„Slab“ und vergibt eine Note von 1 bis 10." },
+    { t: "html", html: `<div class="table-wrap"><table class="dt"><thead><tr><th>Firma</th><th>Top-Noten</th><th>Hinweis</th></tr></thead><tbody>
+      <tr><td><b>PSA</b></td><td>10 Gem Mint · 9 Mint</td><td>Am bekanntesten, höchste Preise für PSA 10.</td></tr>
+      <tr><td><b>CGC</b></td><td>Pristine 10 · Gem Mint 10 · 9.5</td><td>Günstiger, halbe Noten, Unternoten auf Wunsch.</td></tr>
+      <tr><td><b>BGS (Beckett)</b></td><td>Black Label 10 · Pristine 10 · 9.5</td><td>Vier Unternoten (Zentrierung, Ecken, Kanten, Oberfläche).</td></tr></tbody></table></div>` },
+    { t: "keys", items: ["Lohnt sich meist erst bei Karten ab ca. 50–100 € Rohwert oder bei persönlichem Lieblingsstück.", "Vorher prüfen: Zentrierung, weiße Kanten, Kratzer auf der Holo-Fläche.", "Gegradete Karten haben auf Cardmarket eigene Preise – der Preisführer der App gilt für ungegradete Karten. Für gegradete Karten am besten einen eigenen Preis eintragen."] }
+  ]},
+  { id: "tg3-3", title: "Set-Symbol und Nummer lesen", topic: "tg-selt", min: 3, xp: 0, blocks: [
+    { t: "lead", html: "Unten auf jeder Karte stehen Set-Symbol, Kartennummer und Seltenheit – damit findest du jede Karte in der App." },
+    { t: "html", html: `<ol><li><b>Nummer „199/165“:</b> Karte 199 von 165 regulären Karten. Liegt die erste Zahl über der zweiten, ist es eine <b>Secret Rare</b>.</li><li><b>Set-Kürzel</b> (z. B. MEW, OBF, PAR) – steht bei neueren Karten neben der Nummer. In der App: Sets → Suche nach Kürzel.</li><li><b>Regulation Mark</b> (G, H, I …) – der Buchstabe im Kästchen ist fürs Turnierspiel, nicht für den Preis.</li><li><b>Seltenheit:</b> ● ◆ ★, goldene Sterne = Illustration Rare / Special Illustration Rare / Hyper Rare.</li></ol>` },
+    { t: "tip", html: "Schnellster Weg in der App: <b>Karten suchen</b> → Name eintippen → mit dem Filter <b>Set</b> oder <b>Nummer</b> eingrenzen." }
+  ]},
+  { id: "tg3-4", title: "Cardmarket geschickt nutzen", topic: "tg-preis", min: 4, xp: 0, blocks: [
+    { t: "lead", html: "Cardmarket zeigt pro Karte alle Angebote. Mit den Filtern oben siehst du genau das, was zu deiner Karte passt." },
+    { t: "html", html: `<ol><li><b>Sprache</b> wählen (z. B. nur Deutsch).</li><li><b>Mindestzustand</b> setzen (z. B. Near Mint).</li><li>Bei Reverse Holo: Filter <b>„Reverse Holo“</b> aktivieren – sonst siehst du die normale Version.</li><li>Auf <b>Verkäufer-Land</b> und Versandkosten achten – aus Österreich/Deutschland oft billiger im Versand.</li><li>Nicht der allerbilligste Preis zählt, sondern die ersten 3–5 Angebote: Das ist der realistische Marktpreis.</li></ol>` },
+    { t: "warnbox", html: "Neue Verkäufer ohne Bewertungen und Preise weit unter dem Trend sind bei teuren Karten ein Warnsignal." }
+  ]}
  ]}
 ];
 window.COURSE_DEFS = window.COURSE_DEFS || [];
-window.COURSE_DEFS.push({ id: "tcgguide", track: "tcg", lang: "de", name: "Sammler-Guide", short: "GUIDE", title: "Sammler-Guide", color: "#F5C542", icon: "◆", status: "active",
+window.COURSE_DEFS.push({ id: "tcgguide", track: "tcg", lang: "de", name: "Sammler-Wissen", short: "WISSEN", title: "Sammlung", color: "#F5C542", icon: "◆", status: "active",
   lecturers: "Nachschlagewerk", description: "Zustände, Seltenheiten, Sealed-Produkte, Preise, Echtheit und Lagerung.",
   topics: TOPICS, worlds: WORLDS, questions: [], bossExtra: [], flashcards: [], resources: { sections: [{ title: "Offizielle Seiten", items: [{ title: "Cardmarket – Pokémon", url: "https://www.cardmarket.com/de/Pokemon", note: "Marktplatz und Preise" }, { title: "TCGdex – Kartendatenbank", url: "https://www.tcgdex.dev", note: "Quelle der Kartendaten und Bilder in dieser App" }] }] }, events: [], tasks: [] });
 })();

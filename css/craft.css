@@ -135,3 +135,9 @@
 .guide-row .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:19px;background:var(--acc-soft);color:var(--acc)}
 .guide-row b{font:600 16px var(--f-display)}
 .guide-row small{display:block;font-size:13px}
+/* info library (calm profiles) */
+.wiki-search{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:4px 14px}
+.wiki-search span{color:var(--muted);font-size:18px}
+.wiki-search input{border:0;background:none;box-shadow:none;padding:10px 0;font-size:16px;flex:1;min-width:0;outline:none}
+.guide-row mark{background:var(--acc-soft);color:inherit;border-radius:3px;padding:0 1px}
+.guide-row small{display:block;margin-top:2px}

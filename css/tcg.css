@@ -64,3 +64,26 @@
 .tcard .im .ph svg{display:block;margin:0 auto 6px}
 .sgrid>*{min-width:0}
 @media (max-width:520px){.sgrid{grid-template-columns:minmax(0,1fr)}.holo .hc{width:min(260px,70vw)}}
+/* filter bar */
+.fbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center}
+.fbar .wiki-search{padding:2px 12px}
+.fbar select{width:auto;max-width:200px}
+.fbtn{position:relative;white-space:nowrap}
+.fbtn.on{border-color:var(--acc-line);color:var(--acc)}
+.fbtn .fcount:not(:empty){display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:10px;background:var(--acc);color:var(--acc-ink);font-size:11.5px;margin-left:4px;padding:0 5px}
+.fpanel{margin-top:10px;background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:14px}
+.fpanel[hidden]{display:none}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 12px;align-items:end}
+.fchk{display:flex;gap:8px;align-items:center;font-size:13.5px;color:var(--text);grid-column:1/-1;cursor:pointer}
+.fchk input{width:18px;height:18px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.fchips:empty{display:none}
+.fchips .chip{cursor:pointer}
+@media (max-width:640px){.fbar{grid-template-columns:minmax(0,1fr) auto}.fbar .wiki-search{grid-column:1/-1}.fbar select{max-width:none;width:100%}.fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.set-head{display:grid;grid-template-columns:minmax(90px,180px) minmax(0,1fr);gap:16px;align-items:center}
+@media (max-width:520px){.set-head{grid-template-columns:90px minmax(0,1fr);gap:12px}.set-head .stile .lg{height:40px}}
+.srow .t .basis{display:block;font-size:11.5px;color:var(--acc);opacity:.85}
+.pctin{display:flex;align-items:center;gap:6px}.pctin input{width:100%}.pctin i{font-style:normal;color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--acc);cursor:pointer;font:inherit;text-decoration:underline}
+#est{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.srow .v{max-width:46vw}.srow .v .pl{display:inline-block;line-height:1.3}

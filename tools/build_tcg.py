@@ -118,6 +118,13 @@ def label(v):
 def natkey(s):
     return [int(t) if t.isdigit() else t for t in re.split(r'(\d+)', s)]
 
+LANG_ORDER = ["de", "en", "fr", "it", "es", "pt"]
+def index_row(set_id, c):
+    """[set, nr, nameDe, nameEn, rarity, trend, reverseTrend, category, types, illustrator, hp, languageMask, cmId, specialCount]"""
+    mask = sum(1 << i for i, l in enumerate(LANG_ORDER) if c["n"].get(l))
+    return [set_id, c["l"], c["n"].get("de") or c["n"].get("en"), c["n"].get("en") or c["n"].get("de"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0],
+            c.get("k"), "/".join(c.get("ty") or []) or None, c.get("i"), c.get("hp"), mask, c.get("cm"), len(c.get("sp") or [])]
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--db", required=True); ap.add_argument("--prices"); ap.add_argument("--sealed"); ap.add_argument("--out", required=True)
     a = ap.parse_args()
@@ -179,7 +186,7 @@ def main():
             n_cards += len(cards)
             val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
             top = max(cards, key=lambda c: (c.get("p") or [0])[0] or 0)
-            for c in cards: index.append([set_id, c["l"], c["n"].get("de") or c["n"].get("en"), c["n"].get("en") or c["n"].get("de"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0]])
+            for c in cards: index.append(index_row(set_id, c))
             json.dump({"id": set_id, "u": updated, "cards": cards}, open(os.path.join(a.out, "sets", set_id + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
             sets_out.append({"id": set_id, "s": ser["id"], "sn": ser["n"], "n": names(st), "d": field(st, "releaseDate"), "c": (re.search(r'official\s*:\s*(\d+)', st) or [0, 0])[1] and int(re.search(r'official\s*:\s*(\d+)', st).group(1)), "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else None, "v": val, "top": top["l"] if (top.get("p") or [0])[0] else None})
     sets_out.sort(key=lambda s: (s["d"] or "0000"), reverse=True)

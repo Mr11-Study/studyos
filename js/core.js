@@ -443,6 +443,8 @@ function renderBlock(b, i, l, st, lvl) {
   else if (b.t === "widget") { div.className = "card"; div.dataset.widget = b.w; div._block = b; }
   return div;
 }
+App.renderBlock = (b, i, l, st, lvl) => renderBlock(b, i, l, st, lvl);
+App.renderNotes = (box, l) => renderNotes(box, l);
 function renderNotes(box, l) {
   const n = S.notes[l.id] || { text: "", tags: [] }; const TAGS = [["important", "Wichtig"], ["exam", "⭐ Prüfungsrelevant"], ["question", "Frage"], ["remember", "Merken"]];
   box.innerHTML = `<div class="spread"><h3>Meine Notizen</h3><small class="muted" id="note-state">${n.text ? "Gespeichert" : "Markdown"}</small></div><textarea id="note-${l.id}" placeholder="In Markdown schreiben …">${esc(n.text)}</textarea><div class="note-tags">${TAGS.map(([k, t]) => `<button class="chip ${n.tags.includes(k) ? "on" : ""}" data-tag="${k}">${t}</button>`).join("")}</div>`;

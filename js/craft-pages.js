@@ -8,9 +8,9 @@ const S = () => App.S(); const K = window.Craft, C = K.C, Y = window.Yarn3D;
 App.NAV.length = 0;
 [["dash", "Heute", "⌂"], ["courses", "Kurse", "◫"], ["path", "Lernpfad", "⤳"], ["studio", "3D-Studio", "◈"], ["tech", "Techniken", "✋"], ["designer", "Musterdesigner", "▦"], ["dict", "Maschenlexikon", "❋"],
  ["counter", "Reihenzähler", "#"], ["tools", "Werkzeuge", "⚖"], ["projects", "Projekte", "✿"], ["flash", "Karteikarten", "▭"], ["quiz", "Wissen testen", "?"], ["resources", "Videos & Links", "⎘"]].forEach(x => App.NAV.push(x));
-App.BNAV = [["dash", "Heute", "⌂"], ["path", "Lernen", "⤳"], ["studio", "3D", "◈"], ["counter", "Zähler", "#"], ["__more", "Mehr", "☰"]];
+App.BNAV = [["dash", "Heute", "⌂"], ["wiki", "Wissen", "❖"], ["studio", "3D", "◈"], ["counter", "Zähler", "#"], ["__more", "Mehr", "☰"]];
 App.BRAND = { logo: "✿", name: "StudyOS", sub: "Stricken & Häkeln" };
-App.WELCOME = "Deine Lern-App fürs Stricken und Häkeln: Techniken Schritt für Schritt, Maschen in 3D, Musterdesigner und Reihenzähler. Alles bleibt auf deinem Gerät.";
+App.WELCOME = "Deine Hilfe fürs Stricken und Häkeln: Wissen zum Nachschlagen, Techniken Schritt für Schritt, Maschen in 3D, Musterdesigner und Reihenzähler. Alles bleibt auf deinem Gerät.";
 
 const TIPS = [
   "Setz alle 10 oder 20 Maschen einen Maschenmarkierer – dann musst du nie wieder ganz von vorne zählen.",
@@ -42,7 +42,7 @@ const dayIdx = () => Math.floor(Date.now() / 864e5);
 
 /* ---------------- Heute (calm guide, no game elements) ---------------- */
 const GUIDE = [
-  ["path", "⤳", "Lernpfad", "Alle Lektionen der Reihe nach – Stricken und Häkeln, vom ersten Faden bis zum fertigen Stück."],
+  ["wiki", "❖", "Wissen", "Alles zum Nachschlagen: Material, Maschen, Muster, Fehler beheben, Tricks – mit Suche."],
   ["tech", "✋", "Techniken", "Jede Masche Schritt für Schritt als Animation. Ideal, wenn du gerade mit Nadel in der Hand nachschauen willst."],
   ["studio", "◈", "3D-Studio", "Maschen von allen Seiten ansehen, drehen und heranzoomen – so verstehst du, wie das Gestrick aufgebaut ist."],
   ["dict", "❋", "Maschenlexikon", "Muster wie Rippen, Perlmuster oder Korbmuster mit Bild, Anleitung und 3D-Ansicht."],
@@ -50,11 +50,11 @@ const GUIDE = [
   ["counter", "#", "Reihenzähler", "Große Tasten zum Mitzählen, der Bildschirm bleibt an."],
   ["tools", "⚖", "Werkzeuge", "Maschenprobe, gleichmäßig verteilen, Nadelgrößen, Abkürzungen Deutsch/Englisch."],
   ["projects", "✿", "Projekte", "Deine Werkstücke mit Garn, Nadel, Notizen und Foto."],
-  ["flash", "▭", "Karteikarten", "Zum Nachschlagen und Wiederholen, wenn du magst."]
+  ["resources", "⎘", "Videos & Links", "Gute Video-Anleitungen und Seiten zum Weiterlesen."]
 ];
-const RECENT_V = { lesson: "Lektion", tech: "Technik", studio: "3D-Studio", designer: "Musterdesigner", dict: "Maschenlexikon", tools: "Werkzeuge", counter: "Reihenzähler", projects: "Projekte" };
+const RECENT_V = { article: "Wissen", tech: "Technik", studio: "3D-Studio", designer: "Musterdesigner", dict: "Maschenlexikon", tools: "Werkzeuge", counter: "Reihenzähler", projects: "Projekte" };
 const origGo = App.go;
-App.go = (v, p) => { try { if (RECENT_V[v]) { const c = C(); c.recent = (c.recent || []).filter(r => !(r.v === v && r.p === (p ?? null))); let title = RECENT_V[v]; if (v === "lesson" && App.LBYID[p]) title = App.LBYID[p].title; if (v === "tech" && p && CraftTech.TECH[p]) title = CraftTech.TECH[p].title; c.recent.unshift({ v, p: p ?? null, title, kind: RECENT_V[v], at: Date.now() }); c.recent = c.recent.slice(0, 6); } } catch (e) {} origGo(v, p); };
+App.go = (v, p) => { try { if (RECENT_V[v]) { const c = C(); c.recent = (c.recent || []).filter(r => !(r.v === v && r.p === (p ?? null))); let title = RECENT_V[v]; if (v === "article" && App.LBYID[p]) title = App.LBYID[p].title; if (v === "wiki" && p) return origGo(v, p); if (v === "tech" && p && CraftTech.TECH[p]) title = CraftTech.TECH[p].title; c.recent.unshift({ v, p: p ?? null, title, kind: RECENT_V[v], at: Date.now() }); c.recent = c.recent.slice(0, 6); } } catch (e) {} origGo(v, p); };
 PAGES.dash = el => {
   const s = S(), name = s.name || "du", h = new Date().getHours(), greet = h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend";
   const courses = App.COURSES; const act = C().projects.filter(p => p.status === "active"); const recent = (C().recent || []).filter(r => r.v !== "dash").slice(0, 4);
@@ -65,13 +65,14 @@ PAGES.dash = el => {
       <span class="eyebrow" style="color:var(--acc2)">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span>
       <h1 style="margin-top:6px">${greet}, ${esc(name)}</h1><p class="muted" style="margin-top:6px;max-width:46ch">Schön, dass du da bist. Hier findest du alles rund ums Stricken und Häkeln – in deinem Tempo.</p></div>
     ${recent.length ? `<div class="col" style="gap:8px"><span class="eyebrow">Zuletzt geöffnet</span><div class="row" style="gap:8px">${recent.map(r => `<button class="chip" data-go="${r.v}" ${r.p ? `data-p="${esc(r.p)}"` : ""}>${esc(r.title)} <small class="muted">· ${esc(r.kind)}</small></button>`).join("")}</div></div>` : ""}
-    <div class="grid g2">${cont.map(({ c, next, done, all }) => `<div class="card col" style="gap:10px;border-top:3px solid ${c.color}"><div class="row" style="gap:10px"><span style="font-size:22px;color:${c.color}">${c.icon}</span><div><b style="font:600 18px var(--f-display)">${esc(c.title)}</b><div><small class="muted">${done} von ${all} Lektionen gelesen</small></div></div></div>
-      ${next ? `<div class="spread" style="gap:10px"><div><small class="eyebrow">Hier geht's weiter</small><div style="font-weight:600">${esc(next.title)}</div><small class="muted">ca. ${next.min} min · ${esc(next.world.title)}</small></div><button class="btn pri sm" data-go="lesson" data-p="${next.id}">Öffnen</button></div>` : `<div class="tip"><span>🌿</span><span>Du hast alle Lektionen gelesen. Zum Nachschlagen sind sie jederzeit im Lernpfad.</span></div>`}</div>`).join("")}</div>
+    <div class="card col" style="gap:12px"><div class="wiki-search"><span>⌕</span><input type="search" id="dq" placeholder="Was suchst du? (z. B. Maschenprobe, Magic Ring)" autocomplete="off"></div>
+      <div class="grid g2">${courses.map(c => `<div class="col" style="gap:8px"><div class="row" style="gap:8px"><span style="font-size:20px;color:${c.color}">${c.icon}</span><b style="font:600 17px var(--f-display)">${esc(c.title)}</b></div><div class="row" style="gap:6px">${c.worlds.filter(w => w.lessons && w.lessons.length).map(w => `<button class="chip" data-go="article" data-p="${w.lessons[0].id}">${esc(w.title)}</button>`).join("")}</div></div>`).join("")}</div></div>
     <div class="card col" style="gap:4px"><h2>Wo finde ich was?</h2><p class="muted" style="font-size:14px;margin-bottom:6px">Alles ist auch über das Menü erreichbar (☰ oben links bzw. „Mehr“ unten).</p>
       ${GUIDE.map(([v, ic, t, d]) => `<button class="guide-row" data-go="${v}"><span class="ic">${ic}</span><span><b>${t}</b><small class="muted">${d}</small></span><span class="muted">›</span></button>`).join("")}</div>
     ${act.length ? `<div class="col" style="gap:10px"><h2>In Arbeit</h2>${act.slice(0, 3).map(projCard).join("")}</div>` : ""}
     <div class="card col" style="gap:8px;background:linear-gradient(135deg,#FFFFFF,#F7F1EA)"><span class="eyebrow" style="color:var(--sage)">Tipp</span><p style="font:500 17px/1.45 var(--f-display)">${esc(tip)}</p><div><button class="btn ghost sm" id="tip-next">Noch ein Tipp →</button></div></div>
   </div>`;
+  $("#dq", el).onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) App.go("wiki", e.target.value.trim()); };
   let ti = dayIdx(); $("#tip-next", el).onclick = e => { ti++; e.target.closest(".card").querySelector("p").textContent = TIPS[ti % TIPS.length]; };
 };
 

@@ -114,17 +114,20 @@ StudyOS kann mehrere Personen auf einem Gerät: Jedes Profil hat eigene Kurse, e
 - „Automatisch öffnen“ an = kein Auswahlbildschirm beim Start.
 
 Das Stricken-&-Häkeln-Profil enthält: Kurse Stricken und Häkeln, 3D-Studio (Maschen drehen & zoomen, Reihe für Reihe aufbauen), animierte Techniken, Musterdesigner mit Anleitungsgenerator, Maschenlexikon, Reihenzähler (Bildschirm bleibt an), Werkzeuge (Maschenprobe, Verteilen, Nadeln, US/UK) und Projekte mit Foto.
-Seit Version 3.1 ist das Stricken-&-Häkeln-Profil bewusst **ohne XP, Level und Serien**: Die Startseite zeigt „Zuletzt geöffnet“, wo es weitergeht und eine Übersicht „Wo finde ich was?“. Alle Lektionen sind sofort offen, und mehrere Lektionen haben neue Schaubilder (Garnstärken, Nadeln, Maschenprobe, Häkelmaschen-Höhen, Magic Ring, Granny Square …).
+Seit Version 3.2 ist das Stricken-&-Häkeln-Profil **keine Lern-App mehr, sondern ein Nachschlagewerk**: keine XP, Level, Lektionen, Checks, Quiz oder Karteikarten. Unter **Wissen** stehen alle Inhalte als Artikel mit Suche (auch Techniken und Maschenlexikon werden gefunden). Die Startseite hat ein Suchfeld, Themen-Kacheln und „Wo finde ich was?“, und mehrere Lektionen haben neue Schaubilder (Garnstärken, Nadeln, Maschenprobe, Häkelmaschen-Höhen, Magic Ring, Granny Square …).
 
 ## 10. Profil „Sammlung“ (Pokémon-Karten)
 
 Für Karten, Displays, ETBs, Booster, Tins usw. mit Cardmarket-Preisen.
 
 - **Anlegen:** Link öffnen → Name → **Sammlung** wählen → Profil erstellen (auf einem gemeinsamen Gerät: Einstellungen → Profile → ＋ Neues Profil).
-- **Karten erfassen:** *Sets* (alle Sets mit Logo, Setwert, Serie) oder *Karten suchen* (Deutsch oder Englisch, Filter nach Serie, Seltenheit, Preisbereich, Reverse) → Karte antippen → Bild in 6 Sprachen, Preistabelle → **Zur Sammlung** mit Variante (Normal/Holo/Reverse/Sonderdrucke), Sprache, Zustand (MT…PO), Anzahl, Kaufpreis, Datum, Gradierung.
+- **Filter:** Überall gibt es Suche, Sortierung und einen **Filter**-Knopf (Serie, Set, Seltenheit, Kategorie, Typ, Sprache, Preis von/bis, Illustrator, KP, Variante, eigene/fehlende Karten …). Aktive Filter stehen als Chips darunter und lassen sich einzeln entfernen.
+- **Karten erfassen:** *Sets* oder *Karten suchen* – Name auf Deutsch/Englisch, auch mit Kürzel und Nummer („Glurak MEW 199“) → Karte antippen → Bild in 6 Sprachen, Preistabelle → **Deine Karte**: Variante, Sprache, Zustand wählen → Wert dafür + Knopf **„Angebote auf Cardmarket“** (öffnet genau diese Karte über die Cardmarket-Produktnummer, gefiltert auf Sprache und Mindestzustand) → optional **eigener Preis** → Zur Sammlung.
+- **Preise nach Sprache/Zustand:** Einstellungen → *Preise anpassen*: Prozent je Sprache und Zustand (Standard 100 %). Ein eigener Preis pro Eintrag hat immer Vorrang; in der Sammlung steht bei jedem Eintrag die Preisbasis.
 - **Sealed:** *Produkte* → Kategorie (Display, Elite Trainer Boxes, Booster, Tins, Blister …), Set-Filter, Preis-Sortierung.
 - **Sammlung:** Gesamtwert, Einkauf, Gewinn/Verlust, Filter (Typ, Set, Sprache, Zustand), Sortierung, Gruppierung nach Set, CSV-Export (Excel).
 - **Beobachtet:** Karten/Produkte mit Preisalarm (über/unter Zielpreis).
+- **Sammler-Wissen:** Nachschlagewerk (Zustände, Seltenheiten, Sealed, Preise, Sprache & Preis, Grading, Set-Symbole, Cardmarket-Tipps, Fälschungen, Aufbewahrung).
 
 **Woher kommen die Preise?** Aus dem offiziellen Cardmarket-Preisführer (Trendpreis, Ø 1/7/30 Tage, „ab“-Preis). Cardmarket veröffentlicht ihn einmal täglich; eine GitHub-Action (`.github/workflows/tcg-prices.yml`) holt ihn zweimal am Tag automatisch und legt kompakte Daten in den Branch `data`. Die App prüft beim Öffnen und alle 30 Minuten selbst, ob es neue Preise gibt – man muss nie manuell aktualisieren. Echte Sekunden-Livepreise gibt es nur über die Cardmarket-API, die eine eigene Freischaltung braucht.
 Hinweis: Der Preisführer fasst alle Sprachen zusammen und bezieht sich meist auf Near Mint. Für den Preis einer bestimmten Sprache/eines Zustands führt „Auf Cardmarket ansehen“ direkt zur Suche.
