@@ -35,15 +35,23 @@ def block(text, start):
         i += 1
     return text[start:]
 
-def names(text, key="name"):
+ASIA_LANGS = ["ja", "ko", "id", "en"]
+def names(text, key="name", langs=None):
     m = re.search(r'(?<![\w.])' + key + r'\s*:\s*\{', text)
     if not m: return {}
     b = block(text, m.end() - 1)
     out = {}
     for mm in KV.finditer(b):
         k, v = mm.group(2), mm.group(4)
-        if k in LANGS: out[k] = v.replace("\\'", "'").replace('\\"', '"')
+        if k in (langs or LANGS): out[k] = v.replace("\\'", "'").replace('\\"', '"')
     return out
+
+def no_names(text):
+    """text with the name/description blocks removed (asia files use 'id' as the Indonesian language key)."""
+    for key in ("name", "description"):
+        m = re.search(r'(?<![\w.])' + key + r'\s*:\s*\{', text)
+        if m: b = block(text, m.end() - 1); text = text[:m.start()] + text[m.end() - 1 + len(b):]
+    return text
 
 def field(text, key):
     m = re.search(r'\n\s*' + key + r'''\s*:\s*(["'])((?:\\.|(?!\1).)*)\1''', text)
@@ -121,8 +129,8 @@ def natkey(s):
 LANG_ORDER = ["de", "en", "fr", "it", "es", "pt"]
 def index_row(set_id, c):
     """[set, nr, nameDe, nameEn, rarity, trend, reverseTrend, category, types, illustrator, hp, languageMask, cmId, specialCount]"""
-    mask = sum(1 << i for i, l in enumerate(LANG_ORDER) if c["n"].get(l))
-    return [set_id, c["l"], c["n"].get("de") or c["n"].get("en"), c["n"].get("en") or c["n"].get("de"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0],
+    mask = c.get("lm") or sum(1 << i for i, l in enumerate(LANG_ORDER) if c["n"].get(l))
+    return [set_id, c["l"], c["n"].get("de") or c["n"].get("en") or c["n"].get("ja") or c["n"].get("ko"), c["n"].get("en") or c["n"].get("de") or c["n"].get("ja") or c["n"].get("ko"), c.get("r"), (c.get("p") or [None])[0], (c.get("rv") or [None])[0],
             c.get("k"), "/".join(c.get("ty") or []) or None, c.get("i"), c.get("hp"), mask, c.get("cm"), len(c.get("sp") or [])]
 
 def main():
@@ -133,62 +141,128 @@ def main():
         pg = json.load(open(a.prices, encoding="utf-8")); updated = pg.get("createdAt")
         for g in pg.get("priceGuides", []): guide[g["idProduct"]] = g
     os.makedirs(os.path.join(a.out, "sets"), exist_ok=True)
-    data = os.path.join(a.db, "data")
-    series = {}
-    for sf in glob.glob(os.path.join(data, "*.ts")):
-        t = open(sf, encoding="utf-8").read(); sid = field(t, "id")
-        if sid and sid != "tcgp": series[os.path.basename(sf)[:-3]] = {"id": sid, "n": names(t)}  # skip the digital TCG Pocket
-    sets_out, n_cards, index = [], 0, []
-    for serie_dir, ser in series.items():
-        sdir = os.path.join(data, serie_dir)
-        if not os.path.isdir(sdir): continue
-        for setf in sorted(glob.glob(os.path.join(sdir, "*.ts"))):
-            st = open(setf, encoding="utf-8").read(); set_id = field(st, "id")
-            cdir = setf[:-3]
-            if not set_id or not os.path.isdir(cdir): continue
-            tp = re.search(r'thirdParty\s*:\s*\{([^}]*)\}', st)
-            exp = int(re.search(r'cardmarket\s*:\s*(\d+)', tp.group(1)).group(1)) if tp and re.search(r'cardmarket\s*:\s*(\d+)', tp.group(1)) else None
-            abbr = re.search(r'abbreviations\s*:\s*\{[^}]*official\s*:\s*["\']([^"\']+)', st)
-            cards = []
-            for cf in glob.glob(os.path.join(cdir, "*.ts")):
-                ct = open(cf, encoding="utf-8").read(); lid = os.path.basename(cf)[:-3]
-                nm = names(ct)
-                if not nm: continue
-                vs = variants(ct)
-                base = next((v for v in vs if v["cm"] and not v["stamp"] and not v["sub"] and not v["foil"] and v["type"] != "reverse"), None) or next((v for v in vs if v["cm"] and not v["stamp"] and not v["foil"]), None) or next((v for v in vs if v["cm"]), None)
-                has_rev = any(v["type"] == "reverse" and not v["stamp"] and not v["foil"] for v in vs)
-                g = guide.get(base["cm"]) if base else None
-                c = {"l": lid, "n": nm, "r": field(ct, "rarity"), "k": field(ct, "category"), "i": field(ct, "illustrator")}
-                hp = num(ct, "hp");
-                if hp: c["hp"] = hp
-                ty = re.search(r'\n\s*types\s*:\s*\[([^\]]*)\]', ct)
-                if ty: c["ty"] = re.findall(r'''["'](\w+)["']''', ty.group(1))
-                c["vt"] = sorted({v["type"] for v in vs if not v["stamp"] and not v["foil"]})
-                if base and base["cm"]: c["cm"] = base["cm"]
-                p = price_arr(g)
-                if p: c["p"] = p
-                if has_rev:
-                    rv = price_arr(g, True)
-                    if rv: c["rv"] = rv
-                sp = []
-                seen = {base["cm"]} if base else set()
-                for v in vs:
-                    if not v["cm"] or v is base: continue
-                    if v["type"] == "reverse" and not v["stamp"] and not v["foil"] and v["cm"] in seen: continue
-                    gg = guide.get(v["cm"]); pa = price_arr(gg, v["type"] == "reverse" and v["cm"] == (base or {}).get("cm"))
-                    key = (label(v), v["cm"])
-                    if key in [(x[0], x[1]) for x in sp]: continue
-                    sp.append([label(v), v["cm"], pa[0] if pa else None])
-                if sp: c["sp"] = sp
-                cards.append(c)
-            if not cards: continue
-            cards.sort(key=lambda c: natkey(c["l"]))
-            n_cards += len(cards)
-            val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
-            top = max(cards, key=lambda c: (c.get("p") or [0])[0] or 0)
-            for c in cards: index.append(index_row(set_id, c))
-            json.dump({"id": set_id, "u": updated, "cards": cards}, open(os.path.join(a.out, "sets", set_id + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-            sets_out.append({"id": set_id, "s": ser["id"], "sn": ser["n"], "n": names(st), "d": field(st, "releaseDate"), "c": (re.search(r'official\s*:\s*(\d+)', st) or [0, 0])[1] and int(re.search(r'official\s*:\s*(\d+)', st).group(1)), "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else None, "v": val, "top": top["l"] if (top.get("p") or [0])[0] else None})
+    sets_out, index = [], []
+    n_cards = 0
+    en2de = {}  # English -> German card names from the international data (to give Japanese cards German names)
+    dex = {}    # national dex number -> shortest {de, en} base name seen in the international data
+
+    def dex_of(ct):
+        m = re.search(r'dexId\s*:\s*\[\s*(\d+)\s*\]', ct)
+        return int(m.group(1)) if m else None
+
+    SUFFIX = [("VMAX", " VMAX", " VMAX"), ("VSTAR", " VSTAR", " VSTAR"), ("VUNION", " VUNION", " V-UNION"), ("BREAK", " BREAK", " TURBO"), ("GX", "-GX", "-GX"), ("ex", " ex", "-ex"), ("EX", "-EX", "-EX"), ("V", " V", " V"), ("LV.X", " LV.X", " LV.X")]
+    def translate(ja, d):
+        base = dex.get(d)
+        if not base or not ja: return None
+        tail = ja.strip()
+        for key, en_s, de_s in SUFFIX:
+            if tail.endswith(key):
+                return {"en": base["en"] + en_s, "de": base["de"] + de_s}
+        return {"en": base["en"], "de": base["de"]}
+
+    def build_card(ct, lid, nm):
+        vs = variants(ct)
+        base = next((v for v in vs if v["cm"] and not v["stamp"] and not v["sub"] and not v["foil"] and v["type"] != "reverse"), None) or next((v for v in vs if v["cm"] and not v["stamp"] and not v["foil"]), None) or next((v for v in vs if v["cm"]), None)
+        has_rev = any(v["type"] == "reverse" and not v["stamp"] and not v["foil"] for v in vs)
+        g = guide.get(base["cm"]) if base else None
+        c = {"l": lid, "n": nm, "r": field(ct, "rarity"), "k": field(ct, "category"), "i": field(ct, "illustrator")}
+        hp = num(ct, "hp")
+        if hp: c["hp"] = hp
+        ty = re.search(r'\n\s*types\s*:\s*\[([^\]]*)\]', ct)
+        if ty: c["ty"] = re.findall(r'''["'](\w+)["']''', ty.group(1))
+        c["vt"] = sorted({v["type"] for v in vs if not v["stamp"] and not v["foil"]})
+        if base and base["cm"]: c["cm"] = base["cm"]
+        p = price_arr(g)
+        if p: c["p"] = p
+        if has_rev:
+            rv = price_arr(g, True)
+            if rv: c["rv"] = rv
+        sp = []
+        seen = {base["cm"]} if base else set()
+        for v in vs:
+            if not v["cm"] or v is base: continue
+            if v["type"] == "reverse" and not v["stamp"] and not v["foil"] and v["cm"] in seen: continue
+            gg = guide.get(v["cm"]); pa = price_arr(gg, v["type"] == "reverse" and v["cm"] == (base or {}).get("cm"))
+            key = (label(v), v["cm"])
+            if key in [(x[0], x[1]) for x in sp]: continue
+            sp.append([label(v), v["cm"], pa[0] if pa else None])
+        if sp: c["sp"] = sp
+        return c
+
+    def release(st, asia):
+        d = field(st, "releaseDate")
+        if d or not asia: return d
+        m = re.search(r'releaseDate\s*:\s*\{', st)
+        if not m: return None
+        rd = names(st, "releaseDate", ["ja", "ko", "zh-tw", "id", "th"])
+        return rd.get("ja") or rd.get("ko") or next(iter(rd.values()), None)
+
+    for region in ("intl", "asia"):
+        asia = region == "asia"
+        data = os.path.join(a.db, "data-asia" if asia else "data")
+        if not os.path.isdir(data): continue
+        series = {}
+        for sf in glob.glob(os.path.join(data, "*.ts")):
+            t = open(sf, encoding="utf-8").read(); sid = field(no_names(t) if asia else t, "id")
+            if not sid or sid == "tcgp": continue  # skip the digital TCG Pocket
+            if asia:
+                sn = names(t, langs=["ja", "ko", "id", "en"])
+                label_en = sn.get("en") or sn.get("id") or sid
+                series[os.path.basename(sf)[:-3]] = {"id": "jp-" + sid, "rid": sid, "n": {"de": "Japan · " + label_en, "en": "Japan · " + label_en, "ja": sn.get("ja", label_en)}}
+            else:
+                series[os.path.basename(sf)[:-3]] = {"id": sid, "rid": sid, "n": names(t)}
+        for serie_dir, ser in series.items():
+            sdir = os.path.join(data, serie_dir)
+            if not os.path.isdir(sdir): continue
+            for setf in sorted(glob.glob(os.path.join(sdir, "*.ts"))):
+                st = open(setf, encoding="utf-8").read(); real_id = field(no_names(st) if asia else st, "id")
+                cdir = setf[:-3]
+                if not real_id or not os.path.isdir(cdir): continue
+                set_names = names(st, langs=ASIA_LANGS) if asia else names(st)
+                if asia and not (set_names.get("ja") or set_names.get("ko")): continue  # only Japanese / Korean releases
+                set_id = ("jp-" + real_id) if asia else real_id
+                img_lang = ("ja" if set_names.get("ja") else "ko") if asia else None
+                tp = re.search(r'thirdParty\s*:\s*\{([^}]*)\}', st)
+                exp = int(re.search(r'cardmarket\s*:\s*(\d+)', tp.group(1)).group(1)) if tp and re.search(r'cardmarket\s*:\s*(\d+)', tp.group(1)) else None
+                abbr = re.search(r'abbreviations\s*:\s*\{[^}]*official\s*:\s*["\']([^"\']+)', st)
+                cards = []
+                for cf in glob.glob(os.path.join(cdir, "*.ts")):
+                    ct = open(cf, encoding="utf-8").read(); lid = os.path.basename(cf)[:-3]
+                    if asia:
+                        raw = names(ct, langs=ASIA_LANGS)
+                        if not (raw.get("ja") or raw.get("ko")): continue
+                        en = raw.get("en") or raw.get("id")
+                        nm = {k: raw[k] for k in ("ja", "ko") if raw.get(k)}
+                        if en: nm["en"] = en
+                        if en and en in en2de: nm["de"] = en2de[en]
+                        if "de" not in nm:
+                            tr = translate(raw.get("ja") or raw.get("ko"), dex_of(ct))
+                            if tr: nm["de"] = tr["de"]; nm.setdefault("en", tr["en"])
+                        c = build_card(ct, lid, nm)
+                        c["lm"] = (64 if raw.get("ja") else 0) | (128 if raw.get("ko") else 0)
+                    else:
+                        nm = names(ct)
+                        if not nm: continue
+                        if nm.get("en") and nm.get("de"):
+                            en2de.setdefault(nm["en"], nm["de"])
+                            d = dex_of(ct)
+                            if d and field(ct, "category") == "Pokemon":
+                                cur = dex.get(d)
+                                if not cur or len(nm["de"]) < len(cur["de"]): dex[d] = {"de": nm["de"], "en": nm["en"]}
+                        c = build_card(ct, lid, nm)
+                    cards.append(c)
+                if not cards: continue
+                cards.sort(key=lambda c: natkey(c["l"]))
+                n_cards += len(cards)
+                val = round(sum((c.get("p") or [0])[0] or 0 for c in cards), 2)
+                top = max(cards, key=lambda c: (c.get("p") or [0])[0] or 0)
+                for c in cards: index.append(index_row(set_id, c))
+                json.dump({"id": set_id, "u": updated, "cards": cards}, open(os.path.join(a.out, "sets", set_id + ".json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+                if asia: set_names = {"de": real_id + " · " + (set_names.get("ja") or set_names.get("ko")), "ja": set_names.get("ja"), "ko": set_names.get("ko"), "en": real_id + " · " + (set_names.get("en") or set_names.get("id") or set_names.get("ja") or set_names.get("ko"))}
+                off = re.search(r'official\s*:\s*(\d+)', st)
+                so = {"id": set_id, "s": ser["id"], "sn": ser["n"], "n": {k: v for k, v in set_names.items() if v}, "d": release(st, asia), "c": int(off.group(1)) if off else 0, "t": len(cards), "e": exp, "a": abbr.group(1) if abbr else (real_id if asia else None), "v": val, "top": top["l"] if (top.get("p") or [0])[0] else None}
+                if asia: so.update({"rg": "ja", "rid": real_id, "rs": ser["rid"], "il": img_lang})
+                sets_out.append(so)
     sets_out.sort(key=lambda s: (s["d"] or "0000"), reverse=True)
     json.dump({"u": updated, "c": index}, open(os.path.join(a.out, "index.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(sets_out, open(os.path.join(a.out, "sets.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))

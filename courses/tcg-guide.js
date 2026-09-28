@@ -76,6 +76,7 @@ const WORLDS = [
       <tr><td><b>Sprach-/Zustandsfaktor</b></td><td>Dein eigener Prozentsatz pro Sprache bzw. Zustand (Einstellungen → Preise anpassen). Standard 100 %.</td></tr>
       <tr><td><b>Eigener Preis</b></td><td>Den trägst du pro Eintrag ein, z. B. nachdem du auf Cardmarket die deutschen NM-Angebote angesehen hast. Er hat immer Vorrang.</td></tr></tbody></table></div>` },
     { t: "tip", html: "Im Kartenfenster führt <b>„Angebote auf Cardmarket“</b> direkt zur Karte – schon gefiltert auf die gewählte Sprache und den Zustand. Den günstigsten passenden Preis dort als „Eigenen Preis“ eintragen, fertig." },
+    { t: "tip", html: "<b>Japanische Karten</b> sind auf Cardmarket eigene Produkte (eigene Sets wie „SV2a · Pokémon Card 151“). Ihre Preise in der App gelten daher direkt für die japanische Version. In <b>Sets</b> und <b>Karten suchen</b> oben auf „Japan &amp; Korea“ tippen. <b>Koreanische</b> Karten laufen auf Cardmarket meist über dieselben Produkte – im Kartenfenster Sprache „Koreanisch“ wählen, der Link zeigt dann die koreanischen Angebote." },
     { t: "callout", html: "Warum nicht automatisch pro Sprache? Cardmarket veröffentlicht frei nur den zusammengefassten Preisführer. Preise je Sprache gibt es nur über die Cardmarket-Schnittstelle, die eine eigene Freischaltung braucht." }
   ]},
   { id: "tg3-2", title: "Grading: PSA, CGC, BGS", topic: "tg-zust", min: 5, xp: 0, blocks: [
