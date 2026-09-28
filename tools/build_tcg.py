@@ -142,7 +142,7 @@ def index_row(set_id, c):
             c.get("k"), "/".join(c.get("ty") or []) or None, c.get("i"), c.get("hp"), mask, c.get("cm"), len(c.get("sp") or []), c.get("tp")]
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--db", required=True); ap.add_argument("--prices"); ap.add_argument("--sealed"); ap.add_argument("--tcgp"); ap.add_argument("--out", required=True)
+    ap = argparse.ArgumentParser(); ap.add_argument("--db", required=True); ap.add_argument("--prices"); ap.add_argument("--sealed"); ap.add_argument("--tcgp"); ap.add_argument("--singles"); ap.add_argument("--out", required=True)
     a = ap.parse_args()
     guide, updated = {}, None
     if a.prices and os.path.exists(a.prices):
