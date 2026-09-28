@@ -91,3 +91,9 @@
 .tcard .im .rgb{position:absolute;top:8px;left:8px;margin:0;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 .fseg{margin-bottom:10px;width:max-content;max-width:100%;overflow-x:auto}
 [data-theme=tcg] .fseg button.on{background:var(--acc);color:var(--acc-ink)}
+/* product photos */
+.srow .ic.pbg{background:#fff}
+.srow .ic img.pimg{object-fit:contain;padding:3px}
+.tcard .im img.pimg{object-fit:contain;background:#fff;padding:8px}
+.pshow{display:flex;justify-content:center;background:#fff;border-radius:16px;padding:14px}
+.pshow img{max-width:100%;max-height:min(300px,40vh);object-fit:contain}

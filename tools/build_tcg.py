@@ -11,7 +11,7 @@ Outputs (compact JSON, UTF-8):
   meta.json            {updated, built, sets, cards, sealed}
   sets.json            [{id,s,sn,n,d,c,t,e,a,v,top}]  (v = sum of trend prices, top = most valuable card localId)
   sets/<setId>.json    {id,u,cards:[{l,n,r,k,i,hp,ty,p,rv,sp}]}
-  sealed.json          {u, items:[[idProduct,name,cat,idExpansion,dateAdded,trend,avg,low,avg1,avg7,avg30]]}
+  sealed.json          {u, items:[[idProduct,name,cat,idExpansion,dateAdded,trend,avg,low,avg1,avg7,avg30,tcgplayerImageId]]}
 Price array p / rv = [trend, avg, low, avg1, avg7, avg30] (EUR, 2 decimals, null if missing).
 """
 import argparse, json, os, re, sys, datetime, glob
@@ -269,9 +269,20 @@ def main():
     n_sealed = 0
     if a.sealed and os.path.exists(a.sealed):
         cat = json.load(open(a.sealed, encoding="utf-8")); items = []
+        imgs = {}
+        if a.tcgp and os.path.exists(a.tcgp):
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import sealed_match
+                tp = json.load(open(a.tcgp, encoding="utf-8")); groups = {g[0]: g for g in tp["groups"]}
+                m = sealed_match.match([(p["idProduct"], p["name"], p.get("categoryName", "")) for p in cat.get("products", [])], tp["items"], groups)
+                for k, url in m.items():
+                    mm = re.search(r'/product/(\d+)_', url)
+                    if mm: imgs[k] = int(mm.group(1))
+                print(f"sealed images matched: {len(imgs)}")
+            except Exception as e: print("sealed image matching failed:", e)
         for p in cat.get("products", []):
             g = guide.get(p["idProduct"]); pr = price_arr(g) or [None] * 6
-            items.append([p["idProduct"], p["name"], p.get("categoryName", "").replace("Pokémon ", ""), p.get("idExpansion"), (p.get("dateAdded") or "")[:10]] + pr)
+            items.append([p["idProduct"], p["name"], p.get("categoryName", "").replace("Pokémon ", ""), p.get("idExpansion"), (p.get("dateAdded") or "")[:10]] + pr + [imgs.get(p["idProduct"])])
         items.sort(key=lambda x: (x[4], x[0]), reverse=True); n_sealed = len(items)
         json.dump({"u": updated, "items": items}, open(os.path.join(a.out, "sealed.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump({"updated": updated, "built": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), "sets": len(sets_out), "cards": n_cards, "sealed": n_sealed, "priced": len(guide)}, open(os.path.join(a.out, "meta.json"), "w"), separators=(",", ":"))

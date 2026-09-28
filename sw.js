@@ -1,5 +1,5 @@
 /* StudyOS service worker: offline shell, runtime cache, background reminders */
-const VERSION = "studyos-v3.3.0";
+const VERSION = "studyos-v3.4.0";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "css/craft.css", "css/tcg.css",
   "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js", "courses/knit.js", "courses/crochet.js", "courses/tcg-guide.js",
   "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js", "js/reset.js", "js/profiles.js", "js/yarn3d.js", "js/craft-tech.js", "js/craft.js", "js/craft-pages.js", "js/craft-illu.js", "js/tcg.js", "js/nogame.js", "js/infolib.js",
@@ -13,7 +13,7 @@ self.addEventListener("fetch", e => {
   if (req.mode === "navigate") { e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put("index.html", cp)); return r; }).catch(() => caches.match("index.html"))); return; }
   if (url.origin === location.origin) { e.respondWith(caches.match(req).then(hit => { const net = fetch(req, { cache: "no-cache" }).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; }).catch(() => hit); return hit || net; })); return; }
   if (url.hostname === "raw.githubusercontent.com") { const isMeta = /meta\.json$/.test(url.pathname), key = isMeta ? url.origin + url.pathname : req; e.respondWith(fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open("studyos-tcgdata").then(c => c.put(key, cp)); } return r; }).catch(() => caches.open("studyos-tcgdata").then(c => c.match(key)))); return; }
-  if (url.hostname === "assets.tcgdex.net") { e.respondWith(caches.open("studyos-tcgimg").then(c => c.match(req).then(hit => hit || fetch(req).then(r => { if (r.ok || r.type === "opaque") c.put(req, r.clone()); return r; })))); return; }
+  if (url.hostname === "assets.tcgdex.net" || url.hostname === "tcgplayer-cdn.tcgplayer.com") { e.respondWith(caches.open("studyos-tcgimg").then(c => c.match(req).then(hit => hit || fetch(req).then(r => { if (r.ok || r.type === "opaque") c.put(req, r.clone()); return r; })))); return; }
   if (/cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com/.test(url.hostname)) { e.respondWith(caches.open("studyos-runtime").then(c => c.match(req).then(hit => { const net = fetch(req).then(r => { if (r.ok || r.type === "opaque") c.put(req, r.clone()); return r; }).catch(() => hit); return hit || net; }))); }
 });
 async function checkReminders() {
