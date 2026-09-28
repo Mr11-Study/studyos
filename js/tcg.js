@@ -68,7 +68,7 @@ const fL = l => (ADJ().lang[l] != null ? ADJ().lang[l] : 100) / 100, fC = c => (
 const factor = (lang, cond, kind, rg) => (rg ? 1 : fL(lang)) * (kind === "sealed" ? 1 : fC(cond));
 const adjPrice = (base, lang, cond, kind, rg) => base == null ? null : Math.round(base * factor(lang, cond, kind, rg) * 100) / 100;
 const hasOwn = it => it.own != null && it.own !== "" && !isNaN(it.own);
-const basis = it => hasOwn(it) ? "Eigener Preis" : (f => f === 1 ? "Cardmarket-Trend" : `Trend × ${Math.round(f * 100)} %`)(factor(it.lang, it.cond, it.kind, it.rg));
+const basis = it => hasOwn(it) ? "Eigener Preis" : lpOf(it) ? `Cardmarket ${(LANGS[it.lang] || it.lang)}${it.kind === "sealed" ? "" : " · " + it.cond}, notiert ${fmtDate(lpOf(it).at)}` : (f => f === 1 ? "Cardmarket-Trend" : `Trend × ${Math.round(f * 100)} %`)(factor(it.lang, it.cond, it.kind, it.rg));
 const cmOf = (card, variant, lang) => { if (!card) return null; if (lang && card.alt && card.alt[lang]) return card.alt[lang][0]; if (card.cml) return null; if (variant && variant.startsWith("sp:")) { const x = (card.sp || []).find(y => y[0] === variant.slice(3)); return x ? x[1] : card.cm; } return card.cm; };
 const numIn = v => { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? null : n; };
 const VARIANT_LABEL = { normal: "Normal", holo: "Holo", reverse: "Reverse Holo" };
@@ -80,7 +80,12 @@ const trendOf = arr => arr ? (arr[0] != null ? arr[0] : arr[1] != null ? arr[1] 
 const move = arr => arr && arr[4] != null && arr[5] ? (arr[4] - arr[5]) / arr[5] * 100 : null;
 
 /* ---------------- portfolio ---------------- */
-function itemUnit(it) { if (hasOwn(it)) return +it.own; const b = it.last && it.last.t != null ? it.last.t : null; return adjPrice(b, it.lang, it.cond, it.kind, it.rg); }
+/* noted Cardmarket prices per language & condition: {key: {v, at}} — shared by all entries of the same card version */
+const LP = () => { const t = T(); t.lp = t.lp || {}; return t.lp; };
+const lpKey = (o) => o.kind === "sealed" ? `S|${o.id}|${o.lang}|${o.cond || ""}` : `${o.set}|${o.l}|${o.variant || "normal"}|${o.lang}|${o.cond}`;
+const lpOf = o => LP()[lpKey(o)] || null;
+const setLp = (o, v) => { const k = lpKey(o); if (v == null) delete LP()[k]; else LP()[k] = { v: Math.round(v * 100) / 100, at: today() }; };
+function itemUnit(it) { if (hasOwn(it)) return +it.own; const lp = lpOf(it); if (lp) return lp.v; const b = it.last && it.last.t != null ? it.last.t : null; return adjPrice(b, it.lang, it.cond, it.kind, it.rg); }
 function totals(filter) { let value = 0, buy = 0, cards = 0, sealedN = 0, unpriced = 0; T().items.filter(filter || (() => true)).forEach(it => { const u = itemUnit(it); if (u == null) unpriced += it.qty; else value += u * it.qty; buy += (it.buy || 0) * it.qty; if (it.kind === "card") cards += it.qty; else sealedN += it.qty; }); return { value, buy, pl: value - buy, plPct: buy ? (value - buy) / buy * 100 : null, cards, sealed: sealedN, unpriced }; }
 async function refreshPrices(force) {
   const t = T(); let changed = false;
@@ -255,6 +260,21 @@ PAGES.set = guard(async (el, id) => {
 const shortR = r => ({ "Special illustration rare": "SIR", "Illustration rare": "IR", "Double rare": "RR", "Ultra Rare": "UR", "Hyper rare": "HR", "Common": "C", "Uncommon": "U", "Rare": "R", "Rare Holo": "Holo", "ACE SPEC Rare": "ACE" }[r] || r);
 
 /* ---------------- shared: "your copy" price block (language / condition / Cardmarket link) ---------------- */
+/* International cards: Cardmarket publishes one price for all languages. The price for one language/condition
+   is read on Cardmarket (button) and noted here once – it then applies to every entry of that card version. */
+function langPriceHTML(o, arr) {
+  const where = `${esc(LANGS[o.lang] || o.lang)}${o.kind === "sealed" ? "" : " · " + esc(o.cond)}`, lp = lpOf(o), old = lp && (Date.now() - new Date(lp.at)) > 30 * 864e5;
+  const all = arr ? `Cardmarket gesamt (alle Sprachen): Trend <b>${eur(arr[0])}</b> · günstigstes Angebot <b>${eur(arr[2])}</b>` : "Kein Cardmarket-Richtwert vorhanden.";
+  return `<div class="col" style="gap:8px"><span class="eyebrow">Preis für ${where}</span>
+    ${lp ? `<div class="spread" style="align-items:flex-end"><div class="pr" style="font-size:26px">${eur(lp.v)}</div><small class="muted">notiert am ${fmtDate(lp.at)}${old ? ` · <span style="color:var(--bad)">älter als 30 Tage</span>` : ""}</small></div>` : `<div class="muted" style="font-size:14px">Noch nicht notiert. Tippe auf „Angebote“, schau den günstigsten Preis für ${where} an und trag ihn hier ein:</div>`}
+    <div class="row" style="gap:8px;flex-wrap:nowrap"><input type="number" step="0.01" min="0" inputmode="decimal" class="lp-in" placeholder="Preis ${where} in €" value="${lp ? lp.v : ""}" style="flex:1;min-width:0"><button class="btn sm pri lp-save">Speichern</button>${lp ? `<button class="btn sm ghost lp-del" title="entfernen">✕</button>` : ""}</div>
+    <small class="muted">${all}</small></div>`;
+}
+function bindLangPrice(box, o, arr, after) {
+  box.onclick = e => { if (e.target.closest(".lp-save")) { const v = numIn($(".lp-in", box).value); if (v == null) return; setLp(o, v); snapshot(); App.save(); App.renderSide(); App.toast("Preis notiert", `${LANGS[o.lang] || o.lang}: ${eur(v)}`, "✓"); after && after(); }
+    if (e.target.closest(".lp-del")) { setLp(o, null); App.save(); after && after(); } };
+  const inp = $(".lp-in", box); if (inp) inp.onkeydown = e => { if (e.key === "Enter") $(".lp-save", box).click(); };
+}
 function estHTML(tr, lang, cond, kind, rg, edition) {
   const where = `${esc(LANGS[lang] || lang)}${kind === "sealed" ? "" : " · " + esc(cond)}`;
   if (tr == null) return `<small class="muted">Für ${rg ? "diese Edition" : "diese Variante"} gibt es (noch) keinen Cardmarket-Richtwert. Schau über den Knopf unten auf Cardmarket nach und trag den Preis als eigenen Preis ein.</small>`;
@@ -288,7 +308,7 @@ async function openCard(setId, lid) {
       <div class="grid g3"><label class="fld">Variante<select id="av">${vs.map(([k, l]) => `<option value="${esc(k)}">${esc(l)}</option>`).join("")}</select></label><label class="fld">Sprache<select id="al">${(asia ? ["ja"].concat(Object.keys(c.alt || {})).concat(c.n.ko && !(c.alt || {}).ko ? ["ko"] : []) : Object.keys(LANGS).filter(k => k !== "zh")).map(k => `<option value="${k}" ${k === defLang ? "selected" : ""}>${LANGS[k]}${asia && (c.alt || {})[k] ? " – eigene Edition" : ""}</option>`).join("")}</select></label><label class="fld">Zustand<select id="ac">${CONDS.map(([k, l]) => `<option value="${k}" ${k === "NM" ? "selected" : ""}>${k} – ${l}</option>`).join("")}</select></label></div>
       <div id="est"></div>
       <div class="row" style="gap:8px"><a class="btn pri" id="cml" target="_blank" rel="noopener">Angebote auf Cardmarket ↗</a><a class="btn ghost sm" target="_blank" rel="noopener" href="${cmSearch(c.n.en || cardName(c), s.e)}">Im Set suchen ↗</a><button class="btn ghost sm" id="wt">${w ? "★ Beobachtet" : "☆ Beobachten"}</button></div>
-      <small class="muted">Der Knopf öffnet genau diese Karte auf Cardmarket, gefiltert auf Sprache und Mindestzustand. Der günstigste Preis dort ist der aktuelle Marktpreis für genau deine Version → unten als <b>eigenen Preis</b> eintragen.</small>
+      <small class="muted">Der Knopf öffnet genau diese Karte auf Cardmarket, gefiltert auf Sprache und Mindestzustand. Den günstigsten Preis dort oben bei „Preis für …“ eintragen – er gilt dann für alle deine Einträge dieser Karte in dieser Sprache und diesem Zustand.</small>
       <div class="grid g2"><label class="fld">Eigener Preis / Stück (€)<input type="number" id="ao" step="0.01" inputmode="decimal" placeholder="leer = Schätzwert"></label><label class="fld">Anzahl<input type="number" id="aq" value="1" min="1" inputmode="numeric"></label></div>
       <div class="grid g2"><label class="fld">Kaufpreis / Stück (€)<input type="number" id="ab" step="0.01" inputmode="decimal" placeholder="optional"></label><label class="fld">Kaufdatum<input type="date" id="ad" value="${today()}"></label></div>
       <div class="grid g2"><label class="fld">Gradierung (optional)<input type="text" id="ag" placeholder="z. B. PSA 10"></label><label class="fld">Notiz<input type="text" id="an" placeholder="optional"></label></div>
@@ -298,9 +318,12 @@ async function openCard(setId, lid) {
     ho.onpointermove = e => { const r = hc.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height; if (x < -0.2 || x > 1.2 || y < -0.2 || y > 1.2) return; hc.style.transform = `rotateY(${(x - .5) * 22}deg) rotateX(${(.5 - y) * 22}deg)`; hc.style.setProperty("--gx", x * 100 + "%"); hc.style.setProperty("--gy", y * 100 + "%"); };
     ho.onpointerleave = () => { hc.style.transform = ""; };
     const upd = () => { const v = $("#av", m).value, l = $("#al", m).value, cd = $("#ac", m).value; const ed = asia && c.alt && c.alt[l];
-      $("#est", m).innerHTML = estHTML(trendOf(priceOfLang(c, v, l)), l, cd, "card", s.rg, ed ? l : (asia ? "ja" : null));
+      if (asia) $("#est", m).innerHTML = estHTML(trendOf(priceOfLang(c, v, l)), l, cd, "card", s.rg, ed ? l : "ja");
+      else { const o = { kind: "card", set: setId, l: lid, variant: v, lang: l, cond: cd }; $("#est", m).innerHTML = langPriceHTML(o, priceOf(c, v)); bindLangPrice($("#est", m), o, priceOf(c, v), upd); }
       const a = $("#cml", m); a.href = (ed ? cmUrl(c.alt[l][0], { cond: cd }) : cmUrl(cmOf(c, v), { lang: l, cond: cd, rev: v === "reverse" })) || cmSearch(c.n.en || cardName(c), s.e); a.textContent = `Angebote: ${LANGS[l] || l} · ab ${cd} ↗`; };
     ["#av", "#al", "#ac"].forEach(k => $(k, m).onchange = upd); upd();
+    // back from Cardmarket: jump straight to the price field
+    $("#cml", m).addEventListener("click", () => { const back = () => { if (document.visibilityState !== "visible") return; document.removeEventListener("visibilitychange", back); const i = $(".lp-in", m); if (i) { i.scrollIntoView({ block: "center" }); i.focus(); } }; document.addEventListener("visibilitychange", back); });
     $("#ov", m).onclick = async e => { const box = $("#ovl", m); e.currentTarget.disabled = true; box.innerHTML = `<small class="muted">Suche …</small>`;
       try { const idx = await index(); const en = (c.n.en || "").toLowerCase(), de = (c.n.de || "").toLowerCase();
         const L = idx.filter(r => !(r[0] === setId && r[1] === lid) && ((en && (r[3] || "").toLowerCase() === en) || (de && (r[2] || "").toLowerCase() === de))).sort((a, b) => ((D.setMap[b[0]] || {}).d || "").localeCompare((D.setMap[a[0]] || {}).d || "")).slice(0, 24);
@@ -354,8 +377,8 @@ async function openSealed(id) {
       <label class="fld">Notiz<input type="text" id="an" placeholder="optional"></label>
       <button class="btn pri" id="add">＋ Zur Sammlung</button></div>
     ${mine.length ? `<div class="col" style="gap:6px"><span class="eyebrow">In deiner Sammlung</span>${mine.map(i => `<button class="srow" data-edit="${i.uid}"><span class="ic" style="font-weight:700">×${i.qty}</span><span class="t"><b>${esc(LANGS[i.lang] || i.lang)} · ${esc((SEALED_COND.find(c => c[0] === i.cond) || [0, i.cond])[1])}</b><small class="muted">${esc(basis(i))} · Kauf ${eur(i.buy)} / Stück</small></span><span class="v"><b>${eur(itemUnit(i) != null ? itemUnit(i) * i.qty : null)}</b></span></button>`).join("")}</div>` : ""}`, (m, close) => {
-    const upd = () => { const l = $("#al", m).value; $("#est", m).innerHTML = estHTML(trendOf(x.p), l, "", "sealed"); const a = $("#cml", m); a.href = cmUrl(id, { lang: l }); a.textContent = `Angebote: ${LANGS[l] || l} ↗`; };
-    $("#al", m).onchange = upd; upd();
+    const upd = () => { const l = $("#al", m).value; const o = { kind: "sealed", id, lang: l, cond: $("#ac", m).value }; $("#est", m).innerHTML = langPriceHTML(o, x.p); bindLangPrice($("#est", m), o, x.p, upd); const a = $("#cml", m); a.href = cmUrl(id, { lang: l }); a.textContent = `Angebote: ${LANGS[l] || l} ↗`; };
+    $("#al", m).onchange = upd; $("#ac", m).onchange = upd; upd();
     m.addEventListener("click", e => { const ed = e.target.closest("[data-edit]"); if (ed) { close(); editItem(ed.dataset.edit); } if (e.target.closest("[data-go]")) close(); });
     $("#wt", m).onclick = () => { close(); watchForm({ kind: "sealed", id, name: x.n, cur: trendOf(x.p) }); };
     $("#add", m).onclick = () => { const it = { uid: "i" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: "sealed", id, img: x.img || undefined, name: x.n, cat: x.c, e: x.e, short: x.c, sub: `${x.c}${s ? " · " + setName(s) : ""}`, lang: $("#al", m).value, cond: $("#ac", m).value, qty: Math.max(1, +$("#aq", m).value || 1), own: numIn($("#ao", m).value), buy: numIn($("#ab", m).value) || 0, date: $("#ad", m).value, note: $("#an", m).value.trim(), added: Date.now(), last: trendOf(x.p) != null ? { t: trendOf(x.p), a7: x.p[4], a30: x.p[5], at: D.meta && D.meta.updated } : null };
@@ -409,7 +432,7 @@ PAGES.portfolio = guard(async el => {
   await sets().catch(() => null); const t = T(); if (t.items.some(i => i.kind === "sealed" && !i.img)) await sealed().catch(() => null);
   const ownedSets = [...new Set(t.items.filter(i => i.kind === "card").map(i => i.set))]; const rars = [...new Set(t.items.map(i => i.rar).filter(Boolean))].sort();
   const years = [...new Set(t.items.map(i => (i.date || "").slice(0, 4)).filter(Boolean))].sort().reverse(); const cats = [...new Set(t.items.filter(i => i.kind === "sealed").map(i => i.cat).filter(Boolean))].sort();
-  el.innerHTML = `<div class="page" style="max-width:960px"><div class="spread"><div><h1>Sammlung</h1><p class="muted" style="margin-top:6px">Alles, was du erfasst hast – mit aktuellem Wert.</p></div><div class="row"><button class="btn sm" id="rf">↻ Preise</button><button class="btn sm ghost" id="csv">⤓ CSV</button></div></div>
+  el.innerHTML = `<div class="page" style="max-width:960px"><div class="spread"><div><h1>Sammlung</h1><p class="muted" style="margin-top:6px">Alles, was du erfasst hast – mit aktuellem Wert.</p></div><div class="row"><button class="btn sm pri" id="lpr">✎ Sprachpreise eintragen</button><button class="btn sm" id="rf">↻ Preise</button><button class="btn sm ghost" id="csv">⤓ CSV</button></div></div>
     <div id="fb"></div><div class="col" style="gap:12px" id="pf"></div></div>`;
   const st = filterUI($("#fb", el), "portfolio", { ph: "In der Sammlung suchen …", seg: { k: "lang", opts: [["", "Alle Sprachen"]].concat([...new Set(t.items.map(i => i.lang).filter(Boolean))].map(l => [l, LANGS[l] || l])) }, sort: [["value", "Wert ↓"], ["unit", "Stückpreis ↓"], ["pl", "Gewinn € ↓"], ["plp", "Gewinn % ↓"], ["loss", "Verlust zuerst"], ["name", "Name"], ["added", "Zuletzt hinzugefügt"], ["bought", "Kaufdatum ↓"], ["group", "Gruppiert nach Set"]],
     defs: [{ k: "kind", label: "Art", type: "select", opts: [["", "Karten & Sealed"], ["card", "Nur Karten"], ["sealed", "Nur Sealed"]] },
@@ -449,11 +472,27 @@ PAGES.portfolio = guard(async el => {
       <small class="muted">${L.length} von ${t.items.length} Einträgen${tot.unpriced ? ` · ${tot.unpriced} ohne Preis` : ""}</small><div class="col" style="gap:8px">${list}</div>`;
   };
   $("#rf", el).onclick = () => autoRefresh(true).then(draw);
+  $("#lpr", el).onclick = () => priceRun(draw);
   $("#csv", el).onclick = () => { const rows = [["Typ", "Name", "Name EN", "Set/Kategorie", "Nummer", "Variante", "Sprache", "Zustand", "Gradierung", "Anzahl", "Kaufpreis/Stk", "Cardmarket-Trend/Stk", "Eigener Preis/Stk", "Wert/Stk", "Preisbasis", "Wert", "Gewinn", "Kaufdatum", "Notiz"]].concat(t.items.filter(f).map(i => { const u = itemUnit(i); return [i.kind === "card" ? "Karte" : "Sealed", i.name, i.nameEn || "", i.kind === "card" ? setName(D.setMap[i.set]) || i.set : i.cat, i.l || "", i.kind === "card" ? variantLabel({}, i.variant) : "", LANGS[i.lang] || i.lang, i.cond, i.grade || "", i.qty, (i.buy || 0).toFixed(2), i.last && i.last.t != null ? i.last.t.toFixed(2) : "", hasOwn(i) ? (+i.own).toFixed(2) : "", u != null ? u.toFixed(2) : "", basis(i), u != null ? (u * i.qty).toFixed(2) : "", u != null ? (u * i.qty - (i.buy || 0) * i.qty).toFixed(2) : "", i.date || "", i.note || ""]; }));
     App.download("sammlung-" + today() + ".csv", "﻿" + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(";")).join("\n"), "text/csv"); };
   el.onclick = e => { const b = e.target.closest("[data-edit]"); if (b) editItem(b.dataset.edit); };
   draw();
 });
+/* go through the collection once: open each card version on Cardmarket (filtered to its language & condition) and note the price */
+async function priceRun(after) {
+  const t = T(); const seen = new Set(); const rows = [];
+  for (const i of t.items) { if (hasOwn(i) || i.rg) continue; const k = lpKey(i); if (seen.has(k)) continue; seen.add(k); rows.push(i); }
+  await Promise.all([...new Set(rows.filter(i => i.kind === "card").map(i => i.set))].map(id => setData(id).catch(() => null))); if (rows.some(i => i.kind === "sealed")) await sealed().catch(() => null);
+  rows.sort((a, b) => (lpOf(a) ? 1 : 0) - (lpOf(b) ? 1 : 0) || (itemUnit(b) || 0) - (itemUnit(a) || 0));
+  const link = i => i.kind === "card" ? (cmUrl(cmOf(D.setData[i.set] && D.setData[i.set].map[i.l], i.variant, i.lang), { lang: i.lang, cond: i.cond, rev: i.variant === "reverse" }) || cmSearch(i.nameEn || i.name)) : cmUrl(i.id, { lang: i.lang });
+  App.modal(`<div class="spread"><div><h2>Sprachpreise eintragen</h2><small class="muted">${rows.length} Versionen in deiner Sammlung · zuerst die ohne notierten Preis</small></div><button class="btn ghost sm" data-close>✕</button></div>
+    <p class="muted" style="font-size:13.5px">Tippe „Cardmarket ↗“ – die Karte öffnet sich gefiltert auf Sprache und Zustand. Den günstigsten Preis eintragen, fertig. Der Preis gilt für alle Einträge dieser Version.</p>
+    ${rows.length ? rows.map((i, n) => { const lp = lpOf(i); return `<div class="srow lprow" data-n="${n}" style="cursor:default"><span class="ic ${i.kind === "card" ? "" : "pbg"}">${i.kind === "card" ? thumbImg(i) : sealedThumb(imgIdOf(i), i.cat, i.e)}</span><span class="t"><b>${esc(i.name)}</b><small class="muted">${esc(i.sub || "")} · <b>${esc(LANGS[i.lang] || i.lang)}${i.kind === "card" ? " · " + esc(i.cond) : ""}</b></small><small class="basis">${lp ? "notiert " + eur(lp.v) + " · " + fmtDate(lp.at) : "Richtwert alle Sprachen: " + eur(i.last && i.last.t)}</small>
+      <span class="row" style="gap:6px;flex-wrap:nowrap;margin-top:6px"><a class="btn sm" href="${link(i)}" target="_blank" rel="noopener">Cardmarket ↗</a><input type="number" step="0.01" min="0" inputmode="decimal" class="lp-in" value="${lp ? lp.v : ""}" placeholder="€" style="width:90px"><button class="btn sm pri lp-save">✓</button></span></span></div>`; }).join("") : `<div class="empty-state"><b>Nichts zu tun</b><small class="muted">Alle Einträge haben einen eigenen Preis oder sind japanische Karten mit eigenem Cardmarket-Preis.</small></div>`}`, (m, close) => {
+    m.addEventListener("click", e => { const b = e.target.closest(".lp-save"); if (!b) return; const r = b.closest(".lprow"); const i = rows[+r.dataset.n]; const v = numIn($(".lp-in", r).value); if (v == null) return; setLp(i, v); snapshot(); App.save(); App.renderSide(); b.textContent = "✓ gespeichert"; b.disabled = true; $(".basis", r).textContent = "notiert " + eur(v) + " · heute"; after && after(); });
+    m.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList.contains("lp-in")) e.target.closest(".lprow").querySelector(".lp-save").click(); });
+  });
+}
 function openItem(uid) { const i = T().items.find(x => x.uid === uid); if (!i) return; if (i.kind === "card") openCard(i.set, i.l); else openSealed(i.id); }
 function editItem(uid) {
   const t = T(), i = t.items.find(x => x.uid === uid); if (!i) return; const card = i.kind === "card";
