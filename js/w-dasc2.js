@@ -54,11 +54,11 @@ W.lab = (el, b) => {
     const t = D.PY_TASKS[cur]; const ps = S().py[cur] || {}; const code = ps.code ?? t.starter; const h = hints[cur] || 0;
     el.innerHTML = `<div class="w">${head("Python lab", "Code", `<small class="muted">${App.py.ready() ? "Python runs in your browser" : "Loading Python…"}</small>`)}
       <div class="editor">
-        <div class="ed-left"><div class="spread"><h3>${esc(t.title)}</h3>${ps.solved ? `<span class="chip acc">Solved</span>` : `<span class="chip tab">+${t.xp} XP</span>`}</div>
+        <div class="ed-left"><div class="spread"><h3>${esc(t.title)}</h3>${ps.solved ? `<span class="chip acc">Solved</span>` : (App.CALM ? "" : `<span class="chip tab">+${t.xp} XP</span>`)}</div>
           <div>${t.prompt}</div>
           ${t.simulated ? `<small class="muted">Uses NumPy/pandas, which don’t run in the browser. Your code is checked for the right calls and the output is simulated from the course dataset. Run it for real with <code>uv run</code>.</small>` : ""}
           ${h ? `<div class="col" style="gap:8px">${t.hints.slice(0, h).map((x, i) => `<div class="hint"><b>Hint ${i + 1}</b>${i === 2 ? `<pre>${esc(x)}</pre>` : `<div>${esc(x)}</div>`}</div>`).join("")}</div>` : ""}
-          ${sol[cur] === 1 ? `<div class="confirm" style="background:var(--warn-soft);border-color:rgba(242,184,75,.3)">Show the full solution? You’ll get fewer XP for this task.<button class="btn sm" id="sol-yes">Show solution</button><button class="btn ghost sm" id="sol-no">Keep trying</button></div>` : ""}
+          ${sol[cur] === 1 ? `<div class="confirm" style="background:var(--warn-soft);border-color:rgba(242,184,75,.3)">Show the full solution? Try a bit longer first – you learn more that way.<button class="btn sm" id="sol-yes">Show solution</button><button class="btn ghost sm" id="sol-no">Keep trying</button></div>` : ""}
           ${sol[cur] === 2 ? `<div class="hint"><b>Solution</b><pre>${esc(t.solution)}</pre></div>` : ""}
           <div class="row" style="margin-top:auto">${App.bmBtn("exercise", cur, "Python: " + t.title, cur)}</div>
         </div>

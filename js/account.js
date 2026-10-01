@@ -36,7 +36,7 @@ function onboarding() {
 
 /* ---------------- backup ---------------- */
 function exportBackup() { App.download("studyos-backup-" + App.today() + ".json", JSON.stringify(S(), null, 1), "application/json"); S().profile.lastBackup = Date.now(); App.save(); }
-function importBackup(file) { const rd = new FileReader(); rd.onload = () => { try { const obj = JSON.parse(rd.result); if (!obj || !obj.v) throw new Error("Keine StudyOS-Sicherung"); App.modal(`<h2>Sicherung einspielen?</h2><p>Stand vom ${new Date(obj.updatedAt || 0).toLocaleString("de-AT")} · ${obj.xp || 0} XP. Dein aktueller Stand (${S().xp} XP) wird ersetzt.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="imp-y">Ersetzen</button></div>`, (m, close) => { $("#imp-y", m).onclick = () => { App.replaceState(obj); close(); App.toast("Wiederhergestellt", "Sicherung eingespielt.", "↺"); }; }); } catch (e) { App.toast("Import fehlgeschlagen", e.message, "!"); } }; rd.readAsText(file); }
+function importBackup(file) { const rd = new FileReader(); rd.onload = () => { try { const obj = JSON.parse(rd.result); if (!obj || !obj.v) throw new Error("Keine StudyOS-Sicherung"); App.modal(`<h2>Sicherung einspielen?</h2><p>Stand vom ${new Date(obj.updatedAt || 0).toLocaleString("de-AT")}. Dein aktueller Stand auf diesem Gerät wird ersetzt.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="imp-y">Ersetzen</button></div>`, (m, close) => { $("#imp-y", m).onclick = () => { App.replaceState(obj); close(); App.toast("Wiederhergestellt", "Sicherung eingespielt.", "↺"); }; }); } catch (e) { App.toast("Import fehlgeschlagen", e.message, "!"); } }; rd.readAsText(file); }
 
 /* ---------------- GitHub Gist sync ---------------- */
 const GIST_FILE = "studyos-state.json";
@@ -59,7 +59,7 @@ async function syncNow(interactive) {
   } catch (e) { setSync("Sync-Fehler: " + e.message); if (interactive) App.toast("Sync-Fehler", e.message, "!"); }
   syncBusy = false;
 }
-function conflictDialog(remote) { App.modal(`<h2>Zwei Stände gefunden</h2><p>Auf einem anderen Gerät und auf diesem wurde seit dem letzten Sync gelernt.</p><div class="grid g2"><div class="card stat"><b>${remote.xp} XP</b><span>Anderes Gerät · ${new Date(remote.updatedAt).toLocaleString("de-AT")}</span></div><div class="card stat"><b>${S().xp} XP</b><span>Dieses Gerät · ${new Date(S().updatedAt).toLocaleString("de-AT")}</span></div></div><div class="row" style="justify-content:flex-end"><button class="btn" id="cf-r">Anderes Gerät übernehmen</button><button class="btn pri" id="cf-l">Dieses Gerät behalten</button></div>`, (m, close) => { $("#cf-r", m).onclick = () => { const gid = S().sync.gistId; App.replaceState(Object.assign(remote, { sync: { gistId: gid, last: Date.now() } })); close(); }; $("#cf-l", m).onclick = async () => { close(); await pushGist(); setSync("Synchronisiert"); }; }); }
+function conflictDialog(remote) { App.modal(`<h2>Zwei Stände gefunden</h2><p>Auf einem anderen Gerät und auf diesem wurde seit dem letzten Sync gelernt.</p><div class="grid g2"><div class="card stat"><b>Anderes Gerät</b><span> · ${new Date(remote.updatedAt).toLocaleString("de-AT")}</span></div><div class="card stat"><b>Dieses Gerät</b><span> · ${new Date(S().updatedAt).toLocaleString("de-AT")}</span></div></div><div class="row" style="justify-content:flex-end"><button class="btn" id="cf-r">Anderes Gerät übernehmen</button><button class="btn pri" id="cf-l">Dieses Gerät behalten</button></div>`, (m, close) => { $("#cf-r", m).onclick = () => { const gid = S().sync.gistId; App.replaceState(Object.assign(remote, { sync: { gistId: gid, last: Date.now() } })); close(); }; $("#cf-l", m).onclick = async () => { close(); await pushGist(); setSync("Synchronisiert"); }; }); }
 const setSync = t => { const el = $("#sync"); if (el) el.textContent = t; };
 let syncTimer; App.onSaved = () => { if (SEC().ghToken && S().sync.auto !== false) { clearTimeout(syncTimer); syncTimer = setTimeout(() => syncNow(false), 20000); } };
 
@@ -108,9 +108,9 @@ PAGES.settings = el => {
   const s = S(); let confirmReset = false;
   const draw = () => {
     el.innerHTML = `<div class="page" style="max-width:820px"><h1>Einstellungen</h1>
-     <div class="card col"><h3>Profil</h3><div class="grid g2"><label class="fld">Name<input type="text" id="st-name" value="${esc(s.name)}"></label><label class="fld">Tagesziel (XP)<input type="number" id="st-goal" min="10" step="10" value="${s.dailyGoal}"></label></div></div>
+     <div class="card col"><h3>Profil</h3><div class="grid g2"><label class="fld">Name<input type="text" id="st-name" value="${esc(s.name)}"></label>${App.CALM ? "" : `<label class="fld">Tagesziel (XP)<input type="number" id="st-goal" min="10" step="10" value="${s.dailyGoal}"></label>`}</div></div>
      <div class="card"><h3>Lernen</h3>
-      <label class="switch"><div><div>Alle Lektionen freischalten</div><small>Für die Wiederholung vor Prüfungen.</small></div><input type="checkbox" class="tgl" id="st-unlock" ${s.settings.unlockAll ? "checked" : ""}></label>
+      ${App.CALM ? "" : `<label class="switch"><div><div>Alle Lektionen freischalten</div><small>Für die Wiederholung vor Prüfungen.</small></div><input type="checkbox" class="tgl" id="st-unlock" ${s.settings.unlockAll ? "checked" : ""}></label>`}
       <div class="switch"><div><div>Standard-Erklärstufe</div></div><div class="lvl">${[["simple", "Einfach"], ["normal", "Normal"], ["technical", "Fachlich"]].map(([k, t]) => `<button data-lv="${k}" class="${s.settings.level === k ? "on" : ""}">${t}</button>`).join("")}</div></div>
       <div class="switch"><div><div>Erinnerungen & Benachrichtigungen</div><small>${s.notify.enabled ? "An · täglich " + s.notify.daily + " · " + s.notify.before.join("/") + " Tage vor Terminen" : "Aus"}</small></div><button class="btn sm" id="st-notif">Einstellen</button></div></div>
      <div class="card col"><h3>Sperre (Anmeldung)</h3><p class="muted" style="font-size:14px">${s.profile.pinHash ? "PIN ist aktiv. StudyOS sperrt sich nach " + (s.profile.lockAfterMin || 5) + " min im Hintergrund." : "Kein PIN gesetzt."} Der PIN ist eine Bildschirmsperre für dieses Gerät, keine Verschlüsselung.</p>
@@ -128,10 +128,10 @@ PAGES.settings = el => {
       <label class="switch"><div><div>Vor jeder Anfrage nachfragen</div></div><input type="checkbox" class="tgl" id="st-aiconf" ${s.ai.confirm ? "checked" : ""}></label></div>
      <div class="card col" id="install"><h3>App installieren</h3>${installHTML()}</div>
      <div class="card col"><h3>Über</h3><p class="muted" style="font-size:14px">StudyOS · Version ${App.VERSION} · Kurse: ${COURSES.map(c => esc(c.short)).join(", ")}. Daten: nur lokal${SEC().ghToken ? " + dein privates Gist" : ""}. Neue Kurse kommen als Dateien in <code>courses/</code>.</p></div>
-     <div class="card col"><h3>Zurücksetzen</h3>${confirmReset ? `<div class="confirm">Alles löschen (XP, Mastery, Notizen, Termine, Pläne)? <button class="btn danger sm" id="st-yes">Endgültig löschen</button><button class="btn ghost sm" id="st-no">Abbrechen</button></div>` : `<div><button class="btn danger sm" id="st-reset">Fortschritt zurücksetzen …</button></div>`}</div></div>`;
+     <div class="card col"><h3>Zurücksetzen</h3>${confirmReset ? `<div class="confirm">Alles löschen (Fortschritt, Notizen, Termine, Pläne)? <button class="btn danger sm" id="st-yes">Endgültig löschen</button><button class="btn ghost sm" id="st-no">Abbrechen</button></div>` : `<div><button class="btn danger sm" id="st-reset">Fortschritt zurücksetzen …</button></div>`}</div></div>`;
     $("#st-name", el).oninput = e => { s.name = e.target.value.slice(0, 40) || "Student"; App.save(); App.renderSide(); };
-    $("#st-goal", el).onchange = e => { s.dailyGoal = App.clamp(+e.target.value || 50, 10, 1000); App.save(); };
-    $("#st-unlock", el).onchange = e => { s.settings.unlockAll = e.target.checked; App.save(); };
+    if ($("#st-goal", el)) $("#st-goal", el).onchange = e => { s.dailyGoal = App.clamp(+e.target.value || 50, 10, 1000); App.save(); };
+    if ($("#st-unlock", el)) $("#st-unlock", el).onchange = e => { s.settings.unlockAll = e.target.checked; App.save(); };
     $$("[data-lv]", el).forEach(b => b.onclick = () => { s.settings.level = b.dataset.lv; App.save(); draw(); });
     $("#st-notif", el).onclick = () => App.notifySettings();
     $("#st-pinset", el).onclick = async () => { const p = $("#st-pin", el).value.trim(); if (!/^\d{4,6}$/.test(p)) { App.toast("PIN", "4 bis 6 Ziffern.", "!"); return; } s.profile.pinHash = await hash(p); s.profile.pinLen = p.length; App.save(); App.toast("PIN gesetzt", "StudyOS ist jetzt gesperrt, wenn du es länger verlässt.", "🔒"); draw(); };
@@ -160,7 +160,7 @@ function installHTML() {
 }
 
 /* ---------------- boot hooks ---------------- */
-App.VERSION = "3.9.0";
+App.VERSION = "4.0.0";
 App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();

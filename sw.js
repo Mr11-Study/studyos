@@ -1,8 +1,8 @@
 /* StudyOS service worker: offline shell, runtime cache, background reminders */
-const VERSION = "studyos-v3.9.0";
-const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "css/craft.css", "css/tcg.css",
-  "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js", "courses/knit.js", "courses/crochet.js", "courses/tcg-guide.js",
-  "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js", "js/reset.js", "js/profiles.js", "js/yarn3d.js", "js/craft-tech.js", "js/craft.js", "js/craft-pages.js", "js/craft-illu.js", "js/tcg.js", "js/nogame.js", "js/infolib.js",
+const VERSION = "studyos-v4.0.0";
+const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "css/craft.css", "css/tcg.css", "css/study.css",
+  "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js", "courses/mappdev.js", "courses/dbaent.js", "courses/itinf.js", "courses/pmgt.js", "courses/ufo.js", "courses/mmprov.js", "courses/knit.js", "courses/crochet.js", "courses/tcg-guide.js",
+  "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/account.js", "js/reset.js", "js/study.js", "js/profiles.js", "js/yarn3d.js", "js/craft-tech.js", "js/craft.js", "js/craft-pages.js", "js/craft-illu.js", "js/tcg.js", "js/nogame.js", "js/infolib.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" })))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("studyos-v") && k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

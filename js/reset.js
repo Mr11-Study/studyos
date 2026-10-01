@@ -27,15 +27,16 @@ App.resetCourse = (cid, what) => {
     Object.values(s.masteryHist || {}).forEach(d => { if (d && typeof d === "object") delete d[cid]; });
   }
   if (what.cards) App.FLASH.filter(f => f.course === cid).forEach(f => delete s.cards[f.id]);
+  if (s.srs && (what.mastery || what.cards)) { App.QUESTIONS.concat(App.BOSSQ).filter(q => q.course === cid).forEach(q => delete s.srs["q:" + q.id]); App.FLASH.filter(f => f.course === cid).forEach(f => delete s.srs["f:" + f.id]); }
   App.save();
 };
 
 App.resetDialog = (cid, onDone) => {
   const c = App.CBY[cid];
   App.modal(`<div class="spread"><h2>${esc(c.title)} neu lernen</h2><button class="btn ghost sm" data-close>✕</button></div>
-    <p class="muted">Wähle, was zurückgesetzt werden soll. XP, Level, Erfolge, Notizen, Termine und Lernpläne bleiben erhalten.</p>
-    <label class="switch"><div><div>Lektionen, Welten & Bosse</div><small>Alles wieder „nicht begonnen“, Lernpfad startet bei der ersten Lektion.</small></div><input type="checkbox" class="tgl" id="rs-l" checked></label>
-    <label class="switch"><div><div>Mastery & Quiz-Statistik</div><small>Wissensstand pro Thema auf 0 %, Quiz- und Prüfungsverlauf dieses Kurses löschen.</small></div><input type="checkbox" class="tgl" id="rs-m"></label>
+    <p class="muted">Wähle, was zurückgesetzt werden soll. Notizen, Termine und Lernpläne bleiben erhalten.</p>
+    <label class="switch"><div><div>Lektionen & Kapiteltests</div><small>Alle Lektionen wieder „nicht gelesen“.</small></div><input type="checkbox" class="tgl" id="rs-l" checked></label>
+    <label class="switch"><div><div>Wissensstand & Wiederholungen</div><small>Wissen pro Thema auf 0 %, Wiederholungs-, Quiz- und Prüfungsverlauf dieses Kurses löschen.</small></div><input type="checkbox" class="tgl" id="rs-m"></label>
     <label class="switch"><div><div>Karteikarten</div><small>Alle Karten dieses Kurses gelten wieder als neu.</small></div><input type="checkbox" class="tgl" id="rs-c"></label>
     <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="rs-go">Zurücksetzen</button></div>`, (m, close) => {
     $("#rs-go", m).onclick = () => { const what = { lessons: $("#rs-l", m).checked, mastery: $("#rs-m", m).checked, cards: $("#rs-c", m).checked }; if (!what.lessons && !what.mastery && !what.cards) return; App.resetCourse(cid, what); close(); App.toast("Zurückgesetzt", c.title + " – viel Spaß beim Neu-Lernen.", "↺"); onDone ? onDone() : App.render(); App.renderSide(); };
@@ -47,7 +48,7 @@ const origCourse = PAGES.course;
 PAGES.course = (el, cid) => {
   origCourse(el, cid); const c = App.CBY[App.S().course] || App.CBY[cid]; if (!c) return;
   const box = document.createElement("div"); box.className = "card spread";
-  box.innerHTML = `<div><b>Nochmal von vorne?</b><div><small class="muted">Lektionen, Mastery oder Karteikarten dieses Kurses zurücksetzen. XP bleiben.</small></div></div><button class="btn sm" id="rs-open">↺ Kurs zurücksetzen</button>`;
+  box.innerHTML = `<div><b>Nochmal von vorne?</b><div><small class="muted">Lektionen, Wissensstand oder Karteikarten dieses Kurses zurücksetzen.</small></div></div><button class="btn sm" id="rs-open">↺ Kurs zurücksetzen</button>`;
   const page = el.querySelector(".page"); if (page) page.appendChild(box);
   $("#rs-open", el).onclick = () => App.resetDialog(c.id);
 };
@@ -68,7 +69,7 @@ PAGES.settings = (el, p) => {
   origSettings(el, p);
   const danger = [...el.querySelectorAll(".card h3")].find(h => h.textContent.trim() === "Zurücksetzen"); if (!danger) return;
   const box = document.createElement("div"); box.className = "card col";
-  box.innerHTML = `<h3>Lernfortschritt zurücksetzen</h3><p class="muted" style="font-size:14px">Einzelne Kurse neu lernen, ohne XP, Termine oder Notizen zu verlieren.</p>
+  box.innerHTML = `<h3>Lernfortschritt zurücksetzen</h3><p class="muted" style="font-size:14px">Einzelne Kurse neu lernen, ohne Termine oder Notizen zu verlieren.</p>
     ${App.COURSES.filter(c => App.LESSONS.some(l => l.course === c.id)).map(c => `<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div><span class="dot" style="--c:${c.color}"></span> ${esc(c.title)} <small class="muted">${App.courseLessons(c.id).filter(l => App.isDone(l.id)).length}/${App.courseLessons(c.id).length} Lektionen</small></div><button class="btn sm" data-rs="${c.id}">↺ Zurücksetzen</button></div>`).join("")}
     ${App.TRACK === "craft" ? "" : `<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div>Git-Labor <small class="muted">Missionen & simulierte Repos</small></div><button class="btn sm" id="rs-git">↺ Zurücksetzen</button></div>`}`;
   danger.closest(".card").insertAdjacentElement("beforebegin", box);

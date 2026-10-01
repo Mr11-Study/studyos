@@ -75,8 +75,8 @@ function levelOf(xp) { let L = 1; while (xp >= xpFor(L + 1)) L++; return L; }
 Object.assign(App, { day, xpFor, levelOf });
 function addXP(n, reason, el) {
   if (!n) return; const before = levelOf(S.xp);
-  S.xp += n; day().xp += n; touchNight(); if (!App.NOGAME) floatXP(n, el);
-  const after = levelOf(S.xp); if (after > before && !App.NOGAME) toast("Level " + after, "Du hast Level " + after + " erreicht.", "↑", true);
+  S.xp += n; day().xp += n; touchNight(); if (!App.NOGAME && !App.CALM) floatXP(n, el);
+  const after = levelOf(S.xp); if (after > before && !App.NOGAME && !App.CALM) toast("Level " + after, "Du hast Level " + after + " erreicht.", "↑", true);
   checkAch(); save(); renderSide();
 }
 App.addXP = addXP;
@@ -121,11 +121,11 @@ function nextLesson(cid = S.course) { const ls = courseLessons(cid); return ls.f
 Object.assign(App, { lstate, isDone, unlocked, bossUnlocked, bossPassed, worldProgress, courseProgress, nextLesson, courseLessons });
 function completeLesson(l, el) {
   const st = lstate(l.id); if (st.done) return; st.done = true; st.doneAt = Date.now(); day().lessons++;
-  addXP(l.xp, "lesson", el); toast("Lektion abgeschlossen", l.title + " · +" + l.xp + " XP", "✓"); unlock("first"); checkWorld(l.world); save();
+  addXP(l.xp, "lesson", el); if (App.CALM) toast("Verstanden", l.title, "✓"); else toast("Lektion abgeschlossen", l.title + " · +" + l.xp + " XP", "✓"); unlock("first"); checkWorld(l.world); save();
 }
 function checkWorld(w) {
   if (S.widgets["world-" + w.id]) return;
-  if (w.lessons.length && w.lessons.every(l => isDone(l.id)) && (!w.boss || bossPassed(w))) { S.widgets["world-" + w.id] = true; addXP(100, "world"); toast("Welt abgeschlossen", w.title + " · +100 XP", "◆", true); }
+  if (w.lessons.length && w.lessons.every(l => isDone(l.id)) && (!w.boss || bossPassed(w))) { S.widgets["world-" + w.id] = true; addXP(100, "world"); if (!App.CALM) toast("Welt abgeschlossen", w.title + " · +100 XP", "◆", true); }
 }
 Object.assign(App, { completeLesson, checkWorld });
 
@@ -144,7 +144,7 @@ const ACH = (window.GLOBAL_ACH || []).concat([
   { id: "invest", name: "Kapitalwert-Profi", desc: "Alle Investitionsfälle korrekt lösen", icon: "€" }
 ]);
 App.ACH = ACH;
-function unlock(id) { if (S.ach[id]) return; S.ach[id] = Date.now(); const a = ACH.find(x => x.id === id); if (a && !App.NOGAME) toast("Erfolg freigeschaltet", a.name, a.icon, true); save(); }
+function unlock(id) { if (S.ach[id]) return; S.ach[id] = Date.now(); const a = ACH.find(x => x.id === id); if (a && !App.NOGAME && !App.CALM) toast("Erfolg freigeschaltet", a.name, a.icon, true); save(); }
 function checkAch() {
   if (mastery("unsup") >= 90) unlock("nolabels");
   if (mastery("gd") >= 90) unlock("gradient");
@@ -196,6 +196,7 @@ const NAV = App.NAV = [
 ];
 const navActive = v => ({ lesson: "path", boss: "path", course: "courses" }[R.v] || R.v) === v;
 function renderSide() {
+  if (App.SIDE) return App.SIDE();
   const side = $("#side"); if (!side) return;
   const L = levelOf(S.xp), lo = xpFor(L), hi = xpFor(L + 1), pct = Math.round(100 * (S.xp - lo) / (hi - lo));
   const due = App.dueCount ? App.dueCount() : 0, st = streak(), c = CBY[S.course];
@@ -368,7 +369,7 @@ function knowledgeMap(box, cid) {
   box.innerHTML = `<div class="col" style="gap:12px">${groups.map(g => `<div class="row" style="gap:8px;align-items:flex-start"><span class="eyebrow" style="min-width:170px;padding-top:7px">${esc(g.n)}</span><div class="row" style="gap:6px;flex:1">${g.ts.map(t => { const m = mastery(t); return `<button class="chip" data-go="lesson" data-p="${TOPICS[t].lesson}" style="border:1px solid ${col(m)};color:var(--text)"><span class="dot" style="--c:${col(m)}"></span>${esc(TOPICS[t].name)} <span class="tab faint">${m}%</span></button>`; }).join("")}</div></div>`).join("")}</div>
   <div class="row" style="gap:14px;font-size:12px;margin-top:10px">${M_LABEL.map((l, i) => `<span class="mbadge m${i}">${l}</span>`).join("")}</div>`;
 }
-App.knowledgeMap = knowledgeMap;
+App.knowledgeMap = knowledgeMap; App.renderAssessment = renderAssessment;
 
 PAGES.path = (el, focus) => {
   const c = CBY[S.course];
@@ -435,7 +436,7 @@ function renderBlock(b, i, l, st, lvl) {
   }
   else if (b.t === "check") {
     div.className = "card col"; const q = { q: b.q, opts: b.opts, a: b.a, why: b.why, topic: l.topic, course: l.course };
-    div.innerHTML = `<div class="spread"><span class="eyebrow" style="color:var(--acc)">Check</span><small>${st.checks[i] !== undefined ? (st.checks[i] ? "Richtig beantwortet" : "Beantwortet") : "+3 XP"}</small></div>` + questionHTML(q, "chk");
+    div.innerHTML = `<div class="spread"><span class="eyebrow" style="color:var(--acc)">Check</span><small>${st.checks[i] !== undefined ? (st.checks[i] ? "Richtig beantwortet" : "Beantwortet") : (App.CALM ? "Selbsttest" : "+3 XP")}</small></div>` + questionHTML(q, "chk");
     if (st.checks[i] !== undefined && st.checks[i + "p"] !== undefined) reveal(div, q, st.checks[i + "p"]);
     div.addEventListener("click", e => { const btn = e.target.closest("[data-chk]"); if (!btn || st.checks[i] !== undefined) return; const pick = +btn.dataset.chk, ok = reveal(div, q, pick); st.checks[i] = ok ? 1 : 0; st.checks[i + "p"] = pick; rec(l.topic, ok ? 1 : 0); if (ok) addXP(3, "check", btn); save();
       const ch = l.blocks.map((x, j) => x.t === "check" ? j : -1).filter(j => j >= 0), a = ch.filter(j => st.checks[j] !== undefined).length; const pb = $(".lesson-aside .bar>i"); if (pb) pb.style.width = (100 * a / ch.length) + "%"; const sm = $("#chk-n"); if (sm) sm.textContent = a + "/" + ch.length + " Checks"; });

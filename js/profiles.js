@@ -19,7 +19,8 @@
   if (!active && list.length === 1) active = list[0].id;
   const P = byId(active);
   const applyTheme = track => {
-    document.documentElement.dataset.theme = track === "craft" || track === "tcg" ? track : "";
+    document.documentElement.dataset.theme = track === "craft" || track === "tcg" ? track : track === "uni" ? "study" : "";
+    if (track === "uni") { const dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = dark ? "#121417" : "#F5F4EF"; const cs = document.querySelector('meta[name="color-scheme"]'); if (cs) cs.content = "light dark"; }
     if (track === "tcg") { const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = "#0C1016"; }
     if (track === "craft") {
       const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"; document.head.appendChild(l);
