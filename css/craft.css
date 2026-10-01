@@ -1,5 +1,5 @@
 /* ===== Profile picker (all profiles) ===== */
-.pick{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at top,#16233A,#0B0F14 65%);display:grid;place-items:center;padding:24px 16px;overflow:auto;color:#E6ECF2}
+div.pick{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at top,#16233A,#0B0F14 65%);display:grid;place-items:center;padding:24px 16px;overflow:auto;color:#E6ECF2}
 .pick-box{width:min(620px,100%);display:flex;flex-direction:column;gap:18px;text-align:center}
 .pick-brand{display:flex;gap:10px;align-items:center;justify-content:center;font:650 18px var(--f-display)}
 .pick h1{font-size:30px}

@@ -179,3 +179,4 @@
   .lrow>.chip{order:4;margin-left:32px}
   .lrow>.go{order:5;margin-left:auto}
 }
+[data-theme=study] .sr-c button.chosen{border-color:var(--acc);color:var(--text);background:var(--acc-soft);font-weight:600}

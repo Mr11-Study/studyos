@@ -160,7 +160,7 @@ function installHTML() {
 }
 
 /* ---------------- boot hooks ---------------- */
-App.VERSION = "4.0.0";
+App.VERSION = "4.0.1";
 App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();
