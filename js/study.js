@@ -44,12 +44,12 @@ App.streak = () => { let n = 0; const d = new Date(); if (!activeDay(S().days[to
 
 /* ================= Navigation ================= */
 const NAVG = [
-  ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
+  ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript lesen", "❡"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
   ["Planen", [["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"]]],
   ["Werkzeuge", [["practice", "Übungen", "λ"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
 ];
 App.NAV = NAVG.flatMap(g => g[1]);
-const BN = [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["review", "Wiederholen", "↻"], ["calendar", "Kalender", "▦"], ["__more", "Mehr", "☰"]];
+const BN = [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript", "❡"], ["review", "Wiederholen", "↻"], ["__more", "Mehr", "☰"]];
 const ACTIVE = { exam: "prep", lesson: "courses", course: "courses", boss: "courses", path: "courses", quiz: "review", flash: "review", challenges: "review" };
 App.SIDE = () => {
   const side = $("#side"); if (!side) return;
@@ -127,7 +127,6 @@ PAGES.course = (el, cid) => {
    <div class="crumbs"><button data-go="courses">Kurse</button><span>/</span><span>${esc(c.title)}</span></div>
    <header class="chead" style="--c:${c.color}"><div class="row">${badge(c)}${c.ects ? `<span class="chip">${ects(c)}</span>` : ""}${c.semester ? `<span class="chip">Semester ${c.semester}</span>` : ""}</div>
      <h1>${esc(c.name)}</h1>${c.lecturers ? `<p class="muted">${esc(c.lecturers)}</p>` : ""}${c.description ? `<p style="max-width:70ch">${esc(c.description)}</p>` : ""}</header>
-   ${c.aiRule ? `<div class="airule"><span class="eyebrow">KI-Regel dieser LV</span><p>${esc(c.aiRule)}</p></div>` : ""}
    <div class="kpis">
      <div class="kpi"><b class="tab">${u}/${n}</b><span>Lektionen verstanden</span>${pbar(n ? 100 * u / n : 0, c.color)}</div>
      <div class="kpi"><b class="tab">${k} %</b><span>Wissen (aus Wiederholung)</span>${pbar(k, "var(--know)")}</div>
@@ -135,7 +134,7 @@ PAGES.course = (el, cid) => {
      <div class="kpi"><b class="tab">${(ICOURSE[c.id] || []).length}</b><span>Fragen & Karten</span></div>
    </div>
    <div class="row">${nl ? `<button class="btn pri" data-go="lesson" data-p="${nl.id}">${touched(nl.id) ? "Weiterlesen" : "Lesen"}: ${esc(nl.title)} →</button>` : `<span class="chip acc">Alle Lektionen verstanden</span>`}
-     <button class="btn" data-go="review" data-p="c:${c.id}">Kurs wiederholen</button><button class="btn ghost" data-go="prep" data-p="${c.id}">Prüfung üben</button><button class="btn ghost" data-go="resources">Material</button></div>
+     <button class="btn" data-go="skript" data-p="${c.id}">Skript lesen</button><button class="btn" data-go="review" data-p="c:${c.id}">Kurs wiederholen</button><button class="btn ghost" data-go="prep" data-p="${c.id}">Prüfung üben</button><button class="btn ghost" data-go="resources">Material</button></div>
    ${c.examPrep ? `<button class="card prep-cta" data-go="prep" data-p="${c.id}"><div><span class="eyebrow">Prüfungsfokus</span><div class="lrow-t">Was in der Prüfung drankommt, Altfragen, Rechenaufgaben & Checkliste</div><small>${(ICOURSE[c.id] || []).filter(i => i.ref.alt).length} Prüfungsfragen · ${(c.examPrep.tasks || []).length} Aufgaben · ${(c.examPrep.checklist || []).length} Punkte auf der Checkliste</small></div><div class="prep-pct"><b>${readiness(c.id).pct} %</b><small>Prüfungsreife</small></div></button>` : ""}
    <section class="col"><h2>Kapitel</h2>
     ${c.worlds.map(w => { const wu = w.lessons.filter(l => App.isDone(l.id)).length, b = w.boss && (S().bosses[w.boss.id] || {});
@@ -144,7 +143,8 @@ PAGES.course = (el, cid) => {
         ${!w.lessons.length ? `<p class="muted" style="padding:8px 0">Material folgt.</p>` : ""}</div>
         ${w.boss ? `<button class="lrow test" data-go="boss" data-p="${w.id}"><i class="ldot ${b.passed ? "done" : ""}">${b.passed ? "✓" : "?"}</i><div class="lrow-main"><div class="lrow-t">Kapiteltest</div><small>10 Fragen quer durchs Kapitel${b.best != null ? " · bestes Ergebnis " + b.best + " %" : ""}</small></div><span class="go">Starten →</span></button>` : ""}</div>`; }).join("")}
    </section>
-   <div class="grid g2"><div class="card col" id="assess"></div><div class="card col" id="cev"></div></div>
+   <div class="card col" id="cev"></div>
+   <details class="card kinfo"><summary><b>Kursinfo</b> <small class="muted">Beurteilung, Notenrechner, KI-Regel – organisatorisch, kein Lernstoff</small></summary>${c.aiRule ? `<div class="airule" style="margin-top:12px"><span class="eyebrow">KI-Regel dieser LV</span><p>${esc(c.aiRule)}</p></div>` : ""}<div class="col" id="assess" style="margin-top:12px"></div></details>
    <div class="card spread"><div><b>Nochmal von vorne?</b><div><small class="muted">Lektionen, Wissensstand oder Karteikarten dieses Kurses zurücksetzen.</small></div></div><button class="btn sm" id="rs-open">↺ Zurücksetzen</button></div></div>`;
   if (App.renderAssessment) App.renderAssessment($("#assess", el), c);
   if (App.renderCourseEvents) App.renderCourseEvents($("#cev", el), c.id);
@@ -314,6 +314,60 @@ function startSession(el, scope, size) {
 }
 
 
+
+/* ================= Skript: der ganze Kurs zum Durchlesen ================= */
+const lvlName = { simple: "Einfach", normal: "Normal", technical: "Fachlich" };
+function skBlock(b, l, lvl) {
+  const de = CBY[l.course].lang === "de";
+  switch (b.t) {
+    case "lead": return `<p class="sk-lead">${b.html}</p>`;
+    case "text": return `<h4>${esc(b.h)}</h4><div class="body">${b.levels[lvl] || b.levels.normal}</div>`;
+    case "keys": return `<div class="sk-keys"><span class="eyebrow">${de ? "Kernpunkte" : "Key points"}</span><ul>${b.items.map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+    case "html": return `<div class="sk-html body">${b.html}</div>`;
+    case "callout": return `<div class="callout">${b.html}</div>`;
+    case "tip": return `<div class="tip"><span>💡</span><span>${b.html}</span></div>`;
+    case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
+    case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
+    case "widget": return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
+  }
+  return "";
+}
+PAGES.skript = (el, p) => {
+  const c = CBY[p] || CBY[S().skriptCourse] || CBY[S().course] || COURSES[0];
+  S().skriptCourse = c.id; const lvl = S().settings.level || "normal", pos = (S().skriptPos || (S().skriptPos = {}))[c.id];
+  const worlds = c.worlds.filter(w => w.lessons.length), de = c.lang === "de";
+  const gloss = (c.flashcards || []).filter(f => !f.alt);
+  el.innerHTML = `<div class="page skript">
+   <header class="sk-head no-print"><div><span class="eyebrow">Skript</span><h1>${esc(c.title)}</h1><p class="muted" style="margin-top:4px">Der komplette Lernstoff zum Durchlesen – Kapitel für Kapitel. Gelesene Abschnitte kommen automatisch in deine Wiederholung.</p></div>
+     <div class="row"><div class="lvl" role="group" aria-label="Erklärstufe">${Object.entries(lvlName).map(([k, t]) => `<button data-sl="${k}" class="${lvl === k ? "on" : ""}">${t}</button>`).join("")}</div><button class="btn sm" id="sk-print">Drucken / PDF</button></div></header>
+   <div class="row fchips no-print">${COURSES.map(x => `<button class="chip ${x.id === c.id ? "on" : ""}" data-sc="${x.id}"><span class="dot" style="--c:${x.color}"></span>${esc(x.short)}</button>`).join("")}</div>
+   ${pos && LBYID[pos] && worlds[0] && worlds[0].lessons[0].id !== pos ? `<div class="no-print"><button class="btn pri sm" id="sk-resume">Weiterlesen bei „${esc(LBYID[pos].title)}“ ↓</button></div>` : ""}
+   <div class="sk-wrap">
+    <nav class="sk-toc card no-print" aria-label="Inhalt"><details ${window.innerWidth > 980 ? "open" : ""}><summary class="eyebrow">Inhalt</summary><ol>${worlds.map(w => `<li><a href="#" data-to="skw-${w.id}">${esc(w.title)}</a><ol>${w.lessons.map(l => `<li><a href="#" data-to="sk-${l.id}">${lDot(l.id)}<span>${esc(l.title)}</span></a></li>`).join("")}</ol></li>`).join("")}${gloss.length ? `<li><a href="#" data-to="sk-gloss">${de ? "Begriffe" : "Glossary"}</a></li>` : ""}</ol></details></nav>
+    <div class="sk-body">
+     <div class="print-only"><h1>${esc(c.name)}</h1></div>
+     ${worlds.map(w => `<section class="sk-ch" id="skw-${w.id}"><div class="sk-chh"><span class="eyebrow" style="color:${c.color}">Kapitel ${w.n}</span><h2>${esc(w.title)}</h2>${w.sub ? `<small class="muted">${esc(w.sub)}</small>` : ""}</div>
+       ${w.lessons.map(l => `<article class="sk-l" id="sk-${l.id}" data-lid="${l.id}"><div class="spread"><h3>${esc(l.title)}</h3><small class="muted no-print">${l.min} min · ${esc(TOPICS[l.topic] ? TOPICS[l.topic].name : "")}</small></div>
+         ${l.blocks.map(b => skBlock(b, l, lvl)).join("")}
+         <div class="row sk-foot no-print">${App.isDone(l.id) ? `<span class="chip acc">✓ Verstanden</span>` : `<button class="btn sm" data-skmark="${l.id}">Als verstanden markieren</button>`}<button class="btn ghost sm" data-go="review" data-p="topic:${l.topic}">Thema üben</button><button class="btn ghost sm" data-go="lesson" data-p="${l.id}">Lektion mit Übungen öffnen</button></div><i class="sk-end" data-end="${l.id}"></i></article>`).join("")}</section>`).join("")}
+     ${gloss.length ? `<section class="sk-ch" id="sk-gloss"><div class="sk-chh"><h2>${de ? "Begriffe" : "Glossary"}</h2></div><dl class="sk-gloss">${gloss.map(f => `<dt>${f.front}</dt><dd>${f.back}</dd>`).join("")}</dl></section>` : ""}
+    </div></div></div>`;
+  const jump = id => { const t = document.getElementById(id); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  el.onclick = e => {
+    const sc = e.target.closest("[data-sc]"); if (sc) { App.go("skript", sc.dataset.sc); return; }
+    const sl = e.target.closest("[data-sl]"); if (sl) { S().settings.level = sl.dataset.sl; App.save(); const y = window.scrollY; App.render(); window.scrollTo(0, y); return; }
+    const to = e.target.closest("[data-to]"); if (to) { e.preventDefault(); jump(to.dataset.to); return; }
+    const mk = e.target.closest("[data-skmark]"); if (mk) { const l = LBYID[mk.dataset.skmark]; App.completeLesson(l, mk); mk.outerHTML = `<span class="chip acc">✓ Verstanden</span>`; App.renderSide(); return; }
+    if (e.target.closest("#sk-print")) { $$("details.sk-check", el).forEach(d => d.open = true); window.print(); return; }
+    if (e.target.closest("#sk-resume")) jump("sk-" + pos);
+  };
+  if ("IntersectionObserver" in window) {
+    const seen = new IntersectionObserver(ents => ents.forEach(en => { if (!en.isIntersecting) return; const id = en.target.dataset.end || en.target.dataset.lid; if (en.target.dataset.end) { const st = App.lstate(id); if (!st.read) { st.read = true; st.readAt = Date.now(); App.save(); const d = $(`.sk-toc a[data-to="sk-${id}"] .ldot`, el); if (d) d.outerHTML = lDot(id); } } else { S().skriptPos[c.id] = id; App.save(); } }), { rootMargin: "0px 0px -40% 0px" });
+    $$(".sk-end, .sk-l", el).forEach(x => seen.observe(x));
+    const old = App.cleanup; App.cleanup = () => { seen.disconnect(); old && old(); };
+  }
+};
+
 /* ================= Prüfung üben: Prüfungsfokus aus Altprüfungen ================= */
 const prepState = () => S().prep || (S().prep = { check: {}, tasks: {} });
 function readiness(cid) {
@@ -342,7 +396,7 @@ PAGES.prep = (el, p) => {
        <div class="spread"><small>Checkliste</small><small class="tab">${r.done}/${r.total}</small></div>${pbar(r.check)}
        <div class="spread"><small>Aufgaben gelöst</small><small class="tab">${r.tdone}/${(P.tasks || []).length}</small></div>${pbar((P.tasks || []).length ? 100 * r.tdone / P.tasks.length : 0, "var(--good)")}</div>
        <div class="row"><button class="btn pri" data-go="review" data-p="alt:${c.id}">Prüfungsfragen üben (${altN})</button><button class="btn" id="pr-sim">Prüfungssimulation</button></div></section>
-     <section class="card col"><span class="eyebrow">So sieht die Prüfung aus</span><p>${esc(P.format)}</p>${(P.sources || []).length ? `<small class="muted">Quellen: ${P.sources.map(esc).join(" · ")}</small>` : ""}
+     <section class="card col"><details class="pformat"><summary class="eyebrow">So sieht die Prüfung aus</summary><p style="margin-top:8px">${esc(P.format)}</p></details>${(P.sources || []).length ? `<small class="muted">Quellen: ${P.sources.map(esc).join(" · ")}</small>` : ""}
        ${(P.strategy || []).length ? `<span class="eyebrow" style="margin-top:6px">Für ein Sehr gut</span><ul class="plist">${P.strategy.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</section>
    </div>
    <section class="col"><h2>Was drankommt</h2><div class="card list">${(P.focus || []).map(f => { const T = TOPICS[f.topic], k = knowTopic(f.topic);
