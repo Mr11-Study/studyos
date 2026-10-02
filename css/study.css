@@ -180,3 +180,28 @@
   .lrow>.go{order:5;margin-left:auto}
 }
 [data-theme=study] .sr-c button.chosen{border-color:var(--acc);color:var(--text);background:var(--acc-soft);font-weight:600}
+/* Prüfung üben */
+.prep-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:start}
+.prep-ready{display:flex;flex-direction:column;gap:14px;border-left:4px solid var(--know)}
+.prep-ready .rv-num b{font-size:40px}
+.plist{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14.5px}
+.wdots{font-size:10px;letter-spacing:1px;color:var(--know);white-space:nowrap;min-width:34px}
+.trow.chk{cursor:pointer}
+.trow.chk input{width:18px;height:18px;accent-color:var(--acc);flex:none}
+.trow.chk.on .lrow-main>div{color:var(--muted);text-decoration:line-through}
+.ptask{display:flex;flex-direction:column;gap:10px;border-left:4px solid var(--line2)}
+.ptask.ok{border-left-color:var(--good)} .ptask.again{border-left-color:var(--warn)}
+.ptask details{border-top:1px dashed var(--line2);padding-top:10px}
+.ptask summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:14px}
+.ptask-s{margin-top:10px;background:var(--card2);border-radius:10px;padding:12px 14px}
+.ptask .body,.rvf-face .body{max-width:none;overflow-x:auto}
+.ptask .btn.yes{border-color:var(--good);color:var(--good)}
+.prep-cta{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:left;cursor:pointer;color:inherit;border-left:4px solid var(--know)}
+.prep-pct{text-align:right;display:flex;flex-direction:column}
+.prep-pct b{font:650 26px var(--f-display)}
+.rvf-face table,.ptask table{margin:6px 0}
+@media (max-width:860px){.prep-top{grid-template-columns:minmax(0,1fr)}.trow .wdots{display:none}}
+[data-theme=study] .rvf-face pre,[data-theme=study] .ptask pre{background:var(--codebg);color:var(--codefg);border-radius:10px;padding:12px 14px;overflow-x:auto;font:13px/1.6 var(--f-mono);margin:8px 0}
+[data-theme=study] .rvf-face pre code,[data-theme=study] .ptask pre code{background:none;color:inherit;padding:0}
+.rvf-face ul,.rvf-face ol{padding-left:20px;margin:6px 0}
+.rvf-front{font:600 17px/1.45 var(--f-body)}

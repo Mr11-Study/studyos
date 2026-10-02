@@ -44,13 +44,13 @@ App.streak = () => { let n = 0; const d = new Date(); if (!activeDay(S().days[to
 
 /* ================= Navigation ================= */
 const NAVG = [
-  ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["review", "Wiederholen", "↻"], ["exam", "Prüfung üben", "✎"]]],
+  ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
   ["Planen", [["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"]]],
   ["Werkzeuge", [["practice", "Übungen", "λ"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
 ];
 App.NAV = NAVG.flatMap(g => g[1]);
 const BN = [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["review", "Wiederholen", "↻"], ["calendar", "Kalender", "▦"], ["__more", "Mehr", "☰"]];
-const ACTIVE = { lesson: "courses", course: "courses", boss: "courses", path: "courses", quiz: "review", flash: "review", challenges: "review" };
+const ACTIVE = { exam: "prep", lesson: "courses", course: "courses", boss: "courses", path: "courses", quiz: "review", flash: "review", challenges: "review" };
 App.SIDE = () => {
   const side = $("#side"); if (!side) return;
   const R = App.route(), cur = ACTIVE[R.v] || R.v, due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0, st = App.streak();
@@ -92,6 +92,8 @@ PAGES.dash = el => {
     <section class="card wk-card"><div class="spread"><span class="eyebrow">Diese Woche</span><small class="tab">${fmtMin(wkMin * 60)}</small></div>
       <div class="wk">${wk.map(d => `<div class="wk-d ${d.today ? "today" : ""} ${d.future ? "future" : ""}" title="${d.min} min · ${d.rev} Wiederholungen"><div class="wk-col"><i style="height:${d.min ? Math.max(8, Math.round(100 * d.min / maxMin)) : d.on ? 8 : 0}%"></i></div><small>${d.lbl}</small></div>`).join("")}</div></section>
    </div>
+   ${(() => { const ups = COURSES.filter(c => c.examPrep).map(c => ({ c, ex: nextExamOf(c.id), r: readiness(c.id) })).filter(x => x.ex && daysUntil(x.ex.date) <= 60).sort((a, b) => a.ex.date.localeCompare(b.ex.date)).slice(0, 3);
+     return ups.length ? `<section class="col"><div class="spread"><h2>Nächste Prüfungen</h2><button class="btn ghost sm" data-go="prep">Prüfung üben</button></div><div class="card list">${ups.map(x => `<button class="lrow" data-go="prep" data-p="${x.c.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.ex.title)}</div><small>${fmtDate(x.ex.date, { weekday: "short", day: "numeric", month: "short" })} · ${daysUntil(x.ex.date) === 0 ? "heute" : "in " + daysUntil(x.ex.date) + " Tagen"}</small></div><span class="kn">${x.r.pct} % bereit</span><span class="go">Üben →</span></button>`).join("")}</div></section>` : ""; })()}
    ${conts.length ? `<section class="col"><div class="spread"><h2>Weiter lernen</h2><button class="btn ghost sm" data-go="courses">Alle Kurse</button></div>
      <div class="card list">${conts.map(x => `<button class="lrow" data-go="lesson" data-p="${x.nl.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.nl.title)}</div><small>${esc(x.c.title)} · Kapitel ${x.nl.world.n} · ${x.nl.min} min</small></div>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}<span class="go">${touched(x.nl.id) ? "Fortsetzen" : "Lesen"} →</span></button>`).join("")}</div></section>` : ""}
    <div id="todo-today"></div>
@@ -133,7 +135,8 @@ PAGES.course = (el, cid) => {
      <div class="kpi"><b class="tab">${(ICOURSE[c.id] || []).length}</b><span>Fragen & Karten</span></div>
    </div>
    <div class="row">${nl ? `<button class="btn pri" data-go="lesson" data-p="${nl.id}">${touched(nl.id) ? "Weiterlesen" : "Lesen"}: ${esc(nl.title)} →</button>` : `<span class="chip acc">Alle Lektionen verstanden</span>`}
-     <button class="btn" data-go="review" data-p="c:${c.id}">Kurs wiederholen</button><button class="btn ghost" data-go="exam">Prüfung üben</button><button class="btn ghost" data-go="resources">Material</button></div>
+     <button class="btn" data-go="review" data-p="c:${c.id}">Kurs wiederholen</button><button class="btn ghost" data-go="prep" data-p="${c.id}">Prüfung üben</button><button class="btn ghost" data-go="resources">Material</button></div>
+   ${c.examPrep ? `<button class="card prep-cta" data-go="prep" data-p="${c.id}"><div><span class="eyebrow">Prüfungsfokus</span><div class="lrow-t">Was in der Prüfung drankommt, Altfragen, Rechenaufgaben & Checkliste</div><small>${(ICOURSE[c.id] || []).filter(i => i.ref.alt).length} Prüfungsfragen · ${(c.examPrep.tasks || []).length} Aufgaben · ${(c.examPrep.checklist || []).length} Punkte auf der Checkliste</small></div><div class="prep-pct"><b>${readiness(c.id).pct} %</b><small>Prüfungsreife</small></div></button>` : ""}
    <section class="col"><h2>Kapitel</h2>
     ${c.worlds.map(w => { const wu = w.lessons.filter(l => App.isDone(l.id)).length, b = w.boss && (S().bosses[w.boss.id] || {});
       return `<div class="card chap" id="ch-${w.id}"><div class="spread chap-h"><div><span class="eyebrow" style="color:${c.color}">Kapitel ${w.n}</span><h3>${esc(w.title)}</h3>${w.sub ? `<small>${esc(w.sub)}</small>` : ""}</div><small class="tab">${wu}/${w.lessons.length} verstanden</small></div>
@@ -204,7 +207,7 @@ PAGES.boss = (el, wid) => {
 
 /* ================= Wiederholen ================= */
 function buildQueue(scope, size) {
-  let its = ITEMS.filter(i => (!scope.cid || i.course === scope.cid) && (!scope.topic || i.topic === scope.topic));
+  let its = ITEMS.filter(i => (!scope.cid || i.course === scope.cid) && (!scope.topic || i.topic === scope.topic) && (!scope.alt || i.ref.alt));
   const t = today(), byDue = (a, b) => srs()[a.key].due.localeCompare(srs()[b.key].due);
   const due = shuffle(its.filter(i => isDue(i, t))).sort(byDue);
   if (scope.topic || scope.free) { // freies Üben: fällig → neu → schwächste zuerst
@@ -227,6 +230,7 @@ PAGES.review = (el, p) => {
   p = p || "";
   if (p.startsWith("c:")) { ui.cid = p.slice(2); App.save(); }
   if (p.startsWith("topic:") && TOPICS[p.slice(6)]) return startSession(el, { topic: p.slice(6), cid: TOPICS[p.slice(6)].course, free: true }, 15);
+  if (p.startsWith("alt:") && CBY[p.slice(4)]) return startSession(el, { cid: p.slice(4), alt: true, free: true }, 25);
   if (p === "start") return startSession(el, { cid: ui.cid }, ui.size === 0 ? Infinity : ui.size);
   const cn = counts(ui.cid), all = counts();
   const ts = ui.cid ? Object.keys(TOPICS).filter(t => TOPICS[t].course === ui.cid) : [];
@@ -253,7 +257,7 @@ PAGES.review = (el, p) => {
 
 function startSession(el, scope, size) {
   const queue = buildQueue(scope, size);
-  const title = scope.topic ? TOPICS[scope.topic].name : scope.free ? "Freies Üben · " + CBY[scope.cid].title : scope.cid ? CBY[scope.cid].title : "Alle Kurse";
+  const title = scope.alt ? "Prüfungsfragen · " + CBY[scope.cid].title : scope.topic ? TOPICS[scope.topic].name : scope.free ? "Freies Üben · " + CBY[scope.cid].title : scope.cid ? CBY[scope.cid].title : "Alle Kurse";
   el.onclick = null;
   el.innerHTML = `<div class="page rv-page"><div class="spread"><div><span class="eyebrow">Wiederholen</span><h2>${esc(title)}</h2></div><button class="btn ghost sm" id="rv-end">Beenden</button></div><div id="rv"></div></div>`;
   const box = $("#rv", el);
@@ -308,6 +312,54 @@ function startSession(el, scope, size) {
   $("#rv-end", el).onclick = () => { queue.length = Math.min(queue.length, i); i = queue.length; finish(); };
   draw();
 }
+
+
+/* ================= Prüfung üben: Prüfungsfokus aus Altprüfungen ================= */
+const prepState = () => S().prep || (S().prep = { check: {}, tasks: {} });
+function readiness(cid) {
+  const P = CBY[cid] && CBY[cid].examPrep; if (!P) return { pct: 0, know: 0, check: 0 };
+  const st = prepState(), cl = P.checklist || [], done = cl.filter(x => st.check[x.id]).length;
+  let w = 0, k = 0; (P.focus || []).forEach(f => { w += f.weight; k += f.weight * knowTopic(f.topic); });
+  const know = w ? Math.round(k / w) : knowCourse(cid), check = cl.length ? Math.round(100 * done / cl.length) : 0;
+  const tk = P.tasks || [], tdone = tk.filter(t => st.tasks[t.id] === 1).length, tasks = tk.length ? Math.round(100 * tdone / tk.length) : know;
+  return { pct: Math.round(.5 * know + .3 * check + .2 * tasks), know, check, tasks, done, total: cl.length, tdone };
+}
+App.readiness = readiness;
+const nextExamOf = cid => { const t = today(); return App.eventsBetween ? App.eventsBetween(t, addDays(t, 300), false).find(e => e.course === cid && e.type === "exam" && !e.done) || null : null; };
+PAGES.prep = (el, p) => {
+  const withPrep = COURSES.filter(c => c.examPrep);
+  let c = CBY[p] || CBY[S().prepCourse] || CBY[S().course];
+  if (!c || !c.examPrep) c = withPrep[0]; if (!c) { el.innerHTML = `<div class="page"><div class="empty">Noch keine Prüfungsvorbereitung vorhanden.</div></div>`; return; }
+  S().prepCourse = c.id;
+  const P = c.examPrep, st = prepState(), r = readiness(c.id), ex = nextExamOf(c.id), altN = (ICOURSE[c.id] || []).filter(i => i.ref.alt).length;
+  const dots = n => `<span class="wdots" title="Gewicht ${n}">${"●".repeat(n)}${"○".repeat(3 - n)}</span>`;
+  el.innerHTML = `<div class="page">
+   <header><h1>Prüfung üben</h1><p class="muted" style="margin-top:6px;max-width:70ch">Aus deinen Altprüfungen und Fragensammlungen: was drankommt, wie es gefragt wird und was du für ein Sehr gut können musst.</p></header>
+   <div class="row fchips">${withPrep.map(x => `<button class="chip ${x.id === c.id ? "on" : ""}" data-pc="${x.id}"><span class="dot" style="--c:${x.color}"></span>${esc(x.short)} <b>${readiness(x.id).pct}%</b></button>`).join("")}</div>
+   <div class="prep-top">
+     <section class="card prep-ready"><span class="eyebrow">Prüfungsreife · ${esc(c.title)}</span><div class="rv-num"><b>${r.pct} %</b><span>${ex ? `Prüfung ${fmtDate(ex.date, { weekday: "short", day: "numeric", month: "long" })} · ${daysUntil(ex.date) === 0 ? "heute" : "in " + daysUntil(ex.date) + " Tagen"}` : "Prüfungstermin noch nicht eingetragen"}</span></div>
+       <div class="col" style="gap:8px"><div class="spread"><small>Wissen in den Prüfungsthemen</small><small class="tab">${r.know} %</small></div>${pbar(r.know, "var(--know)")}
+       <div class="spread"><small>Checkliste</small><small class="tab">${r.done}/${r.total}</small></div>${pbar(r.check)}
+       <div class="spread"><small>Aufgaben gelöst</small><small class="tab">${r.tdone}/${(P.tasks || []).length}</small></div>${pbar((P.tasks || []).length ? 100 * r.tdone / P.tasks.length : 0, "var(--good)")}</div>
+       <div class="row"><button class="btn pri" data-go="review" data-p="alt:${c.id}">Prüfungsfragen üben (${altN})</button><button class="btn" id="pr-sim">Prüfungssimulation</button></div></section>
+     <section class="card col"><span class="eyebrow">So sieht die Prüfung aus</span><p>${esc(P.format)}</p>${(P.sources || []).length ? `<small class="muted">Quellen: ${P.sources.map(esc).join(" · ")}</small>` : ""}
+       ${(P.strategy || []).length ? `<span class="eyebrow" style="margin-top:6px">Für ein Sehr gut</span><ul class="plist">${P.strategy.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</section>
+   </div>
+   <section class="col"><h2>Was drankommt</h2><div class="card list">${(P.focus || []).map(f => { const T = TOPICS[f.topic], k = knowTopic(f.topic);
+     return `<div class="trow">${dots(f.weight)}<div class="lrow-main"><div class="lrow-t">${esc(T.name)}</div><small>${esc(f.note || "")}</small></div><div class="trow-k">${pbar(k, "var(--know)")}<small class="tab">${k} %</small></div><div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm ghost" data-go="lesson" data-p="${T.lesson}">Lesen</button><button class="btn sm" data-go="review" data-p="topic:${f.topic}">Üben</button></div></div>`; }).join("")}</div></section>
+   <section class="col"><div class="spread"><h2>Checkliste</h2><small class="muted">${r.done} von ${r.total} sicher</small></div><div class="card list">${(P.checklist || []).map(x => `<label class="trow chk ${st.check[x.id] ? "on" : ""}"><input type="checkbox" data-ck="${x.id}" ${st.check[x.id] ? "checked" : ""}><div class="lrow-main"><div>${esc(x.text)}</div><small>${esc(TOPICS[x.topic] ? TOPICS[x.topic].name : "")}</small></div></label>`).join("")}</div></section>
+   ${(P.tasks || []).length ? `<section class="col"><div class="spread"><h2>Aufgaben wie in der Prüfung</h2><small class="muted">Erst selbst lösen, dann Lösung aufklappen</small></div>
+     ${P.tasks.map((t, i) => { const s2 = st.tasks[t.id]; return `<article class="card ptask ${s2 === 1 ? "ok" : s2 === 0 ? "again" : ""}" id="pt-${t.id}"><div class="spread"><div class="row" style="gap:8px"><span class="eyebrow">Aufgabe ${i + 1}${t.pts ? ` · ${t.pts} P.` : ""}</span><small class="muted">${esc(TOPICS[t.topic] ? TOPICS[t.topic].name : "")}</small></div>${s2 === 1 ? `<span class="chip acc">✓ konnte ich</span>` : s2 === 0 ? `<span class="chip warn">nochmal üben</span>` : ""}</div>
+       <h3>${esc(t.title)}</h3><div class="body ptask-q">${t.html}</div>
+       <details><summary>Lösung anzeigen</summary><div class="body ptask-s">${t.solution}</div><div class="row" style="margin-top:12px"><button class="btn sm yes" data-tk="${t.id}|1">✓ Konnte ich</button><button class="btn sm" data-tk="${t.id}|0">Nochmal üben</button></div></details></article>`; }).join("")}</section>` : ""}
+  </div>`;
+  el.onclick = e => {
+    const pc = e.target.closest("[data-pc]"); if (pc) { App.go("prep", pc.dataset.pc); return; }
+    const tk = e.target.closest("[data-tk]"); if (tk) { const [id, v] = tk.dataset.tk.split("|"); st.tasks[id] = +v; App.save(); const y = window.scrollY; App.render(); window.scrollTo(0, y); return; }
+    if (e.target.closest("#pr-sim")) { S().course = c.id; App.save(); App.go("exam"); }
+  };
+  el.onchange = e => { const ck = e.target.closest("[data-ck]"); if (!ck) return; if (ck.checked) st.check[ck.dataset.ck] = Date.now(); else delete st.check[ck.dataset.ck]; App.save(); const y = window.scrollY; App.render(); window.scrollTo(0, y); };
+};
 
 /* ================= Übungen: interaktive Aufgaben aus den Lektionen ================= */
 const origPractice = PAGES.practice;
