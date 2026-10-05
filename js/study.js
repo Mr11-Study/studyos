@@ -325,7 +325,8 @@ function skBlock(b, l, lvl) {
     case "keys": return `<div class="sk-keys"><span class="eyebrow">${de ? "Kernpunkte" : "Key points"}</span><ul>${b.items.map(x => `<li>${x}</li>`).join("")}</ul></div>`;
     case "html": return `<div class="sk-html body">${b.html}</div>`;
     case "callout": return `<div class="callout">${b.html}</div>`;
-    case "tip": return `<div class="tip"><span>💡</span><span>${b.html}</span></div>`;
+    case "tip": case "hint": return `<details class="hintbox"><summary>💡 ${de ? "Tipp" : "Tip"}${b.title ? ": " + esc(b.title) : ""}</summary><div class="body">${b.html}</div></details>`;
+    case "example": return `<div class="sk-ex"><span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<b>${esc(b.title)}</b>` : ""}<div class="body">${b.html}</div></div>`;
     case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
     case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
     case "widget": return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;

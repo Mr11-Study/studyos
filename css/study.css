@@ -262,3 +262,13 @@
   .sk-check{border:0;padding:0}
   .lesson-main pre,.body pre{white-space:pre-wrap}
 }
+.example,.sk-ex{border-left:4px solid var(--know);background:color-mix(in srgb,var(--know) 7%,var(--card))}
+.sk-ex{border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.example h3{margin:4px 0 6px}
+.text-deep .eyebrow{color:var(--acc)}
+.hintbox{border:1px solid color-mix(in srgb,var(--know) 45%,var(--line));background:color-mix(in srgb,var(--know) 6%,var(--card));border-radius:10px;padding:0}
+.hintbox>details>summary,details.hintbox>summary{cursor:pointer;padding:10px 14px;font-weight:600;font-size:14.5px;list-style:none}
+.hintbox summary::-webkit-details-marker{display:none}
+.hintbox details[open]>summary,details.hintbox[open]>summary{border-bottom:1px dashed var(--line2)}
+.hintbox .body{padding:10px 14px 12px;font-size:14.5px}
+@media print{details.hintbox>.body{display:block}}

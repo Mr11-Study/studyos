@@ -421,7 +421,8 @@ function renderBlock(b, i, l, st, lvl) {
   if (b.t === "lead") { div.className = "card"; div.innerHTML = `<p style="font-size:16px;max-width:70ch">${b.html}</p>`; }
   else if (b.t === "html") { div.innerHTML = b.html; }
   else if (b.t === "callout") { div.className = "callout"; div.innerHTML = b.html; }
-  else if (b.t === "tip") { div.className = "tip"; div.innerHTML = `<span>💡</span><span>${b.html}</span>`; }
+  else if (b.t === "tip" || b.t === "hint") { div.className = "hintbox"; div.innerHTML = `<details><summary>💡 ${de ? "Tipp" : "Tip"}${b.title ? ": " + esc(b.title) : ` <span class="muted">(${de ? "anklicken" : "click"})</span>`}</summary><div class="body">${b.html}</div></details>`; }
+  else if (b.t === "example") { div.className = "card example"; div.innerHTML = `<span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<h3>${esc(b.title)}</h3>` : ""}<div class="body">${b.html}</div>`; }
   else if (b.t === "warnbox") { div.className = "warnbox"; div.innerHTML = `<span>⚠️</span><span>${b.html}</span>`; }
   else if (b.t === "keys") { div.className = "card col"; div.innerHTML = `<span class="eyebrow">${de ? "Kernpunkte" : "Key points"}</span><ul class="keys">${b.items.map(x => `<li><span>${x}</span></li>`).join("")}</ul>`; }
   else if (b.t === "text") {
