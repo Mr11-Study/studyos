@@ -80,13 +80,46 @@ Kursregeln sind eingebaut:
 - **ENG3:** nur Erklären/Korrigieren/Recherche, Nutzung angeben; Trend-Beschreibungen selbst schreiben.
 - StudyOS schreibt **keine** bewerteten Abgaben für dich – es plant, erklärt und lässt dich üben.
 
-## 6. Tagesablauf mit StudyOS
+## 6. Tagesablauf mit StudyOS (ab Version 4.0)
 
-1. **Heute**: zeigt Lernblöcke, Abgaben, Anmeldungen und was als Nächstes dran ist.
-2. **Kalender**: fehlende Termine (gelber Kasten) eintragen, sobald du sie kennst – vor allem **Prüfungsanmeldungen**. Eigene Termine über „+ Termin“ (auch wöchentlich wiederholend für LVs).
-3. **Aufgaben & Lernplan**: Moodle-Aufgaben abhaken · „Lernplan erstellen“ für jede Prüfung (verteilt die Themen nach deiner Mastery auf Lernblöcke) · „Arbeitsplan“ für jede Abgabe.
-4. **Lernen / Quiz / Karteikarten / Prüfungstrainer** für die Inhalte.
-5. **Git-Labor**: simuliertes Terminal + GitHub/GitLab-Weboberfläche mit 6 Missionen (config, SSH, clone/push, Branch + Pull Request, Merge-Konflikt, .gitignore/restore) und freiem Üben. Nichts verlässt dein Gerät.
+Seit 4.0 gibt es im Lernprofil **keine XP, Level, Bosse oder Erfolge mehr**. Fortschritt zeigen nur noch zwei ehrliche Werte:
+
+- **Verstanden x/y** – Lektionen, die du nach dem Lesen selbst als „verstanden“ markierst (kannst du auch wieder aufheben). Nichts ist gesperrt, du kannst jede Lektion öffnen.
+- **Wissen %** – wie viele Fragen und Karteikarten eines Themas du in der **Wiederholung** wirklich weißt.
+
+**Wiederholen** (Spaced Repetition): Sobald du eine Lektion öffnest, kommen ihre Fragen und Karteikarten in die Wiederholung (pro Sitzung höchstens 10–20 neue). Richtig → kommt nach 2, 4, 8, 16, 32 Tagen wieder. Falsch → morgen wieder (und am Ende der Sitzung nochmal). Tastatur: 1–4 wählt Antworten, Enter = weiter, Leertaste = Antwort zeigen, 1/2 = nicht gewusst/wusste ich. Unter „Wiederholen“ kannst du einen Kurs wählen und einzelne Themen oder den ganzen Kurs frei üben.
+
+1. **Heute**: fällige Wiederholungen, „Weiter lernen“ (nächste Lektion je Kurs, nach nächster Abgabe/Prüfung sortiert), Lernzeit der Woche, Termine, Semesterüberblick.
+2. **Kurse → Kurs**: KI-Regel der LV, Kapitel mit Lektionen (○ ungelesen, ◐ gelesen, ✓ verstanden), **Kapiteltests** (10 Fragen, ab 70 % bestanden), Notenrechner, Termine & Moodle-Aufgaben, Zurücksetzen.
+3. **Kalender**: fehlende Termine (Kasten auf „Heute“) eintragen, vor allem **Prüfungsanmeldungen**.
+4. **Aufgaben & Lernplan**: Moodle-Aufgaben abhaken, Lernpläne und Arbeitspläne.
+5. **Prüfung üben**: Prüfungssimulation pro Kurs. **Übungen**: alle interaktiven Aufgaben eines Kurses an einem Ort. **Git-Labor**: simuliertes Terminal + GitLab.
+6. **Lerntage in Folge** zählen Tage mit ≥ 5 Minuten Lernzeit, einer Wiederholung oder einer Lektion.
+
+Design: hell (Papier/Petrol); stellt dein Gerät auf Dunkelmodus, wird StudyOS automatisch dunkel.
+
+**Kurse im Semester 3 (WS 2026/27):** EF-DASC, KOMMU, ENG3, GL-BWL-2 sowie neu MAPPDEV (Kotlin/Android), DB-AENT (T-SQL), ITINF-GL (Cloud/Azure), GL-PMGT (inkl. Scrum), GL-UFO und MMPROV (Unity/C#). Termine ohne Datum stehen als „fehlt“ im Kalender – laut Moodle eintragen. Bei ITINF-GL ergibt die Beurteilung im Syllabus nur 70 Punkte – bitte in Moodle prüfen.
+
+### Prüfung üben (ab Version 4.1)
+
+Unter **Prüfung üben** gibt es für jedes Fach einen Prüfungsfokus aus den Altprüfungen und Fragensammlungen:
+- **So sieht die Prüfung aus** (Format laut Altprüfung) und Tipps für ein Sehr gut.
+- **Was drankommt**: Themen nach Häufigkeit (●●● = kommt fast immer), mit Wissen-% und direktem Lesen/Üben.
+- **Checkliste** zum Abhaken, **Aufgaben wie in der Prüfung** (Rechen-/Fallaufgaben, erst selbst lösen, dann Lösung aufklappen).
+- **Prüfungsfragen üben**: alle Altfragen als eigene Wiederholungs-Sitzung (offene Fragen mit Musterlösung zum Selbstbewerten).
+- **Prüfungsreife %** = Wissen in den Prüfungsthemen + Checkliste + gelöste Aufgaben. Auf „Heute“ stehen die nächsten Prüfungen (wenn das Datum im Kalender eingetragen ist).
+
+Quellen: BWL-2-Moodle-Altprüfung, MAPPDEV-Quizfragen, ENG3-Altprüfung, PMGT-Altfragen + Netzplan, UFO-Fragenkatalog, ITINF-Fragenkatalog, DASC-Anki (Granigg True/False), SUNW2-Altprüfung + Katalog. Für KOMMU, DB-AENT und MMPROV gab es keine Altprüfungen – dort ist die Vorbereitung aus der Beurteilung im Syllabus gebaut. **SUNW2 (Sichere Unternehmensnetzwerke 2)** ist als eigener Kurs neu dazugekommen (ohne Syllabus – ECTS, Termin und KI-Regel laut Moodle ergänzen). Wo Antworten in den Unterlagen falsch waren, wurde die richtige Antwort verwendet und erklärt.
+
+### Skript lesen (ab Version 4.2)
+
+**Skript lesen** (im Menü bzw. unten „Skript“) zeigt den kompletten Lernstoff eines Kurses als durchgehendes Dokument: Kapitel für Kapitel, mit Inhaltsverzeichnis, Erklärstufe Einfach/Normal/Fachlich, aufklappbaren Selbsttests und einem Begriffe-Glossar am Ende. Was du beim Lesen durchscrollst, gilt als gelesen und kommt automatisch in die Wiederholung. „Drucken / PDF“ erzeugt eine saubere Druckversion.
+
+Organisatorisches aus den Syllabi (Noten, Punkte, Anwesenheit, Abgaben, KI-Regeln, ECTS) ist kein Lernstoff mehr: Solche Fragen, Karten und Lektionen sind entfernt (Datei `courses/clean-uni.js`). Die Infos stehen nur noch eingeklappt unter „Kursinfo“ auf der Kursseite.
+
+### Vertiefung, Alltagsbeispiele & Tipps (ab Version 4.4)
+
+Jede Lektion aller 11 Fächer hat jetzt zusätzlich eine **Vertiefung** (in allen drei Erklärstufen), **1–2 Beispiele aus dem Alltag** (gelb markiert) und **2–3 aufklappbare Tipps** (💡 anklicken: Eselsbrücken, Prüfungsfallen, Lösungswege). Auch alle bisherigen Tipps sind jetzt zum Aufklappen. Insgesamt rund 167.000 Wörter zusätzlicher Lernstoff – die App ist als vollständiges Lernmaterial gedacht, die Vorlesungs-PDFs braucht man nicht. Die Inhalte stehen in `courses/deep-<fach>.js` und werden von `courses/deep-apply.js` in die Lektionen eingefügt; im Skript erscheinen sie automatisch mit.
 
 ## 7. Neue Kurse / neues Material
 
@@ -119,7 +152,6 @@ Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neu
 ## 8. Bekannte Grenzen
 
 - **Python-Übungen** laden beim ersten Mal einen Python-Interpreter aus dem Internet (danach offline im Cache). NumPy/pandas werden im Browser nur vereinfacht simuliert – die echten Übungen machst du in VS Code mit `uv`.
-- **Kotlin** läuft auf dem Server von JetBrains: ohne Internet kein Ausführen (Lesen geht). Dateien, Netzwerk und `readln()` gehen dort nicht.
 - Benachrichtigungen bei komplett geschlossener App hängen von Android/Xiaomi ab → Kalender-Export nutzen.
 - Daten liegen pro Browser/Gerät. Ohne Sync oder Backup gehen sie beim Löschen der Browserdaten verloren.
 
