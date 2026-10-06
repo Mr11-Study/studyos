@@ -1,6 +1,6 @@
 // Prüft alle Kotlin-Inhalte der MAppDev-Kapitel mit einem lokalen Kotlin-Compiler:
 // jedes Beispiel, jede Vorhersage, jede Musterlösung (muss alle Tests bestehen) und jede Vorlage (darf nicht schon bestehen).
-//   node tools/kt-verify.js [kapitel-id]          VORLAGE=1 node tools/kt-verify.js   → prüft courses/mappdev/_VORLAGE.js
+//   node dev/kt-verify.js [kapitel-id]          VORLAGE=1 node dev/kt-verify.js   → prüft courses/mappdev/_VORLAGE.js
 // Braucht Java 17+ und in $KT_JARS (Standard ./.kt) diese Jars von Maven Central (org.jetbrains.kotlin, Version 2.1.0):
 //   kotlin-compiler-embeddable, kotlin-stdlib, kotlin-script-runtime, kotlin-daemon-embeddable, kotlin-reflect 1.6.10,
 //   kotlinx-coroutines-core-jvm 1.6.4, annotations 13.0, trove4j 1.0.20200330

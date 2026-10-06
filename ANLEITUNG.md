@@ -112,7 +112,7 @@ Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update
 
 1. In `index.html` bei den anderen Kapiteln (vor `courses/ext-apply.js`) `<script src="courses/mappdev/kNN-thema.js"></script>` einfügen.
 2. In `sw.js` die Datei zu `SHELL` hinzufügen und `VERSION` hochzählen.
-3. Optional prüfen: `node tools/kt-verify.js` kompiliert alle Beispiele und Musterlösungen mit einem lokalen Kotlin-Compiler (Kopf der Datei erklärt, welche Jars nötig sind).
+3. Optional prüfen: `node dev/kt-verify.js` kompiliert alle Beispiele und Musterlösungen mit einem lokalen Kotlin-Compiler (Kopf der Datei erklärt, welche Jars nötig sind).
 
 Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neue Blöcke, Lektionen, Fragen, Karteikarten, Übungsblätter). Das macht `courses/ext-apply.js`; andere Kurse können das genauso nutzen (`courses/<kurs>/…`).
 
