@@ -99,9 +99,27 @@ Gib Claude einfach die neuen Unterlagen und Moodle-Texte. Es entsteht eine neue 
 
 Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update verfügbar“. Deine Fortschritte bleiben erhalten.
 
+## 7a. Kotlin-Labor und neue MAppDev-Kapitel
+
+**Kotlin-Labor** (Seitenleiste → Werkzeuge): echter Kotlin-Code im Browser. Der Code wird vom offiziellen Compiler von JetBrains (api.kotlinlang.org) übersetzt und ausgeführt, das braucht Internet. Dein Code und deine Fortschritte bleiben auf dem Gerät.
+
+- **Übungsblätter**: Aufgaben mit Tests wie die `test()`-Zellen im Notebook, Tipps Schritt für Schritt, Musterlösung erst nach einem Versuch.
+- **Spielwiese**: freies Programmieren mit Vorlagen und gespeicherten Snippets.
+- **Fehler-Übersetzer**: häufige Compiler- und Laufzeitfehler auf Deutsch.
+- In den Lektionen: „Ausprobieren“-Blöcke, Vorhersagen („Was kommt raus?“) und Mini-Challenges mit Ziel-Ausgabe.
+
+**Neues MAppDev-Kapitel** = eine Datei. Gib Claude die Folien/Übungen, es entsteht `courses/mappdev/kNN-thema.js` (Aufbau: `courses/mappdev/_VORLAGE.js`). Einbauen:
+
+1. In `index.html` bei den anderen Kapiteln (vor `courses/ext-apply.js`) `<script src="courses/mappdev/kNN-thema.js"></script>` einfügen.
+2. In `sw.js` die Datei zu `SHELL` hinzufügen und `VERSION` hochzählen.
+3. Optional prüfen: `node dev/kt-verify.js` kompiliert alle Beispiele und Musterlösungen mit einem lokalen Kotlin-Compiler (Kopf der Datei erklärt, welche Jars nötig sind).
+
+Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neue Blöcke, Lektionen, Fragen, Karteikarten, Übungsblätter). Das macht `courses/ext-apply.js`; andere Kurse können das genauso nutzen (`courses/<kurs>/…`).
+
 ## 8. Bekannte Grenzen
 
 - **Python-Übungen** laden beim ersten Mal einen Python-Interpreter aus dem Internet (danach offline im Cache). NumPy/pandas werden im Browser nur vereinfacht simuliert – die echten Übungen machst du in VS Code mit `uv`.
+- **Kotlin** läuft auf dem Server von JetBrains: ohne Internet kein Ausführen (Lesen geht). Dateien, Netzwerk und `readln()` gehen dort nicht.
 - Benachrichtigungen bei komplett geschlossener App hängen von Android/Xiaomi ab → Kalender-Export nutzen.
 - Daten liegen pro Browser/Gerät. Ohne Sync oder Backup gehen sie beim Löschen der Browserdaten verloren.
 

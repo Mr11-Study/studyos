@@ -1,0 +1,66 @@
+/* ===== Kotlin-Labor: Editor, Konsole, Tests ===== */
+.kted{display:grid;grid-template-columns:auto minmax(0,1fr);background:var(--codebg,#0E1114);border:1px solid var(--line2);border-radius:10px;overflow:hidden;font:13.5px/21px var(--f-mono,"JetBrains Mono",monospace)}
+.kted-g{padding:10px 8px 10px 10px;text-align:right;color:#5E6875;user-select:none;border-right:1px solid rgba(255,255,255,.06);min-width:34px}
+.kted-g div{height:21px}
+.kted-g .bad{color:#fff;background:#B83D36;border-radius:4px;padding:0 4px;margin-right:-4px}
+.kted-s{position:relative;min-width:0}
+/* Editor = durchsichtige textarea über farbigem <pre>: beide müssen pixelgenau gleich sein, daher !important gegen die allgemeinen pre-Regeln der Lektionen */
+.kted .kted-hl,.kted textarea{margin:0!important;padding:10px 14px!important;font:inherit!important;line-height:21px!important;tab-size:4;white-space:pre!important;letter-spacing:0;word-spacing:0;box-sizing:border-box;width:100%;border-radius:0!important;max-width:none}
+.kted .kted-hl{background:transparent!important}
+.kted-hl{position:absolute;inset:0;pointer-events:none;overflow:hidden;color:var(--codefg,#DDE3EA)}
+.kted textarea{position:relative;display:block;background:transparent;color:transparent;caret-color:#F2F4F7;border:0;border-radius:0;resize:none;overflow-x:auto;overflow-y:hidden;outline:none}
+.kted textarea::selection{background:rgba(110,163,240,.35);color:transparent}
+.kted:focus-within{border-color:var(--acc)}
+.k-kw{color:#CF8EF0}.k-str{color:#9AD88A}.k-tpl{color:#F2C46D}.k-num{color:#6FC3F0}.k-com{color:#6F7B89;font-style:italic}.k-fn{color:#7FB6FF}.k-type{color:#F0B37E}.k-ann{color:#E6D36A}
+.kt-card .w{display:flex;flex-direction:column;gap:12px}
+.kt-act,.kt-work .ed-actions{padding:0;border:0;align-items:center}
+.kt-kbd{margin-left:auto}
+.kt-res{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.kt-sub{font:600 11px var(--f-mono,monospace);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kt-out{margin:0;background:var(--codebg,#0E1114);color:var(--codefg,#DDE3EA);border-radius:8px;padding:10px 14px;font:13px/1.55 var(--f-mono,monospace);white-space:pre-wrap;max-height:320px;overflow:auto}
+.kt-out .err,.kt-errs .err,.kt-msg .err{color:var(--bad)}
+.kt-errs{display:flex;flex-direction:column;gap:8px}
+.kt-err{border-left:3px solid var(--bad);background:var(--bad-soft);border-radius:0 8px 8px 0;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.kt-err[data-line]{cursor:pointer}
+.kt-err code{white-space:pre-wrap;word-break:break-word;background:none;padding:0;color:var(--text)}
+.kt-where{font:600 12px var(--f-mono,monospace);color:var(--bad)}
+.kt-tip{background:var(--warn-soft);border-radius:8px;padding:8px 12px;font-size:13.5px}
+.kt-err .kt-tip{margin-top:4px}
+.kt-win{background:var(--acc-soft);border:1px solid var(--acc-line);color:var(--acc);border-radius:8px;padding:9px 12px;font-weight:600}
+.kt-msg{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.kt-goal{background:var(--acc-soft);border-radius:8px;padding:8px 12px;font-size:14px}
+.kt-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:6px 0}
+.kt-opts .opt span{font:13px/1.45 var(--f-mono,monospace);white-space:pre-wrap}
+.kt-tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.kt-tests li{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line)}
+.kt-tests li>span{font-weight:700;width:16px}
+.kt-tests li.ok>span{color:var(--good,var(--acc))}.kt-tests li.no>span{color:var(--bad)}
+.kt-tests li div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.kt-tests code{white-space:pre-wrap;word-break:break-word}
+.kt-tests small{color:var(--muted)}
+.kt-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.kt-tabs button{background:var(--card2);border:1px solid var(--line);color:var(--muted);font-size:12.5px;padding:5px 10px;border-radius:20px;cursor:pointer;white-space:nowrap}
+.kt-tabs button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.kt-tabs button.solved:not(.on){color:var(--good,var(--acc));border-color:var(--acc-line)}
+.kt-tabs button.solved::before{content:"✓ "}
+.kt-lab{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;align-items:start}
+.kt-task{display:flex;flex-direction:column;gap:10px;font-size:14.5px}
+.kt-prompt pre{background:var(--card2);border-radius:8px;padding:8px 12px;overflow:auto;font:12.5px/1.5 var(--f-mono,monospace)}
+.kt-prompt p{margin:0 0 6px}
+.kt-testlist summary{cursor:pointer;color:var(--muted);font-size:13px}
+.kt-testlist ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:12.5px}
+.kt-work{display:flex;flex-direction:column;gap:10px;min-width:0}
+.kt-sol{background:var(--codebg,#0E1114);color:var(--codefg,#DDE3EA);border-radius:8px;padding:10px 12px;font:12.5px/1.55 var(--f-mono,monospace);white-space:pre;overflow:auto;margin:6px 0}
+.kt-pages{display:flex;gap:8px;flex-wrap:wrap}
+.kt-pages .chip{cursor:pointer;font-size:13.5px;padding:6px 14px}
+.kt-pages .chip.on{background:var(--acc);color:var(--acc-ink)}
+.kt-labcard{text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px;font:inherit;color:inherit}
+.kt-labcard:hover{border-color:var(--acc-line)}
+.kt-labcard p{margin:0}
+.kt-errgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;font-size:13.5px}
+.kt-errgrid code{display:inline-block;margin-bottom:3px}
+.sk-code{margin:12px 0;display:flex;flex-direction:column;gap:6px}
+.sk-code pre{background:var(--codebg,#0E1114);color:var(--codefg,#DDE3EA);border-radius:8px;padding:10px 14px;overflow:auto;font:12.5px/1.5 var(--f-mono,monospace)}
+.sk-code pre code{background:none;color:inherit;padding:0}
+@media (max-width:860px){.kt-lab{grid-template-columns:minmax(0,1fr)}.kt-kbd{display:none}.kted{font-size:13px}}
+@media print{.kt-act,.kt-res{display:none}}
