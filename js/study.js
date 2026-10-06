@@ -46,7 +46,7 @@ App.streak = () => { let n = 0; const d = new Date(); if (!activeDay(S().days[to
 const NAVG = [
   ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript lesen", "❡"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
   ["Planen", [["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"]]],
-  ["Werkzeuge", [["practice", "Übungen", "λ"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
+  ["Werkzeuge", [["practice", "Übungen", "λ"], ["ktlab", "Kotlin-Labor", "K"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
 ];
 App.NAV = NAVG.flatMap(g => g[1]);
 const BN = [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript", "❡"], ["review", "Wiederholen", "↻"], ["__more", "Mehr", "☰"]];
@@ -329,7 +329,7 @@ function skBlock(b, l, lvl) {
     case "example": return `<div class="sk-ex"><span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<b>${esc(b.title)}</b>` : ""}<div class="body">${b.html}</div></div>`;
     case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
     case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
-    case "widget": return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
+    case "widget": if (App.ktSkript && App.ktSkript(b, l)) return App.ktSkript(b, l); return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
   }
   return "";
 }
