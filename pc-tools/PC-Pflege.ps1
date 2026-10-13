@@ -237,7 +237,7 @@ function Load-State {
     try {
       $j = Get-Content $StateFile -Raw -Encoding UTF8 | ConvertFrom-Json
       $s = @{ PrevScheme = $j.PrevScheme; CreatedScheme = $j.CreatedScheme; OverlaySet = [bool]$j.OverlaySet; Reg = @() }
-      foreach ($r in @($j.Reg)) { if ($r) { $s.Reg += @{ Path = $r.Path; Name = $r.Name; Old = $r.Old } } }
+      foreach ($reg in @($j.Reg)) { if ($reg) { $s.Reg += @{ Path = $reg.Path; Name = $reg.Name; Old = $reg.Old } } }
       return $s
     } catch { }
   }
@@ -298,9 +298,9 @@ function Disable-Boost {
   if ($s.PrevScheme) { powercfg /setactive $s.PrevScheme 2>$null; $done += 'Energiesparplan: wie vorher' }
   if ($s.OverlaySet) { powercfg /overlaysetactive 00000000-0000-0000-0000-000000000000 2>$null; $done += 'Energiemodus: Ausbalanciert' }
   if ($s.CreatedScheme -and $s.CreatedScheme -ne $s.PrevScheme) { powercfg /delete $s.CreatedScheme 2>$null }
-  foreach ($r in $s.Reg) {
-    if ($r.Old -eq '__keiner__') { Remove-ItemProperty -Path $r.Path -Name $r.Name -ErrorAction SilentlyContinue }
-    else { Set-ItemProperty -Path $r.Path -Name $r.Name -Value ([int]$r.Old) -Type DWord }
+  foreach ($reg in $s.Reg) {
+    if ($reg.Old -eq '__keiner__') { Remove-ItemProperty -Path $reg.Path -Name $reg.Name -ErrorAction SilentlyContinue }
+    else { Set-ItemProperty -Path $reg.Path -Name $reg.Name -Value ([int]$reg.Old) -Type DWord }
   }
   if ($s.Reg.Count) { $done += 'Spielmodus und Xbox-Aufnahme: wie vorher' }
   Remove-Item $StateFile -Force
@@ -416,8 +416,8 @@ foreach ($cat in $Categories) {
 }
 $lv.ShowItemToolTips = $true
 $lv.add_ItemCheck({ param($s, $e)
-  $c = $lv.Items[$e.Index].Tag
-  if ($c.Admin -and -not $IsAdmin) { $e.NewValue = $e.CurrentValue }
+  $kat = $lv.Items[$e.Index].Tag
+  if ($kat.Admin -and -not $IsAdmin) { $e.NewValue = $e.CurrentValue }
 })
 
 $totalLabel = New-Object System.Windows.Forms.Label
@@ -435,11 +435,11 @@ function Start-Scan {
   $form.UseWaitCursor = $true
   $i = 0; $progress.Maximum = $lv.Items.Count
   foreach ($it in $lv.Items) {
-    $c = $it.Tag; $progress.Value = ++$i
-    if ($c.Admin -and -not $IsAdmin) { continue }
-    Set-Status ('Prüfe: ' + $c.Name)
-    $c.Size = Measure-Category $c
-    $it.SubItems[1].Text = Format-Size $c.Size
+    $kat = $it.Tag; $progress.Value = ++$i
+    if ($kat.Admin -and -not $IsAdmin) { continue }
+    Set-Status ('Prüfe: ' + $kat.Name)
+    $kat.Size = Measure-Category $kat
+    $it.SubItems[1].Text = Format-Size $kat.Size
   }
   $script:Scanned = $true
   Update-Total
@@ -461,9 +461,9 @@ $flowClean.Controls.Add((New-Button 'Angehakte löschen' {
   foreach ($it in $sel) {
     $progress.Value = ++$i
     Set-Status ('Räume auf: ' + $it.Tag.Name)
-    $r = Invoke-Clean $it.Tag
-    $freed += $r.Freed; $skipped += $r.Skipped
-    $it.Tag.Size = $r.After; $it.SubItems[1].Text = Format-Size $r.After
+    $res = Invoke-Clean $it.Tag
+    $freed += $res.Freed; $skipped += $res.Skipped
+    $it.Tag.Size = $res.After; $it.SubItems[1].Text = Format-Size $res.After
   }
   $progress.Value = 0; $form.UseWaitCursor = $false
   Update-Total
@@ -592,8 +592,8 @@ $pnlBoost = New-Object System.Windows.Forms.FlowLayoutPanel
 $pnlBoost.Dock = 'Top'; $pnlBoost.AutoSize = $true; $pnlBoost.FlowDirection = 'TopDown'; $pnlBoost.WrapContents = $false
 $pnlBoost.Padding = New-Object System.Windows.Forms.Padding(0, 0, 0, (S 16))
 function New-Check([string]$t) {
-  $c = New-Object System.Windows.Forms.CheckBox; $c.Text = $t; $c.AutoSize = $true; $c.Checked = $true
-  $c.Margin = New-Object System.Windows.Forms.Padding(0, 3, 0, 3); $c
+  $cb = New-Object System.Windows.Forms.CheckBox; $cb.Text = $t; $cb.AutoSize = $true; $cb.Checked = $true
+  $cb.Margin = New-Object System.Windows.Forms.Padding(0, 3, 0, 3); $cb
 }
 $chkPower = New-Check 'Energiesparplan auf Höchstleistung (CPU/GPU drosseln nicht mehr)'
 $chkGame  = New-Check 'Windows-Spielmodus einschalten (Spiel bekommt Vorrang)'
@@ -625,11 +625,11 @@ function Update-BoostState {
 $flowBoostBtns = New-Object System.Windows.Forms.FlowLayoutPanel; $flowBoostBtns.AutoSize = $true
 $flowBoostBtns.Margin = New-Object System.Windows.Forms.Padding(0, (S 10), 0, 0)
 $flowBoostBtns.Controls.Add((New-Button 'Boost einschalten' {
-  $r = Enable-Boost $chkPower.Checked $chkGame.Checked $chkDvr.Checked
-  Update-BoostState; Say ("Boost ist an:`n`n- " + ($r -join "`n- ") + "`n`nNach dem Zocken 'Alles zurücksetzen' klicken, das spart wieder Akku.")
+  $res = Enable-Boost $chkPower.Checked $chkGame.Checked $chkDvr.Checked
+  Update-BoostState; Say ("Boost ist an:`n`n- " + ($res -join "`n- ") + "`n`nNach dem Zocken 'Alles zurücksetzen' klicken, das spart wieder Akku.")
 }))
 $flowBoostBtns.Controls.Add((New-Button 'Alles zurücksetzen' {
-  $r = Disable-Boost; Update-BoostState; Say ("Zurückgesetzt:`n`n- " + ($r -join "`n- "))
+  $res = Disable-Boost; Update-BoostState; Say ("Zurückgesetzt:`n`n- " + ($res -join "`n- "))
 }))
 $flowBoostBtns.Controls.Add((New-Button 'Grafiktreiber-Hilfe' {
   Say ("Ein aktueller Grafiktreiber bringt oft mehr als alles andere:`n`n" +
@@ -741,10 +741,13 @@ function Set-DarkTheme($ctl) {
     } elseif ($x -is [System.Windows.Forms.ListView]) {
       $x.BackColor = $C.Surface; $x.ForeColor = $C.Text; $x.BorderStyle = 'None'; $x.OwnerDraw = $true
       $x.add_DrawColumnHeader({ param($s, $e)
-        $br = New-Object System.Drawing.SolidBrush $C.Surface2; $e.Graphics.FillRectangle($br, $e.Bounds); $br.Dispose()
-        $r = New-Object System.Drawing.Rectangle(($e.Bounds.X + 8), $e.Bounds.Y, ($e.Bounds.Width - 8), $e.Bounds.Height)
-        [System.Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $Bold, $r, $C.Muted,
-          [System.Windows.Forms.TextFormatFlags]'VerticalCenter, Left, EndEllipsis')
+        # Fehler beim Zeichnen duerfen das Fenster nie einfrieren: dann Standard-Kopfzeile
+        try {
+          $br = New-Object System.Drawing.SolidBrush $C.Surface2; $e.Graphics.FillRectangle($br, $e.Bounds); $br.Dispose()
+          $rect = New-Object System.Drawing.Rectangle(($e.Bounds.X + 8), $e.Bounds.Y, ($e.Bounds.Width - 8), $e.Bounds.Height)
+          [System.Windows.Forms.TextRenderer]::DrawText($e.Graphics, $e.Header.Text, $Bold, $rect, $C.Muted,
+            [System.Windows.Forms.TextFormatFlags]'VerticalCenter, Left, EndEllipsis')
+        } catch { $e.DrawDefault = $true }
       })
       $x.add_DrawItem({ param($s, $e) $e.DrawDefault = $true })
       $x.add_DrawSubItem({ param($s, $e) $e.DrawDefault = $true })
