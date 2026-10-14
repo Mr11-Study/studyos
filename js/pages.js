@@ -3,7 +3,7 @@
 const { $, $$, esc, shuffle, clamp, PAGES, CBY, COURSES, TOPICS, QUESTIONS, BOSSQ } = App;
 const S = () => App.S();
 const cur = () => CBY[S().course];
-const courseQ = cid => QUESTIONS.filter(q => q.course === cid);
+const courseQ = cid => QUESTIONS.filter(q => q.course === cid && App.qAllowed(q));
 const courseChips = (active, attr = "data-sw") => `<div class="row" style="gap:6px">${COURSES.map(c => `<button class="chip ${c.id === active ? "on" : ""}" ${attr}="${c.id}"><span class="dot" style="--c:${c.color}"></span>${esc(c.title)}</button>`).join("")}</div>`;
 App.courseChips = courseChips;
 const switchCourse = (el, cb) => el.addEventListener("click", e => { const s = e.target.closest("[data-sw]"); if (s) { S().course = s.dataset.sw; App.save(); App.renderSide(); cb ? cb() : App.render(); } });
@@ -15,23 +15,23 @@ App.runQuiz = function (box, cfg) {
   const finish = () => { clearInterval(tmr); cfg.onFinish({ n: speed ? res.length : qs.length, c, wrong, answers, res, pts }, box); };
   const draw = () => {
     if (exam) {
-      box.innerHTML = `<div class="col" style="gap:14px">${qs.map((q, k) => `<div class="card col" id="eq-${k}"><div class="spread"><span class="eyebrow">Frage ${k + 1} · ${q.pts || 1} P.</span>${cfg.minus ? `<small class="muted">falsch: −${Math.round((q.pts || 1) * cfg.minus * 100) / 100}</small>` : ""}</div>${App.questionHTML(q, "ex" + k)}${cfg.minus ? `<div><button class="btn ghost sm" data-clear="${k}">Antwort zurücknehmen</button></div>` : ""}</div>`).join("")}</div>`;
-      qs.forEach((q, k) => { const card = $("#eq-" + k, box); card.onclick = e => { const cl = e.target.closest("[data-clear]"); if (cl) { delete answers[k]; $$(".opt", card).forEach(x => x.classList.remove("sel")); cfg.onAnswer && cfg.onAnswer(answers); return; } const b = e.target.closest(".opt"); if (!b) return; answers[k] = $$(".opt", card).indexOf(b); $$(".opt", card).forEach(x => x.classList.toggle("sel", x === b)); cfg.onAnswer && cfg.onAnswer(answers); }; });
+      box.innerHTML = `<div class="col exam-qs" style="gap:14px">${qs.map((q, k) => `<div class="card col" id="eq-${k}"><div class="spread"><span class="eyebrow">Frage ${k + 1} · ${q.pts || 1} P.</span>${cfg.minus ? `<small class="muted">falsch: −${Math.round((q.pts || 1) * cfg.minus * 100) / 100}</small>` : ""}</div>${App.questionHTML(q, "ex" + k)}${cfg.minus ? `<div><button class="btn ghost sm" data-clear="${k}">Antwort zurücknehmen</button></div>` : ""}</div>`).join("")}</div>`;
+      qs.forEach((q, k) => { const card = $("#eq-" + k, box); card.onclick = e => { const cl = e.target.closest("[data-clear]"); if (cl) { delete answers[k]; $$(".opt", card).forEach(x => x.classList.remove("sel")); cfg.onAnswer && cfg.onAnswer(answers); return; } const b = e.target.closest(".opt"); if (!b) return; if (q.multi) { const m = App.maskIn(card); if (m) answers[k] = m; else delete answers[k]; cfg.onAnswer && cfg.onAnswer(answers); return; } answers[k] = $$(".opt", card).indexOf(b); $$(".opt", card).forEach(x => x.classList.toggle("sel", x === b)); cfg.onAnswer && cfg.onAnswer(answers); }; });
       return;
     }
     if (i >= qs.length) return finish();
     const q = qs[i];
     box.innerHTML = `<div class="card col" style="gap:14px">${speed ? `<div class="timer"><i id="sp-t" style="width:100%"></i></div>` : ""}
-      <div class="spread"><span class="eyebrow">${esc(cfg.title || "Quiz")} · ${speed ? "Frage " + (i + 1) : (i + 1) + " / " + qs.length}</span><div class="row" style="gap:8px"><small class="tab">${c} richtig</small>${App.bmBtn("question", q.id, App.strip(q.q).slice(0, 80), q.id)}</div></div>
-      ${!speed ? `<div class="qprog">${qs.map((_, k) => `<i class="${res[k] === true ? "ok" : res[k] === false ? "no" : k === i ? "cur" : ""}"></i>`).join("")}</div>` : ""}
+      <div class="spread"><span class="eyebrow">${esc(cfg.title || "Quiz")} · ${speed ? "Frage " + (i + 1) : (i + 1) + " / " + qs.length}</span><div class="row" style="gap:8px"><small class="tab">${App.fmtNum(c, c % 1 ? 1 : 0)} ${qs.some(x => x.multi) ? "Punkte" : "richtig"}</small>${App.bmBtn("question", q.id, App.strip(q.q).slice(0, 80), q.id)}</div></div>
+      ${!speed ? `<div class="qprog">${qs.map((_, k) => `<i class="${res[k] === true ? "ok" : res[k] === false ? "no" : res[k] === "part" ? "part" : k === i ? "cur" : ""}"></i>`).join("")}</div>` : ""}
       <div id="qq">${App.questionHTML(q, "qa")}</div><div class="row" id="qnext" hidden><button class="btn pri">${i + 1 < qs.length ? "Nächste Frage →" : "Ergebnis"}</button></div></div>`;
     const qq = $("#qq", box);
-    qq.onclick = e => { const b = e.target.closest("[data-qa]"); if (!b || b.disabled) return; const pick = +b.dataset.qa, ok = App.reveal(qq, q, pick); res[i] = ok; if (ok) c++; else wrong.push(q); App.rec(q.topic, ok ? 1 : 0); if (ok) App.addXP(3, "q", b);
+    qq.onclick = e => { const b = e.target.closest("[data-qa]"); if (!b || b.disabled) return; const pick = +b.dataset.qa, ok = App.reveal(qq, q, pick), sc = App.lastScore; res[i] = ok ? true : sc > 0 ? "part" : false; c += sc; if (!ok) wrong.push(q); App.rec(q.topic, sc); if (sc > 0) App.addXP(Math.max(1, Math.round(3 * sc)), "q", b);
       if (speed) { setTimeout(() => { i++; if (Date.now() < tEnd && i < qs.length) draw(); else finish(); }, ok ? 450 : 1100); return; }
       const nx = $("#qnext", box); nx.hidden = false; $("button", nx).onclick = () => { i++; draw(); }; $("button", nx).focus(); };
     if (speed) { clearInterval(tmr); tmr = setInterval(() => { const p = (tEnd - Date.now()) / 60000, t = $("#sp-t", box); if (t) t.style.width = Math.max(0, p * 100) + "%"; if (p <= 0) finish(); }, 100); }
   };
-  const key = e => { if (!document.body.contains(box) || e.target.closest("input,textarea,select")) return; if (/^[1-4]$/.test(e.key)) { const b = $$("#qq .opt", box)[+e.key - 1]; if (b && !b.disabled) b.click(); } if (e.key === "Enter") { const n = $("#qnext:not([hidden]) button", box); if (n) n.click(); } };
+  const key = e => { if (!document.body.contains(box) || e.target.closest("input,textarea,select")) return; if (/^[1-5]$/.test(e.key)) { const b = $$("#qq .opt", box)[+e.key - 1]; if (b && !b.disabled) b.click(); } if (e.key === "Enter") { const n = $("#qnext:not([hidden]) button", box) || $("#qq [data-msub]:not([disabled])", box); if (n) { e.preventDefault(); n.click(); } } };
   window.addEventListener("keydown", key); App.cleanup = (old => () => { clearInterval(tmr); window.removeEventListener("keydown", key); old && old(); })(App.cleanup);
   draw(); return { answers, qs };
 };
@@ -53,7 +53,7 @@ PAGES.quiz = (el, p) => {
       S().quizHist.push({ ts: Date.now(), mode: mode.split(":")[0], course: c.id, n: r.n, c: r.c }); if (S().quizHist.length > 300) S().quizHist.shift();
       if (xp) App.addXP(xp, "quiz", box); if (perfect) App.unlock("perfect"); App.save();
       const tops = [...new Set(r.wrong.map(q => q.topic))];
-      box.innerHTML = `<div class="card col" style="gap:14px"><span class="eyebrow">${esc(title)}</span><div class="row" style="gap:18px"><div class="result-big" style="color:${perfect ? "var(--acc)" : r.c / Math.max(1, r.n) >= .7 ? "var(--text)" : "var(--warn)"}">${r.c}/${r.n}</div><div><p>${perfect ? "Perfekt. +50 XP Bonus." : r.n ? Math.round(100 * r.c / r.n) + " % richtig." : "Keine Antworten."}</p><small class="muted">+${xp + r.c * 3} XP</small></div></div>
+      box.innerHTML = `<div class="card col" style="gap:14px"><span class="eyebrow">${esc(title)}</span><div class="row" style="gap:18px"><div class="result-big" style="color:${perfect ? "var(--acc)" : r.c / Math.max(1, r.n) >= .7 ? "var(--text)" : "var(--warn)"}">${App.fmtNum(r.c, r.c % 1 ? 1 : 0)}/${r.n}</div><div><p>${perfect ? "Perfekt. +50 XP Bonus." : r.n ? Math.round(100 * r.c / r.n) + " % richtig." : "Keine Antworten."}</p><small class="muted">+${xp + Math.round(r.c * 3)} XP</small></div></div>
         ${tops.length ? `<div class="col" style="gap:8px"><span class="eyebrow">Wiederholen</span>${tops.map(t => `<div class="spread"><div>${esc(TOPICS[t].name)} ${App.mBadge(App.mastery(t))}</div><div class="row"><button class="btn sm" data-go="lesson" data-p="${TOPICS[t].lesson}">Lektion</button><button class="btn sm" data-go="quiz" data-p="topic:${t}">Themenquiz</button></div></div>`).join("")}</div>` : ""}
         <div class="row"><button class="btn pri" id="again">Nochmal</button><button class="btn" data-go="quiz">Alle Modi</button></div></div>`;
       $("#again", box).onclick = () => start(mode);
@@ -177,7 +177,7 @@ function runExamMC(el, c, qs, cfg) {
   tmr = setInterval(() => { const s = Math.max(0, Math.round((tEnd - Date.now()) / 1000)); const k = $("#clk", el); if (k) k.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); if (s <= 0) submit(); }, 1000);
   App.cleanup = (old => () => { clearInterval(tmr); old && old(); })(App.cleanup);
   const submit = () => { clearInterval(tmr); let pts = 0; const weak = new Set();
-    qs.forEach((q, k) => { const nq = App.norm(q); if (answers[k] === undefined) { weak.add(q.topic); return; } const ok = answers[k] === nq.a; pts += ok ? q.pts : -q.pts * cfg.minus; App.rec(q.topic, ok ? 1 : 0); if (!ok) weak.add(q.topic); });
+    qs.forEach((q, k) => { const nq = App.norm(q); if (answers[k] === undefined) { weak.add(q.topic); return; } const sc = App.scoreOf(nq, answers[k]), ok = sc === 1; pts += nq.multi ? q.pts * sc : ok ? q.pts : -q.pts * cfg.minus; App.rec(q.topic, sc); if (!ok) weak.add(q.topic); });
     pts = Math.max(0, Math.round(pts * 100) / 100); const pct = 100 * pts / max, sc = c.assessment && c.assessment.scale, grade = sc ? sc.find(s => pct >= s[0]) : null;
     S().exams.push({ ts: Date.now(), course: c.id, total: pts, max, weak: [...weak] }); App.addXP(20 + Math.round(pct / 100 * 30), "exam"); App.save();
     el.innerHTML = `<div class="page"><div><span class="eyebrow">Ergebnis</span><h1>${esc(c.title)} · Simulation</h1></div>
@@ -185,7 +185,7 @@ function runExamMC(el, c, qs, cfg) {
       ${weak.size ? `<div class="card col"><h3>Schwachstellen</h3>${[...weak].map(t => `<div class="spread"><div>${esc(TOPICS[t].name)} ${App.mBadge(App.mastery(t))}</div><div class="row"><button class="btn sm" data-go="lesson" data-p="${TOPICS[t].lesson}">Lektion</button><button class="btn sm" data-go="quiz" data-p="topic:${t}">Themenquiz</button></div></div>`).join("")}</div>` : ""}
       <h2>Auswertung</h2><div class="col" style="gap:12px">${qs.map((q, k) => `<div class="card col" id="rv-${k}"><span class="eyebrow">Frage ${k + 1} · ${q.pts} P.</span>${App.questionHTML(q, "rv")}</div>`).join("")}</div>
       <div class="row"><button class="btn pri" data-go="exam">Neue Simulation</button></div></div>`;
-    qs.forEach((q, k) => { const box = $("#rv-" + k, el); if (answers[k] !== undefined) App.reveal(box, q, answers[k]); else { $$(".opt", box).forEach((o, i) => { o.disabled = true; if (i === App.norm(q).a) o.classList.add("reveal"); }); $(".fb", box).innerHTML = `<div class="why bad"><b>Nicht beantwortet (0 P.).</b><div>${q.why}</div></div>`; } });
+    qs.forEach((q, k) => { const box = $("#rv-" + k, el); if (answers[k] !== undefined) App.reveal(box, q, answers[k]); else App.revealOpen(box, q); });
     window.scrollTo({ top: 0 }); };
   $("#sub", el).onclick = submit; $("#sub2", el).onclick = submit;
 }
@@ -217,7 +217,7 @@ function examDasc(el) {
     App.cleanup = (old => () => { clearInterval(tmr); old && old(); })(App.cleanup);
     let confirmOpen = false;
     const submit = async forced => { const un = 10 - Object.keys(answers).length; if (!forced && un && !confirmOpen) { confirmOpen = true; $("#ex-left", el).innerHTML = `<span style="color:var(--warn)">${un} Fragen offen. Nochmal „Abgeben“ drücken, um trotzdem abzugeben.</span>`; return; } clearInterval(tmr);
-      let a = 0; const weak = new Set(); qs.forEach((q, k) => { const ok = answers[k] === App.norm(q).a; if (ok) a++; else weak.add(q.topic); App.rec(q.topic, ok ? 1 : 0); });
+      let a = 0; const weak = new Set(); qs.forEach((q, k) => { const sc = App.scoreOf(q, answers[k]); a += sc; if (sc < 1) weak.add(q.topic); App.rec(q.topic, sc); });
       const bRes = []; for (const x of EX) { const t = c.pyTasks[x.id], src = $("#exc-" + x.id, el).value, r = await App.gradeTask(t, src), pen = cfg.diff === "normal" ? 2 * (hints[x.id] || 0) : 0, pts = r.ok ? Math.max(0, x.pts - pen) : 0; bRes.push({ x, t, ok: r.ok, pts, src }); App.rec(t.topic, r.ok ? 1 : 0); if (!r.ok) weak.add(t.topic); }
       const gitOk = gitSeq.length === 4 && gitSeq.every((g, k) => gitPool[g] === GIT[k]); if (!gitOk) weak.add("git"); App.rec("git", gitOk ? 1 : 0);
       const bSum = bRes.reduce((s, r) => s + r.pts, 0) + (gitOk ? 7 : 0), total = a + bSum; S().exams.push({ ts: Date.now(), course: "dasc", total, max: 45, weak: [...weak] }); App.addXP(20 + Math.round(total / 45 * 30), "exam"); App.save();
@@ -226,7 +226,7 @@ function examDasc(el) {
         <h2>Teil A</h2><div class="col" style="gap:12px">${qs.map((q, k) => `<div class="card col" id="rv-${k}">${App.questionHTML(q, "rv")}</div>`).join("")}</div>
         <h2>Teil B</h2>${bRes.map((r, k) => `<div class="card col"><div class="spread"><h3>B${k + 1} · ${esc(r.t.title)}</h3><span class="chip ${r.ok ? "acc" : "bad"} tab">${r.pts} / ${r.x.pts}</span></div><details><summary class="muted" style="cursor:pointer">Dein Code & Referenzlösung</summary><div class="grid g2" style="margin-top:10px"><div class="codeq">${esc(r.src)}</div><div class="codeq">${esc(r.t.solution)}</div></div></details></div>`).join("")}
         <div class="card col"><div class="spread"><h3>B5 · Git</h3><span class="chip ${gitOk ? "acc" : "bad"} tab">${gitOk ? 7 : 0} / 7</span></div><div class="codeq">${esc(GIT.join("\n"))}</div></div><div class="row"><button class="btn pri" data-go="exam">Neuer Durchlauf</button></div></div>`;
-      qs.forEach((q, k) => { const box = $("#rv-" + k, el); if (answers[k] !== undefined) App.reveal(box, q, answers[k]); else { $$(".opt", box).forEach((o, i) => { o.disabled = true; if (i === App.norm(q).a) o.classList.add("reveal"); }); $(".fb", box).innerHTML = `<div class="why bad"><b>Nicht beantwortet.</b><div>${q.why}</div></div>`; } }); window.scrollTo({ top: 0 }); };
+      qs.forEach((q, k) => { const box = $("#rv-" + k, el); if (answers[k] !== undefined) App.reveal(box, q, answers[k]); else App.revealOpen(box, q, "Nicht beantwortet."); }); window.scrollTo({ top: 0 }); };
     $("#ex-submit", el).onclick = () => submit(false); $("#ex-submit2", el).onclick = () => submit(false);
   };
   setup();
@@ -295,7 +295,7 @@ PAGES.bookmarks = el => {
   const bm = S().bookmarks, LBL = { lesson: "Lektionen", card: "Karteikarten", question: "Fragen", exercise: "Übungen" };
   const go = b => b.kind === "lesson" ? `data-go="lesson" data-p="${esc(b.ref)}"` : b.kind === "exercise" ? `data-go="practice" data-p="${esc(b.ref)}"` : b.kind === "card" ? `data-go="flash"` : "";
   el.innerHTML = `<div class="page"><div><h1>Lesezeichen</h1></div>${bm.length ? Object.keys(LBL).filter(k => bm.some(b => b.kind === k)).map(k => `<div class="card col"><h3>${LBL[k]}</h3>${bm.filter(b => b.kind === k).map(b => { const q = k === "question" ? QUESTIONS.concat(BOSSQ).find(x => x.id === b.id) : null; const cd = k === "card" ? App.FLASH.concat(S().customCards).find(x => x.id === b.id) : null;
-    return `<div class="spread" style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="min-width:0;flex:1">${go(b) ? `<button class="btn ghost sm" style="padding:0;white-space:normal;text-align:left" ${go(b)}>${esc(b.title)}</button>` : `<div>${esc(b.title)}</div>`}${q ? `<small>Antwort: ${App.norm(q).opts[q.a]} · ${q.why}</small>` : cd ? `<small>${esc(cd.back)}</small>` : ""}</div><button class="btn ghost sm" data-rm="${esc(k)}|${esc(b.id)}">Entfernen</button></div>`; }).join("")}</div>`).join("") : `<div class="empty">Noch keine Lesezeichen. Nutze ☆ Merken bei Lektionen, Karten, Fragen und Übungen.</div>`}</div>`;
+    return `<div class="spread" style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="min-width:0;flex:1">${go(b) ? `<button class="btn ghost sm" style="padding:0;white-space:normal;text-align:left" ${go(b)}>${esc(b.title)}</button>` : `<div>${esc(b.title)}</div>`}${q ? `<small>Antwort: ${q.multi ? q.opts.filter((_, i) => (q.a >> i) & 1).join(" · ") : App.norm(q).opts[q.a]} · ${q.why}</small>` : cd ? `<small>${esc(cd.back)}</small>` : ""}</div><button class="btn ghost sm" data-rm="${esc(k)}|${esc(b.id)}">Entfernen</button></div>`; }).join("")}</div>`).join("") : `<div class="empty">Noch keine Lesezeichen. Nutze ☆ Merken bei Lektionen, Karten, Fragen und Übungen.</div>`}</div>`;
   $$("[data-rm]", el).forEach(b => b.onclick = () => { const [k, id] = b.dataset.rm.split("|"); App.toggleBm(k, id); App.render(); });
 };
 

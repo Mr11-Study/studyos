@@ -58,6 +58,10 @@ let S = DEFAULT();
 try { const raw = localStorage.getItem(KEY); if (raw) S = merge(DEFAULT(), JSON.parse(raw)); else { const old = localStorage.getItem("studyos.v1"); if (old) { S = merge(DEFAULT(), JSON.parse(old)); S.course = "dasc"; } } } catch (e) {}
 if (!CBY[S.course]) S.course = COURSES[0].id;
 App.S = () => S;
+/* Kurse mit multiOnly (z. B. ITINF): klassische Einfachauswahl-Fragen nur in Themen ohne Mehrfachauswahl-Fragen,
+   außer man schaltet sie in den Einstellungen des Fachs dazu (S.settings.singles[kurs]). */
+const MTOP = new Set(QUESTIONS.filter(q => q.multi).map(q => q.topic));
+App.qAllowed = q => { const c = CBY[q.course]; return !c || !c.multiOnly || q.multi || !MTOP.has(q.topic) || !!(S.settings && S.settings.singles && S.settings.singles[c.id]); };
 App.replaceState = obj => { S = merge(DEFAULT(), obj); saveLocal(); App.renderSide(); App.render(); };
 let SEC = {}; try { SEC = JSON.parse(localStorage.getItem(SECRET_KEY) || "{}"); } catch (e) {}
 App.secrets = () => SEC;
@@ -262,19 +266,58 @@ App.dailyQuestion = dailyQuestion;
 /* ---------------- shared question rendering ---------------- */
 const norm = q => q.tf ? Object.assign({}, q, { opts: CBY[q.course] && CBY[q.course].lang === "de" ? ["Richtig", "Falsch"] : ["True", "False"] }) : q;
 App.norm = norm;
+/* Mehrfachauswahl (q.multi): q.a ist eine Bitmaske der richtigen Antworten, gewählt wird ebenfalls als Bitmaske.
+   Wertung streng: (richtig angekreuzt − falsch angekreuzt) ÷ Anzahl richtiger Antworten, mindestens 0. */
+const LET = i => String.fromCharCode(65 + i);
+function scoreOf(q, pick) {
+  q = norm(q); if (!q.multi) return pick === q.a ? 1 : 0; if (pick == null || !pick) return 0;
+  let hit = 0, wrong = 0, nC = 0; q.opts.forEach((_, i) => { const c = (q.a >> i) & 1, p = (pick >> i) & 1; if (c) nC++; if (c && p) hit++; if (!c && p) wrong++; });
+  return nC ? Math.max(0, (hit - wrong) / nC) : 0;
+}
+const pctTxt = sc => Math.round(sc * 100) + " %";
 function questionHTML(q, name) {
   q = norm(q);
+  if (q.multi) return `<div class="col mq"><div class="check-q">${q.q}</div>${q.code ? `<div class="codeq">${esc(q.code)}</div>` : ""}<small class="mhint">Mehrfachauswahl · ${q.opts.length} Antworten · 1 bis ${q.opts.length} können richtig sein</small>
+    <div class="opts mopts" role="group">${q.opts.map((o, i) => `<button class="opt mopt" data-mt="${i}" aria-pressed="false"><span class="k">${LET(i)}</span><span>${o}</span></button>`).join("")}</div>
+    <div class="row msub"><button class="btn pri" data-msub data-mname="${name}" data-${name}="0" disabled>Antwort prüfen</button><small class="muted">Teilpunkte: richtige Kreuze minus falsche Kreuze</small></div><div class="fb"></div></div>`;
   return `<div class="col"><div class="check-q">${q.q}</div>${q.code ? `<div class="codeq">${esc(q.code)}</div>` : ""}
-    <div class="opts" role="group">${q.opts.map((o, i) => `<button class="opt" data-${name}="${i}"><span class="k">${String.fromCharCode(65 + i)}</span><span>${o}</span></button>`).join("")}</div><div class="fb"></div></div>`;
+    <div class="opts" role="group">${q.opts.map((o, i) => `<button class="opt" data-${name}="${i}"><span class="k">${LET(i)}</span><span>${o}</span></button>`).join("")}</div><div class="fb"></div></div>`;
 }
+const maskIn = box => $$(".mopt.sel", box).reduce((m, b) => m | (1 << +b.dataset.mt), 0);
+/* Ankreuzen läuft in der Capture-Phase, damit Seiten-Handler danach schon den neuen Stand sehen */
+document.addEventListener("click", e => {
+  const b = e.target.closest(".mopt"); if (!b || b.disabled) return;
+  b.classList.toggle("sel"); b.setAttribute("aria-pressed", b.classList.contains("sel"));
+  const box = b.closest(".mq"), sub = box && $("[data-msub]", box); if (!sub) return;
+  const m = maskIn(box); sub.setAttribute("data-" + sub.dataset.mname, m); sub.disabled = !m;
+}, true);
 function reveal(box, q, pick, opts = {}) {
-  q = norm(q); const ok = pick === q.a;
+  q = norm(q);
+  if (q.multi) {
+    const sc = scoreOf(q, pick), show = opts.showCorrect !== false; App.lastScore = sc;
+    $$(".opt", box).forEach((b, i) => { b.disabled = true; b.classList.remove("sel"); const c = (q.a >> i) & 1, p = (pick >> i) & 1;
+      b.classList.add(p && c ? "ok" : p ? "no" : c && show ? "reveal" : "dim"); b.insertAdjacentHTML("beforeend", `<span class="mmark">${p ? (c ? "✓ richtig angekreuzt" : "✗ falsch angekreuzt") : c && show ? "fehlt" : ""}</span>`); });
+    const sb = $(".msub", box); if (sb) sb.remove();
+    const fb = $(".fb", box), right = q.opts.map((_, i) => (q.a >> i) & 1 ? LET(i) : null).filter(Boolean);
+    if (fb) fb.innerHTML = `<div class="why ${sc === 1 ? "" : "bad"}"><b>${sc === 1 ? "Alles richtig · 100 %" : sc > 0 ? "Teilweise richtig · " + pctTxt(sc) : "Leider 0 %"}</b>
+      ${show ? `<div class="muted">Richtig ${right.length === 1 ? "ist" : "sind"} <b>${right.join(", ")}</b></div>` : ""}
+      ${show && q.notes && q.notes.some(Boolean) ? `<ul class="mnotes">${q.opts.map((o, i) => q.notes[i] ? `<li class="${(q.a >> i) & 1 ? "y" : "n"}"><b>${LET(i)} ${(q.a >> i) & 1 ? "✓" : "✗"}</b> ${q.notes[i]}</li>` : "").join("")}</ul>` : ""}
+      ${q.why ? `<div><span class="eyebrow">Warum</span> ${q.why}</div>` : ""}</div>`;
+    return sc === 1;
+  }
+  const ok = pick === q.a; App.lastScore = ok ? 1 : 0;
   $$(".opt", box).forEach((b, i) => { b.disabled = true; if (i === pick) b.classList.add(ok ? "ok" : "no"); if (!ok && i === q.a && opts.showCorrect !== false) b.classList.add("reveal"); });
   const fb = $(".fb", box);
-  if (fb) fb.innerHTML = `<div class="why ${ok ? "" : "bad"}"><b>${ok ? "Richtig." : "Nicht ganz."}</b><div><span class="eyebrow">Warum</span> ${q.why || ""}</div>${q.ex ? `<div><span class="eyebrow">Beispiel</span> ${q.ex}</div>` : ""}${!ok && opts.showCorrect !== false ? `<div class="muted">Richtig wäre <b>${String.fromCharCode(65 + q.a)}</b> · ${q.opts[q.a]}</div>` : ""}</div>`;
+  if (fb) fb.innerHTML = `<div class="why ${ok ? "" : "bad"}"><b>${ok ? "Richtig." : "Nicht ganz."}</b><div><span class="eyebrow">Warum</span> ${q.why || ""}</div>${q.ex ? `<div><span class="eyebrow">Beispiel</span> ${q.ex}</div>` : ""}${!ok && opts.showCorrect !== false ? `<div class="muted">Richtig wäre <b>${LET(q.a)}</b> · ${q.opts[q.a]}</div>` : ""}</div>`;
   return ok;
 }
-App.questionHTML = questionHTML; App.reveal = reveal;
+/* unbeantwortete Frage in einer Auswertung zeigen */
+function revealOpen(box, q, msg) {
+  q = norm(q); const isC = i => q.multi ? (q.a >> i) & 1 : i === q.a;
+  $$(".opt", box).forEach((o, i) => { o.disabled = true; if (isC(i)) o.classList.add("reveal"); }); const sb = $(".msub", box); if (sb) sb.remove();
+  const fb = $(".fb", box); if (fb) fb.innerHTML = `<div class="why bad"><b>${msg || "Nicht beantwortet (0 P.)."}</b><div>${q.why || ""}</div></div>`;
+}
+App.questionHTML = questionHTML; App.reveal = reveal; App.scoreOf = scoreOf; App.revealOpen = revealOpen; App.maskIn = maskIn;
 const strip = h => String(h).replace(/<[^>]+>/g, "").replace(/&[a-z]+;/g, " ");
 App.strip = strip;
 
