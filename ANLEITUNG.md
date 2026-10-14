@@ -149,6 +149,8 @@ Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update
 
 Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neue Blöcke, Lektionen, Fragen, Karteikarten, Übungsblätter). Das macht `courses/ext-apply.js`; andere Kurse können das genauso nutzen (`courses/<kurs>/…`).
 
+**IT-Infrastruktur (ITINF-GL)** nutzt das ebenfalls (seit v4.6): `courses/itinf/v1-cloud-concepts.js` ergänzt die V1-Kapitel um Vorlesungsnotizen und Zusatzfragen und nummeriert die Kapitel um, `v2-azure-architektur.js` und `v3-governance-identitaet.js` sind eigene Kapitel. Weitere Einheiten kommen als `vN-thema.js` dazu (V1-Datei muss zuerst geladen werden).
+
 ## 8. Bekannte Grenzen
 
 - **Python-Übungen** laden beim ersten Mal einen Python-Interpreter aus dem Internet (danach offline im Cache). NumPy/pandas werden im Browser nur vereinfacht simuliert – die echten Übungen machst du in VS Code mit `uv`.
