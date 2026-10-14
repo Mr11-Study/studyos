@@ -329,6 +329,7 @@ function skBlock(b, l, lvl) {
     case "example": return `<div class="sk-ex"><span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<b>${esc(b.title)}</b>` : ""}<div class="body">${b.html}</div></div>`;
     case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
     case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
+    case "fig": return window.FX ? FX.html(b, { cls: "sk-fig" }) : "";
     case "widget": if (App.ktSkript && App.ktSkript(b, l)) return App.ktSkript(b, l); return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
   }
   return "";

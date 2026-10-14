@@ -486,6 +486,7 @@ function renderBlock(b, i, l, st, lvl) {
       const ch = l.blocks.map((x, j) => x.t === "check" ? j : -1).filter(j => j >= 0), a = ch.filter(j => st.checks[j] !== undefined).length; const pb = $(".lesson-aside .bar>i"); if (pb) pb.style.width = (100 * a / ch.length) + "%"; const sm = $("#chk-n"); if (sm) sm.textContent = a + "/" + ch.length + " Checks"; });
   }
   else if (b.t === "widget") { div.className = "card"; div.dataset.widget = b.w; div._block = b; }
+  else if (b.t === "fig") { div.className = "fig-wrap"; div.innerHTML = window.FX ? FX.html(b) : ""; }
   return div;
 }
 App.renderBlock = (b, i, l, st, lvl) => renderBlock(b, i, l, st, lvl);

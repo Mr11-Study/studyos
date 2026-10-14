@@ -135,6 +135,10 @@ IT-Infrastruktur übt hauptsächlich **Mehrfachauswahl wie im Quick-Test**: eine
 - **Quick-Test** (Sidebar der App): Einheiten wählen, 5/10/20 Fragen, optional 90 Sekunden pro Frage. Ausgewertet wird erst nach der Abgabe, mit Punkten pro Einheit und den Themen, in denen du Punkte verloren hast.
 - Neue Mehrfachauswahl-Fragen schreibt man mit der Hilfsfunktion `M(...)` aus `mc-v1.js` (fünf Antworten, je `[Text, richtig?, Erklärung]`). Neue Einheiten kommen in `quicktest.units` im Kurs-Patch von `mc-v1.js` dazu.
 
+### Bilder & Animationen in Lektionen (ab Version 4.8)
+
+Lektionen können Grafiken enthalten: Schritt-für-Schritt-Animationen (◀ / Weiter ▶ / Abspielen) und Grafiken zum Ausprobieren mit Schiebereglern (z. B. SLA-Rechner, p/a-Regel, PUE). Sie erscheinen in der Lektion und im Skript, passen sich dem Design der App an (hell/dunkel) und lassen sich am Handy seitlich wischen. Die Engine steht in `js/figs.js`, die Grafiken für IT-Infrastruktur in `courses/itinf/figs-v1.js` und `figs-v2v3.js`. Eine Grafik wird mit `{ t: "fig", id: "…" }` als Block in eine Lektion eingefügt.
+
 ## 7. Neue Kurse / neues Material
 
 Gib Claude einfach die neuen Unterlagen und Moodle-Texte. Es entsteht eine neue Datei `courses/<kurs>.js`. Einbauen:
