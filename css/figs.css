@@ -1,0 +1,78 @@
+/* ===== Bilder & Animationen in Lektionen (js/figs.js). Farben kommen aus dem App-Design (--acc …), hell & dunkel. ===== */
+.fig{margin:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
+.fig-head{display:flex;flex-direction:column;gap:2px}
+.fig-head .eyebrow{color:var(--acc)}
+.fig-head b{font:650 17px/1.3 var(--f-display,inherit);color:var(--text)}
+.fig-stage{background:var(--card2);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;display:flex;justify-content:center}
+.fig-stage svg{width:100%;max-width:640px;height:auto;display:block;overflow:visible}
+.fig-cap{font-size:14.5px;line-height:1.5;color:var(--text);min-height:3em}
+.fig-cap b{color:var(--acc);margin-right:4px;font-variant-numeric:tabular-nums}
+figcaption.fig-cap{min-height:0;color:var(--muted);font-size:13.5px}
+.fig-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fig-dots{display:flex;gap:5px;flex:1;min-width:60px}
+.fig-dots i{flex:1;max-width:34px;height:5px;border-radius:5px;background:var(--card3);cursor:pointer;transition:background .25s}
+.fig-dots i.on{background:var(--acc)}
+.fig-ui{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px;font-size:13.5px}
+.fig-ui label{display:flex;flex-direction:column;gap:4px;color:var(--muted)}
+.fig-ui label b{color:var(--text);font-variant-numeric:tabular-nums}
+.fig-ui input[type=range]{width:100%;accent-color:var(--acc)}
+.fig-ui .fig-out{grid-column:1/-1;background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:var(--r-sm);padding:10px 12px;color:var(--text);font-size:14px;line-height:1.5}
+.fig-ui .seg{display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1}
+.fig-ui .seg button{border:1px solid var(--line2);background:var(--card);color:var(--text);border-radius:var(--btn-r,999px);padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+.fig-ui .seg button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.sk-fig{margin:14px 0}
+
+/* SVG-Farben */
+.fig svg text{stroke:none}
+.fig svg .fx-t{fill:var(--text);font-family:var(--f-body,inherit);font-size:12.5px}
+.fig svg .fx-sub{fill:var(--muted);font-weight:500}
+.fig svg .fx-onacc{fill:var(--acc-ink)}
+.fig svg .fx-card,.fig svg .fx-card rect,.fig svg .fx-card path{fill:var(--card);stroke:var(--line2);stroke-width:1.3}
+.fig svg .fx-soft,.fig svg .fx-soft rect{fill:var(--acc-soft);stroke:var(--acc-line);stroke-width:1.3}
+.fig svg .fx-acc,.fig svg .fx-acc rect{fill:var(--acc);stroke:none}
+.fig svg .fx-acc text,.fig svg .fx-acc .fx-t{fill:var(--acc-ink)}
+.fig svg .fx-ok,.fig svg .fx-ok rect{fill:color-mix(in srgb,var(--good) 16%,var(--card));stroke:var(--good);stroke-width:1.3}
+.fig svg .fx-bad,.fig svg .fx-bad rect{fill:color-mix(in srgb,var(--bad) 14%,var(--card));stroke:var(--bad);stroke-width:1.3}
+.fig svg .fx-warn,.fig svg .fx-warn rect{fill:color-mix(in srgb,var(--warn) 16%,var(--card));stroke:var(--warn);stroke-width:1.3}
+.fig svg .fx-info,.fig svg .fx-info rect{fill:color-mix(in srgb,var(--info) 14%,var(--card));stroke:var(--info);stroke-width:1.3}
+.fig svg .fx-vio,.fig svg .fx-vio rect{fill:color-mix(in srgb,var(--violet) 14%,var(--card));stroke:var(--violet);stroke-width:1.3}
+.fig svg .fx-mute,.fig svg .fx-mute rect{fill:var(--card3);stroke:var(--line2);stroke-width:1}
+.fig svg .fx-ghost{fill:none;stroke:var(--line2);stroke-width:1.3;stroke-dasharray:5 4}
+.fig svg .fx-dashacc{fill:none;stroke:var(--acc);stroke-width:1.6;stroke-dasharray:6 4}
+.fig svg .fill-ok{fill:var(--good)} .fig svg .fill-bad{fill:var(--bad)} .fig svg .fill-warn{fill:var(--warn)} .fig svg .fill-info{fill:var(--info)} .fig svg .fill-mute{fill:var(--line2)}
+.fig svg .t-ok{fill:var(--good)} .fig svg .t-bad{fill:var(--bad)} .fig svg .t-acc{fill:var(--acc)} .fig svg .t-warn{fill:var(--warn)}
+.fig svg .fx-ln{stroke:var(--muted);stroke-width:1.6;fill:none}
+.fig svg .fx-ln.acc{stroke:var(--acc);stroke-width:2.2}
+.fig svg .fx-ln.ok{stroke:var(--good);stroke-width:2.2}
+.fig svg .fx-ln.bad{stroke:var(--bad);stroke-width:2.2}
+.fig svg .fx-ln.warn{stroke:var(--warn);stroke-width:2.2}
+.fig svg .fx-ln.thin{stroke-width:1;stroke:var(--line2)}
+.fig svg .fx-ln.dash{stroke-dasharray:5 4}
+.fig svg .fx-ah{fill:var(--muted)} .fig svg .fx-ah2{fill:var(--acc)}
+.fig svg .fx-axis line{stroke:var(--muted);stroke-width:1.3}
+.fig svg .fx-ico rect,.fig svg .fx-ico circle,.fig svg .fx-ico path,.fig svg .fx-ico ellipse{fill:var(--card);stroke:var(--text);stroke-width:1.5}
+.fig svg .fx-ico.acc rect,.fig svg .fx-ico.acc circle,.fig svg .fx-ico.acc path,.fig svg .fx-ico.acc ellipse{stroke:var(--acc);fill:var(--acc-soft)}
+.fig svg .fx-ico.bad rect,.fig svg .fx-ico.bad circle,.fig svg .fx-ico.bad path,.fig svg .fx-ico.bad ellipse{stroke:var(--bad)}
+.fig svg .fx-ico .fx-led{fill:var(--good);stroke:none}
+.fig svg .fx-ico.bad .fx-led{fill:var(--bad)}
+
+/* Schritte: einblenden, hervorheben */
+.fig svg [data-st],.fig svg [data-on]{opacity:0;transition:opacity .45s ease,transform .45s ease}
+.fig svg [data-st].fx-in,.fig svg [data-on].fx-in{opacity:1}
+.fig svg [data-hl]{transition:opacity .35s,filter .35s}
+.fig svg .fx-hl rect,.fig svg rect.fx-hl,.fig svg .fx-hl path,.fig svg path.fx-hl,.fig svg circle.fx-hl{stroke:var(--acc)!important;stroke-width:2.6!important}
+.fig svg .fx-hl{filter:drop-shadow(0 0 5px var(--acc-line))}
+.fig svg .fx-flow{stroke-dasharray:6 6;animation:fx-flow 1.1s linear infinite}
+@keyframes fx-flow{to{stroke-dashoffset:-24}}
+.fig svg .fx-pulse{animation:fx-pulse 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes fx-pulse{50%{transform:scale(1.08);opacity:.75}}
+.fig svg .fx-blink{animation:fx-blink 1.2s steps(2) infinite}
+@keyframes fx-blink{50%{opacity:.25}}
+.fig svg .fx-draw{stroke-dasharray:1200;stroke-dashoffset:1200;transition:stroke-dashoffset 1.6s ease}
+.fig svg .fx-in .fx-draw,.fig svg .fx-draw.fx-in{stroke-dashoffset:0}
+@media (prefers-reduced-motion:reduce){.fig svg .fx-flow,.fig svg .fx-pulse,.fig svg .fx-blink{animation:none}.fig svg [data-st],.fig svg .fx-draw{transition:none}}
+@media (max-width:600px){.fig{padding:12px;margin:0 -4px}.fig-stage{padding:4px;overflow-x:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}.fig-stage svg{min-width:440px}.fig-cap{font-size:14px}}
+.fig-ui .seg label{flex-direction:row;align-items:center;gap:0;border:1px solid var(--line2);background:var(--card);color:var(--text);border-radius:var(--btn-r,999px);padding:6px 12px;font-size:13px;cursor:pointer}
+.fig-ui .seg input{position:absolute;opacity:0;pointer-events:none}
+.fig-ui .seg label:has(input:checked){background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.fig-ui .seg label:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
