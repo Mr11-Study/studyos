@@ -7,7 +7,8 @@
      blocks:     { "mad3-3": [block, …] }                       Blöcke in bestehende Lektion einfügen
                  (block.at = Index im Original → direkt danach; sonst nach dem letzten Erklärblock)
      questions, flashcards: [...]                               Fragen / Karteikarten (Format wie im Kurs)
-     labs:       [{ id, title, sub, lesson, tasks: [...] }]     Kotlin-Übungsblätter (js/kotlin.js) */
+     labs:       [{ id, title, sub, lesson, tasks: [...] }]     Kotlin-Übungsblätter (js/kotlin.js)
+     course:     { exam: "quicktest", examPrep: { format } }    Kurs-Felder setzen; Objekte werden zusammengeführt */
 (function () {
 const EXT = window.STUDYOS_EXT || {};
 const lastExplain = blocks => { let at = -1; blocks.forEach((b, i) => { if (["text", "html", "lead", "callout"].includes(b.t)) at = i; }); return at; };
@@ -17,6 +18,7 @@ const lastExplain = blocks => { let at = -1; blocks.forEach((b, i) => { if (["te
   const findLesson = id => { for (const w of c.worlds) { const l = w.lessons.find(x => x.id === id); if (l) return l; } return null; };
   chapters.forEach(ch => {
     try {
+      Object.entries(ch.course || {}).forEach(([k, v]) => { c[k] = v && typeof v === "object" && !Array.isArray(v) && c[k] && typeof c[k] === "object" ? Object.assign(c[k], v) : v; });
       Object.assign(c.topics, ch.topics || {});
       if (ch.world) { const old = findWorld(ch.world.id); if (old) Object.assign(old, ch.world); else c.worlds.push(ch.world); c.worlds.sort((a, b) => a.n - b.n); }
       Object.entries(ch.worldPatch || {}).forEach(([id, p]) => { const w = findWorld(id); if (!w) return;

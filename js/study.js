@@ -17,7 +17,7 @@ const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 const IV = [0, 1, 2, 4, 8, 16, 32], WEIGHT = [0, .2, .45, .65, .8, .9, 1];
 const ITEMS = [], IBY = {}, ITOPIC = {}, ICOURSE = {};
 const addItem = it => { ITEMS.push(it); IBY[it.key] = it; (ITOPIC[it.topic] = ITOPIC[it.topic] || []).push(it); (ICOURSE[it.course] = ICOURSE[it.course] || []).push(it); };
-QUESTIONS.concat(BOSSQ).forEach(q => TOPICS[q.topic] && addItem({ key: "q:" + q.id, kind: "q", topic: q.topic, course: q.course, ref: q }));
+QUESTIONS.concat(BOSSQ).forEach(q => TOPICS[q.topic] && App.qAllowed(q) && addItem({ key: "q:" + q.id, kind: "q", topic: q.topic, course: q.course, ref: q }));
 FLASH.forEach(f => f.topic && TOPICS[f.topic] && addItem({ key: "f:" + f.id, kind: "f", topic: f.topic, course: f.course, ref: f }));
 const srs = () => S().srs || (S().srs = {});
 const touched = id => { const s = S().lessons[id]; return !!(s && (s.read || s.done)); };
@@ -190,16 +190,16 @@ PAGES.lesson = (el, id) => {
 /* ================= Kapiteltest ================= */
 PAGES.boss = (el, wid) => {
   let w = null; COURSES.forEach(c => c.worlds.forEach(x => { if (x.id === wid) w = x; })); if (!w || !w.boss) return App.go("courses");
-  const c = CBY[w.course], pool = QUESTIONS.concat(BOSSQ).filter(q => w.boss.topics.includes(q.topic)), extra = shuffle(BOSSQ.filter(q => w.boss.topics.includes(q.topic))).slice(0, 4);
+  const c = CBY[w.course], pool = QUESTIONS.concat(BOSSQ).filter(q => w.boss.topics.includes(q.topic) && App.qAllowed(q)), extra = shuffle(BOSSQ.filter(q => w.boss.topics.includes(q.topic) && App.qAllowed(q))).slice(0, 4);
   const qs = shuffle(extra.concat(shuffle(pool.filter(q => !extra.includes(q)))).slice(0, 10));
   el.innerHTML = `<div class="page"><div class="crumbs"><button data-go="course" data-p="${c.id}">${esc(c.title)}</button><span>/</span><button data-go="path" data-p="${w.id}">Kapitel ${w.n}</button><span>/</span><span>Kapiteltest</span></div>
     <header><span class="eyebrow">Kapiteltest · Kapitel ${w.n}</span><h1>${esc(w.title)}</h1><p class="muted" style="margin-top:6px">${qs.length} Fragen quer durch das Kapitel. Ab 70 % gilt der Test als bestanden. Deine Antworten fließen auch in die Wiederholung ein.</p></header><div id="bq"></div></div>`;
   App.runQuiz($("#bq", el), { questions: qs, mode: "boss", title: "Kapiteltest", onFinish: (r, box) => {
-    let n = 0; qs.forEach((q, k) => { if (r.res[k] !== undefined) { grade("q:" + q.id, !!r.res[k]); n++; } }); App.day().rev = (App.day().rev || 0) + n;
+    let n = 0; qs.forEach((q, k) => { if (r.res[k] !== undefined) { grade("q:" + q.id, r.res[k] === true); n++; } }); App.day().rev = (App.day().rev || 0) + n;
     const pct = Math.round(100 * r.c / Math.max(1, r.n)), b = S().bosses[w.boss.id] || (S().bosses[w.boss.id] = { best: 0, passed: false, tries: 0 });
     b.tries++; b.best = Math.max(b.best || 0, pct); const passed = pct >= 70; if (passed) b.passed = true; App.save(); App.checkWorld(w); App.renderSide();
     const missed = [...new Set(r.wrong.map(q => q.topic))];
-    box.innerHTML = `<div class="card col result"><span class="eyebrow">${passed ? "Bestanden" : "Noch nicht ganz"}</span><div class="result-big" style="color:${passed ? "var(--good)" : "var(--warn)"}">${pct} %</div><p>${r.c} von ${r.n} richtig.${passed ? "" : " 70 % brauchst du zum Bestehen."}</p>
+    box.innerHTML = `<div class="card col result"><span class="eyebrow">${passed ? "Bestanden" : "Noch nicht ganz"}</span><div class="result-big" style="color:${passed ? "var(--good)" : "var(--warn)"}">${pct} %</div><p>${App.fmtNum(r.c, r.c % 1 ? 1 : 0)} von ${r.n} Punkten.${passed ? "" : " 70 % brauchst du zum Bestehen."}</p>
       ${missed.length ? `<div class="col" style="gap:8px;width:100%"><span class="eyebrow">Diese Themen nochmal ansehen</span>${missed.map(t => `<div class="spread"><div>${esc(TOPICS[t].name)} <small class="muted">· Wissen ${knowTopic(t)} %</small></div><div class="row"><button class="btn sm" data-go="lesson" data-p="${TOPICS[t].lesson}">Lektion</button><button class="btn sm" data-go="review" data-p="topic:${t}">Üben</button></div></div>`).join("")}</div>` : ""}
       <div class="row"><button class="btn pri" data-go="boss" data-p="${w.id}">Nochmal</button><button class="btn" data-go="path" data-p="${w.id}">Zum Kapitel</button></div></div>`;
   } });
@@ -207,7 +207,7 @@ PAGES.boss = (el, wid) => {
 
 /* ================= Wiederholen ================= */
 function buildQueue(scope, size) {
-  let its = ITEMS.filter(i => (!scope.cid || i.course === scope.cid) && (!scope.topic || i.topic === scope.topic) && (!scope.alt || i.ref.alt));
+  let its = ITEMS.filter(i => (!scope.cid || i.course === scope.cid) && (!scope.topic || i.topic === scope.topic) && (!scope.alt || i.ref.alt || (i.ref.multi && CBY[i.course].multiOnly)));
   const t = today(), byDue = (a, b) => srs()[a.key].due.localeCompare(srs()[b.key].due);
   const due = shuffle(its.filter(i => isDue(i, t))).sort(byDue);
   if (scope.topic || scope.free) { // freies Üben: fällig → neu → schwächste zuerst
@@ -263,10 +263,10 @@ function startSession(el, scope, size) {
   const box = $("#rv", el);
   if (!queue.length) { box.innerHTML = `<div class="empty">Hier gibt es gerade nichts zu wiederholen.<div style="margin-top:12px"><button class="btn" data-go="review">Zurück</button></div></div>`; $("#rv-end", el).onclick = () => App.go("review"); return; }
   let i = 0, phase = "ask"; const seen = new Set(), first = {}, uniq = queue.length;
-  const answer = ok => {
+  const answer = (ok, sc) => {
     const it = queue[i];
     if (!seen.has(it.key)) {
-      seen.add(it.key); first[it.key] = ok; grade(it.key, ok); App.rec(it.topic, ok ? 1 : 0);
+      seen.add(it.key); first[it.key] = ok; grade(it.key, ok); App.rec(it.topic, sc != null ? sc : ok ? 1 : 0);
       const d = App.day(); d.rev = (d.rev || 0) + 1; if (it.kind === "f") d.cards = (d.cards || 0) + 1; App.addXP(1, "rev");
       if (!ok) queue.push(it); // am Ende der Sitzung nochmal
     }
@@ -280,7 +280,7 @@ function startSession(el, scope, size) {
     if (it.kind === "q") {
       box.innerHTML = `<div class="card col rv-card-q">${head}<div id="rq">${App.questionHTML(it.ref, "rv")}</div><div class="row" id="rv-next" hidden><button class="btn pri">Weiter →</button><small class="muted">Enter</small></div></div>`;
       const rq = $("#rq", box);
-      rq.onclick = e => { const b = e.target.closest("[data-rv]"); if (!b || b.disabled || phase !== "ask") return; phase = "shown"; const ok = App.reveal(rq, it.ref, +b.dataset.rv); answer(ok); const nx = $("#rv-next", box); nx.hidden = false; $("button", nx).onclick = next; $("button", nx).focus(); };
+      rq.onclick = e => { const b = e.target.closest("[data-rv]"); if (!b || b.disabled || phase !== "ask") return; phase = "shown"; const ok = App.reveal(rq, it.ref, +b.dataset.rv); answer(ok, App.lastScore); const nx = $("#rv-next", box); nx.hidden = false; $("button", nx).onclick = next; $("button", nx).focus(); };
     } else {
       const f = it.ref;
       box.innerHTML = `<div class="card col rv-card-f">${head}<div class="rvf-face"><span class="eyebrow">Frage</span><div class="rvf-front">${f.front}</div></div>
@@ -304,7 +304,7 @@ function startSession(el, scope, size) {
   const key = e => {
     if (!document.body.contains(box) || e.target.closest("input,textarea,select")) return;
     const it = queue[i]; if (!it) return;
-    if (it.kind === "q") { if (phase === "ask" && /^[1-6]$/.test(e.key)) { const b = $$("#rq .opt", box)[+e.key - 1]; if (b) b.click(); } else if (phase === "shown" && e.key === "Enter") { e.preventDefault(); next(); } }
+    if (it.kind === "q") { if (phase === "ask" && /^[1-6]$/.test(e.key)) { const b = $$("#rq .opt", box)[+e.key - 1]; if (b) b.click(); } else if (phase === "ask" && e.key === "Enter") { const sb = $("#rq [data-msub]:not([disabled])", box); if (sb) { e.preventDefault(); sb.click(); } } else if (phase === "shown" && e.key === "Enter") { e.preventDefault(); next(); } }
     else { if (phase === "ask" && (e.key === " " || e.key === "Enter")) { e.preventDefault(); phase = "shown"; draw(); } else if (phase === "shown" && (e.key === "1" || e.key === "2")) { answer(e.key === "2"); next(); } }
   };
   window.addEventListener("keydown", key);
@@ -386,7 +386,7 @@ PAGES.prep = (el, p) => {
   let c = CBY[p] || CBY[S().prepCourse] || CBY[S().course];
   if (!c || !c.examPrep) c = withPrep[0]; if (!c) { el.innerHTML = `<div class="page"><div class="empty">Noch keine Prüfungsvorbereitung vorhanden.</div></div>`; return; }
   S().prepCourse = c.id;
-  const P = c.examPrep, st = prepState(), r = readiness(c.id), ex = nextExamOf(c.id), altN = (ICOURSE[c.id] || []).filter(i => i.ref.alt).length;
+  const P = c.examPrep, st = prepState(), r = readiness(c.id), ex = nextExamOf(c.id), altN = (ICOURSE[c.id] || []).filter(i => i.ref.alt || (i.ref.multi && c.multiOnly)).length;
   const dots = n => `<span class="wdots" title="Gewicht ${n}">${"●".repeat(n)}${"○".repeat(3 - n)}</span>`;
   el.innerHTML = `<div class="page">
    <header><h1>Prüfung üben</h1><p class="muted" style="margin-top:6px;max-width:70ch">Aus deinen Altprüfungen und Fragensammlungen: was drankommt, wie es gefragt wird und was du für ein Sehr gut können musst.</p></header>

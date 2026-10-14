@@ -121,6 +121,20 @@ Organisatorisches aus den Syllabi (Noten, Punkte, Anwesenheit, Abgaben, KI-Regel
 
 Jede Lektion aller 11 Fächer hat jetzt zusätzlich eine **Vertiefung** (in allen drei Erklärstufen), **1–2 Beispiele aus dem Alltag** (gelb markiert) und **2–3 aufklappbare Tipps** (💡 anklicken: Eselsbrücken, Prüfungsfallen, Lösungswege). Auch alle bisherigen Tipps sind jetzt zum Aufklappen. Insgesamt rund 167.000 Wörter zusätzlicher Lernstoff – die App ist als vollständiges Lernmaterial gedacht, die Vorlesungs-PDFs braucht man nicht. Die Inhalte stehen in `courses/deep-<fach>.js` und werden von `courses/deep-apply.js` in die Lektionen eingefügt; im Skript erscheinen sie automatisch mit.
 
+### Jedes Fach ist eine eigene App (ab Version 4.7)
+
+Unter **Fächer** liegt der Starter mit einer Kachel pro Fach. Ein Klick öffnet die App des Fachs: Sidebar, Unterseiten (Übersicht, Skript, Üben, Prüfung, Übungen, Material) und Wiederholung zeigen dann **nur noch dieses Fach**. Mit „← Alle Fächer“ geht es zurück. „Heute“, Kalender, Lernplan und Merkliste bleiben fächerübergreifend.
+
+Jede App hat ein eigenes Design (Farben, Schriften, Formen, Hintergrundmuster), hell und dunkel. Die Designs stehen in `dev/app-themes.js`; nach einer Änderung `node dev/app-themes.js` ausführen, das schreibt `css/apps.css` neu (die CSS-Datei nicht von Hand ändern).
+
+### IT-Infrastruktur: Mehrfachauswahl & Quick-Test (ab Version 4.7)
+
+IT-Infrastruktur übt hauptsächlich **Mehrfachauswahl wie im Quick-Test**: eine Frage, fünf Antworten, davon sind eine bis alle fünf richtig. Wertung pro Frage: (richtige Kreuze − falsche Kreuze) ÷ Anzahl richtiger Antworten, mindestens 0. Beispiel: 3 richtig, du kreuzt 2 richtige und 1 falsche an → 0,33 Punkte. Rund 240 solcher Fragen zu V1–V3 stehen in `courses/itinf/mc-v1.js`, `mc-v2.js`, `mc-v3.js` und `mc-mix.js`.
+
+- Die alten Fragen mit genau einer richtigen Antwort sind in IT-Infrastruktur ausgeblendet. Wer sie trotzdem will: in der App **Einstellungen → „Auch Einfachauswahl-Fragen üben“**.
+- **Quick-Test** (Sidebar der App): Einheiten wählen, 5/10/20 Fragen, optional 90 Sekunden pro Frage. Ausgewertet wird erst nach der Abgabe, mit Punkten pro Einheit und den Themen, in denen du Punkte verloren hast.
+- Neue Mehrfachauswahl-Fragen schreibt man mit der Hilfsfunktion `M(...)` aus `mc-v1.js` (fünf Antworten, je `[Text, richtig?, Erklärung]`). Neue Einheiten kommen in `quicktest.units` im Kurs-Patch von `mc-v1.js` dazu.
+
 ## 7. Neue Kurse / neues Material
 
 Gib Claude einfach die neuen Unterlagen und Moodle-Texte. Es entsteht eine neue Datei `courses/<kurs>.js`. Einbauen:
@@ -148,6 +162,8 @@ Die installierte App lädt das Update beim nächsten Öffnen und zeigt „Update
 3. Optional prüfen: `node dev/kt-verify.js` kompiliert alle Beispiele und Musterlösungen mit einem lokalen Kotlin-Compiler (Kopf der Datei erklärt, welche Jars nötig sind).
 
 Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neue Blöcke, Lektionen, Fragen, Karteikarten, Übungsblätter). Das macht `courses/ext-apply.js`; andere Kurse können das genauso nutzen (`courses/<kurs>/…`).
+
+**IT-Infrastruktur (ITINF-GL)** nutzt das ebenfalls (seit v4.6): `courses/itinf/v1-cloud-concepts.js` ergänzt die V1-Kapitel um Vorlesungsnotizen und Zusatzfragen und nummeriert die Kapitel um, `v2-azure-architektur.js` und `v3-governance-identitaet.js` sind eigene Kapitel. Weitere Einheiten kommen als `vN-thema.js` dazu (V1-Datei muss zuerst geladen werden).
 
 ## 8. Bekannte Grenzen
 
