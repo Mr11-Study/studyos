@@ -1,0 +1,64 @@
+{
+ "https://assets.tcgdex.net/ja/SV/SV2a/006/high.webp": [
+  200,
+  "image/webp",
+  "112400"
+ ],
+ "https://assets.tcgdex.net/ja/SV/SV2a/006/high.png": [
+  200,
+  "image/png",
+  "374643"
+ ],
+ "https://assets.tcgdex.net/ja/SV/SV2a/006/low.webp": [
+  200,
+  "image/webp",
+  "28572"
+ ],
+ "https://assets.tcgdex.net/ja/SV/SV2a/logo.webp": [
+  404,
+  "HTTP Error 404: Not Found"
+ ],
+ "https://assets.tcgdex.net/ja/SV/SV2a/logo.png": [
+  404,
+  "HTTP Error 404: Not Found"
+ ],
+ "https://assets.tcgdex.net/ko/SV/SV2a/006/high.webp": [
+  404,
+  "HTTP Error 404: Not Found"
+ ],
+ "https://assets.tcgdex.net/ja/M/M1S/001/high.png": [
+  200,
+  "image/png",
+  "348662"
+ ],
+ "https://assets.tcgdex.net/ja/M/M1S/001/high.webp": [
+  200,
+  "image/webp",
+  "88726"
+ ],
+ "https://assets.tcgdex.net/en/sv/sv03.5/199/high.webp": [
+  200,
+  "image/webp",
+  "57376"
+ ],
+ "https://assets.tcgdex.net/de/sv/sv03.5/199/high.webp": [
+  200,
+  "image/webp",
+  "63914"
+ ],
+ "https://assets.tcgdex.net/en/me/30th/001/high.webp": [
+  200,
+  "image/webp",
+  "60324"
+ ],
+ "https://assets.tcgdex.net/de/me/30th/001/high.webp": [
+  200,
+  "image/webp",
+  "60828"
+ ],
+ "https://tcgplayer-cdn.tcgplayer.com/product/517045_400w.jpg": [
+  200,
+  "image/jpeg",
+  "67518"
+ ]
+}
