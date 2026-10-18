@@ -15,7 +15,13 @@ Object.assign(App, { $, $$, esc, clamp, shuffle, dkey, today, fmtMin, fmtDate, d
 
 /* ---------------- course registry ---------------- */
 const TRACK = window.STUDYOS_TRACK || "uni"; App.TRACK = TRACK;
-const COURSES = (window.COURSE_DEFS || []).filter(c => (c.track || "uni") === TRACK);
+const ALLC = (window.COURSE_DEFS || []).filter(c => (c.track || "uni") === TRACK);
+/* Semester-Filter (nur Studium): Kurse ohne semester bleiben immer sichtbar; ein leeres Semester fällt auf Semester 3 zurück */
+const SEMS = (window.StudyProfiles && StudyProfiles.SEMS) || [{ n: 3, term: "WS 2026/27" }];
+let SEM = window.STUDYOS_SEM || 3; if (TRACK === "uni" && !ALLC.some(c => c.semester === SEM)) SEM = 3;
+const COURSES = TRACK === "uni" ? ALLC.filter(c => !c.semester || c.semester === SEM) : ALLC;
+App.SEM = SEM; App.SEMS = SEMS; App.semCount = n => ALLC.filter(c => c.semester === n).length;
+App.SEMLABEL = `Semester ${SEM}${(SEMS.find(x => x.n === SEM) || {}).term ? " · " + SEMS.find(x => x.n === SEM).term : ""}`;
 const CBY = Object.fromEntries(COURSES.map(c => [c.id, c]));
 const TOPICS = {}, LESSONS = [], QUESTIONS = [], BOSSQ = [], FLASH = [];
 COURSES.forEach(c => {
@@ -361,7 +367,7 @@ PAGES.dash = el => {
 };
 
 PAGES.courses = el => {
-  el.innerHTML = `<div class="page"><div><h1>Meine Kurse</h1><p class="muted" style="margin-top:6px">Semester 3 · WS 2026/27. Neue Kurse kommen als eigene Datei in <code>courses/</code> dazu; Dashboard, Lernpfad, Quiz, Kalender und Statistik passen sich automatisch an.</p></div>
+  el.innerHTML = `<div class="page"><div><h1>Meine Kurse</h1><p class="muted" style="margin-top:6px">${App.SEMLABEL}. Neue Kurse kommen als eigene Datei in <code>courses/</code> dazu; Dashboard, Lernpfad, Quiz, Kalender und Statistik passen sich automatisch an.</p></div>
   <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${COURSES.map(courseCard).join("")}</div>
   <div class="card col"><h3>Weiteren Kurs hinzufügen</h3><p class="muted">Schick die Unterlagen (Folien, Skript, Moodle-Texte) im Chat mit Claude. Du bekommst eine neue Kursdatei und ersetzt damit den Ordner auf GitHub. Dein Fortschritt bleibt erhalten, weil er im Browser bzw. im Sync gespeichert ist.</p></div></div>`;
 };
@@ -465,7 +471,7 @@ function renderBlock(b, i, l, st, lvl) {
   else if (b.t === "html") { div.innerHTML = b.html; }
   else if (b.t === "callout") { div.className = "callout"; div.innerHTML = b.html; }
   else if (b.t === "tip" || b.t === "hint") { div.className = "hintbox"; div.innerHTML = `<details><summary>💡 ${de ? "Tipp" : "Tip"}${b.title ? ": " + esc(b.title) : ` <span class="muted">(${de ? "anklicken" : "click"})</span>`}</summary><div class="body">${b.html}</div></details>`; }
-  else if (b.t === "example") { div.className = "card example"; div.innerHTML = `<span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<h3>${esc(b.title)}</h3>` : ""}<div class="body">${b.html}</div>`; }
+  else if (b.t === "example") { div.className = "card example"; div.innerHTML = `<span class="eyebrow">${b.label ? esc(b.label) : de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<h3>${esc(b.title)}</h3>` : ""}<div class="body">${b.html}</div>`; }
   else if (b.t === "warnbox") { div.className = "warnbox"; div.innerHTML = `<span>⚠️</span><span>${b.html}</span>`; }
   else if (b.t === "keys") { div.className = "card col"; div.innerHTML = `<span class="eyebrow">${de ? "Kernpunkte" : "Key points"}</span><ul class="keys">${b.items.map(x => `<li><span>${x}</span></li>`).join("")}</ul>`; }
   else if (b.t === "text") {
@@ -487,6 +493,7 @@ function renderBlock(b, i, l, st, lvl) {
   }
   else if (b.t === "widget") { div.className = "card"; div.dataset.widget = b.w; div._block = b; }
   else if (b.t === "fig") { div.className = "fig-wrap"; div.innerHTML = window.FX ? FX.html(b) : ""; }
+  else if (b.t === "maple") { div.className = "sk-maple"; div.innerHTML = window.MPL && MPL.blockHTML ? MPL.blockHTML(b) : ""; }
   return div;
 }
 App.renderBlock = (b, i, l, st, lvl) => renderBlock(b, i, l, st, lvl);

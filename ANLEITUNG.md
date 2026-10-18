@@ -210,3 +210,12 @@ Für Karten, Displays, ETBs, Booster, Tins usw. mit Cardmarket-Preisen.
 Hinweis: Der Preisführer fasst alle Sprachen zusammen und bezieht sich meist auf Near Mint. Für den Preis einer bestimmten Sprache/eines Zustands führt „Auf Cardmarket ansehen“ direkt zur Suche.
 
 Kartennamen, Bilder und Set-Daten kommen von TCGdex (freies Projekt). Die Sammlung selbst bleibt auf dem Gerät (Backup über Einstellungen).
+
+## 11. Semester und Mathematik 2 mit Maple-Labor
+
+**Semester wählen.** Unter „Fächer“ gibt es oben die Umschalter Semester 1 / 2 / 3. Jedes Studium-Profil merkt sich sein Semester; beim Anlegen eines neuen Profils wählt man es gleich mit. Ein Kurs gehört über `semester: N` in seiner Kursdatei zu einem Semester. Semester ohne Kurse sind ausgegraut. Neue Semester-Bezeichnungen stehen in `js/profiles.js` (`SEMS`).
+
+**Mathematik 2 (Semester 2).** Kursdatei `courses/math2.js`, Kapitel in `courses/math2/k1…k5.js`, interaktive Abbildungen in `courses/math2/figs.js`, Arbeitsblätter fürs Maple-Labor in `courses/math2/sheets.js`, Prüfungsvorbereitung mit allen Altprüfungsaufgaben in `courses/math2/prep.js`.
+
+- **Maple-Labor** (`js/maple.js` + `js/maple-ui.js`): rechnet Maple-Befehle im Browser (diff, int, solve, fsolve, Matrizen/LinearAlgebra, CurveFitting, NonlinearFit, plot, plot3d, implicitplot, polygonplot …). Lektionsblock: `{ t: "maple", title, code: ["…", "…"], note }`.
+- **Prüfungssimulation** (`js/mathexam.js`): 5 Aufgaben (3+3+3+3+4 = 16 Punkte) wie in den Altprüfungen, jedes Mal neue Zahlen, Bewertung mit Toleranz, danach Lösungsweg und Maple-Code. Kurse mit `exam: "maple"` bekommen diese Seite.

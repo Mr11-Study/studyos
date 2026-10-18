@@ -107,7 +107,7 @@ PAGES.dash = el => {
 
 /* ================= Kurse ================= */
 PAGES.courses = el => {
-  el.innerHTML = `<div class="page"><header><span class="eyebrow">Semester 3 · WS 2026/27</span><h1>Kurse</h1><p class="muted" style="margin-top:6px">„Verstanden“ markierst du selbst nach dem Lesen. „Wissen“ zeigt, was du in der Wiederholung tatsächlich richtig beantwortest.</p></header>
+  el.innerHTML = `<div class="page"><header><span class="eyebrow">${App.SEMLABEL}</span><h1>Kurse</h1><p class="muted" style="margin-top:6px">„Verstanden“ markierst du selbst nach dem Lesen. „Wissen“ zeigt, was du in der Wiederholung tatsächlich richtig beantwortest.</p></header>
    <div class="cgrid">${COURSES.map(c => { const n = App.courseLessons(c.id).length, u = understood(c.id), k = knowCourse(c.id), ev = nextDated(c.id), cn = counts(c.id);
      return `<button class="card ccard" data-go="course" data-p="${c.id}" style="--c:${c.color}"><div class="spread">${badge(c)}<small class="tab">${ects(c)}</small></div>
        <div><h3>${esc(c.title)}</h3><small>${esc(c.lecturers || "")}</small></div>
@@ -326,10 +326,11 @@ function skBlock(b, l, lvl) {
     case "html": return `<div class="sk-html body">${b.html}</div>`;
     case "callout": return `<div class="callout">${b.html}</div>`;
     case "tip": case "hint": return `<details class="hintbox"><summary>💡 ${de ? "Tipp" : "Tip"}${b.title ? ": " + esc(b.title) : ""}</summary><div class="body">${b.html}</div></details>`;
-    case "example": return `<div class="sk-ex"><span class="eyebrow">${de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<b>${esc(b.title)}</b>` : ""}<div class="body">${b.html}</div></div>`;
+    case "example": return `<div class="sk-ex"><span class="eyebrow">${b.label ? esc(b.label) : de ? "Beispiel aus dem Alltag" : "Everyday example"}</span>${b.title ? `<b>${esc(b.title)}</b>` : ""}<div class="body">${b.html}</div></div>`;
     case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
     case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
     case "fig": return window.FX ? FX.html(b, { cls: "sk-fig" }) : "";
+    case "maple": return window.MPL && MPL.blockHTML ? `<div class="sk-maple">${MPL.blockHTML(b)}</div>` : "";
     case "widget": if (App.ktSkript && App.ktSkript(b, l)) return App.ktSkript(b, l); return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
   }
   return "";

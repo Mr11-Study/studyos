@@ -8,6 +8,8 @@
     craft: { label: "Stricken & Häkeln", sub: "Techniken, 3D-Maschen, Muster, Projekte", icon: "✿", color: "#C8664B" },
     tcg: { label: "Sammlung", sub: "Pokémon-Karten & Sealed · Cardmarket-Preise", icon: "◈", color: "#F5C542" }
   };
+  /* Semester: jedes Studium-Profil lernt ein Semester; Kurse tragen course.semester (core.js filtert danach) */
+  const SEMS = [{ n: 1, term: "WS 2025/26" }, { n: 2, term: "SS 2026" }, { n: 3, term: "WS 2026/27" }];
   const keyOf = id => id === "main" ? "studyos.v2" : "studyos.v2." + id;
   const secretOf = id => id === "main" ? "studyos.secrets" : "studyos.secrets." + id;
   let list = []; try { list = JSON.parse(LS("studyos.profiles") || "[]"); } catch (e) { list = []; }
@@ -29,7 +31,7 @@
     }
   };
   if (P) {
-    window.STUDYOS_PID = P.id; window.STUDYOS_TRACK = P.track || "uni"; window.STUDYOS_PNAME = P.name;
+    window.STUDYOS_PID = P.id; window.STUDYOS_TRACK = P.track || "uni"; window.STUDYOS_PNAME = P.name; window.STUDYOS_SEM = P.sem || 3;
     window.STUDYOS_KEY = keyOf(P.id); window.STUDYOS_SECRET = secretOf(P.id);
     SS("studyos.session", P.id); applyTheme(window.STUDYOS_TRACK);
   }
@@ -39,7 +41,7 @@
   function picker(startCreate) {
     applyTheme("");
     const root = document.createElement("div"); root.className = "pick"; document.body.appendChild(root);
-    let creating = startCreate || !list.length, track = "craft", nameVal = "";
+    let creating = startCreate || !list.length, track = "craft", nameVal = "", sem = 3;
     const draw = () => {
       root.innerHTML = `<div class="pick-box">
         <div class="pick-brand"><div class="logo">S</div><b>StudyOS</b></div>
@@ -47,6 +49,7 @@
           <label class="fld">Name<input type="text" id="pk-name" maxlength="24" placeholder="z. B. Angi" autocomplete="off" value="${esc(nameVal)}"></label>
           <div class="eyebrow">Wofür nutzt du die App?</div>
           <div class="pick-tracks">${Object.entries(TRACKS).map(([k, t]) => `<button class="pick-track ${k === track ? "on" : ""}" data-track="${k}" style="--c:${t.color}"><span class="pt-ic">${t.icon}</span><b>${t.label}</b><small>${t.sub}</small></button>`).join("")}</div>
+          ${track === "uni" ? `<div class="eyebrow">Welches Semester lernst du?</div><div class="pick-sems">${SEMS.map(x => `<button class="pick-sem ${x.n === sem ? "on" : ""}" data-sem="${x.n}"><b>Semester ${x.n}</b><small>${x.term}</small></button>`).join("")}</div><small class="muted">Später jederzeit unter „Alle Fächer“ umschaltbar.</small>` : ""}
           <label class="pick-rem"><input type="checkbox" id="pk-rem" checked> Auf diesem Gerät automatisch öffnen</label>
           <div class="pick-actions">${list.length ? `<button class="btn ghost" id="pk-back">Zurück</button>` : ""}<button class="btn pri" id="pk-create">Profil erstellen</button></div>`
         : `<h1>Wer lernt heute?</h1>
@@ -55,6 +58,7 @@
           <label class="pick-rem"><input type="checkbox" id="pk-rem"> Auswahl auf diesem Gerät merken</label>`}
       </div>`;
       root.onclick = e => {
+        const sm = e.target.closest("[data-sem]"); if (sm) { sem = +sm.dataset.sem; draw(); return; }
         const t = e.target.closest("[data-track]"); if (t) { track = t.dataset.track; draw(); const n = root.querySelector("#pk-name"); n && n.focus(); return; }
         const p = e.target.closest("[data-pid]"); if (p) { choose(p.dataset.pid, root.querySelector("#pk-rem").checked); return; }
         if (e.target.closest("#pk-add")) { creating = true; draw(); return; }
@@ -62,7 +66,7 @@
         if (e.target.closest("#pk-create")) {
           const inp = root.querySelector("#pk-name"), name = inp.value.trim(); if (!name) { inp.focus(); inp.classList.add("shake"); return; }
           const id = "p" + Date.now().toString(36);
-          list.push({ id, name, track }); save();
+          list.push(track === "uni" ? { id, name, track, sem } : { id, name, track }); save();
           try { localStorage.setItem(keyOf(id), JSON.stringify({ v: 2, name })); } catch (e2) {}
           choose(id, root.querySelector("#pk-rem").checked);
         }
@@ -72,7 +76,9 @@
     draw();
   }
   window.StudyProfiles = {
-    list: () => list.slice(), active: () => P || null, TRACKS, picker,
+    list: () => list.slice(), active: () => P || null, TRACKS, picker, SEMS,
+    sem: () => (P && P.sem) || 3,
+    setSem(n) { if (!P || !SEMS.some(x => x.n === n)) return; P.sem = n; save(); location.hash = ""; location.reload(); },
     switchTo() { SS("studyos.session", null); LS("studyos.active", null); location.hash = ""; location.reload(); },
     rename(id, name) { const p = byId(id); if (p && name) { p.name = name; save(); } },
     remove(id) { if (!byId(id) || (P && P.id === id)) return false; list = list.filter(p => p.id !== id); save(); try { localStorage.removeItem(keyOf(id)); localStorage.removeItem(secretOf(id)); } catch (e) {} return true; },
