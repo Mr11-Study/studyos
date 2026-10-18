@@ -226,7 +226,12 @@ function det(a) {
 }
 function minv(a) {
   const m = asMat(a); if (m.r !== m.c) throw err("MatrixInverse", "Matrix ist nicht quadratisch");
-  if (!allNum(m)) { if (m.r !== 2) throw err("MatrixInverse", "symbolische Inverse nur für 2×2"); const [[p, q], [r, s]] = m.d, D = A.sub(A.mul(p, s), A.mul(q, r)); return M(2, 2, (i, j) => A.div([[s, A.neg(q)], [A.neg(r), p]][i][j], D)); }
+  if (!allNum(m)) { if (m.r === 2) { const [[p, q], [r, s]] = m.d, D = A.sub(A.mul(p, s), A.mul(q, r)); return M(2, 2, (i, j) => A.div([[s, A.neg(q)], [A.neg(r), p]][i][j], D)); }
+    if (m.r > 4) throw err("MatrixInverse", "symbolische Inverse nur bis 4×4");
+    /* Adjunkte / Determinante (Kofaktoren), reicht für Verschiebungen mit Parametern wie d oder k */
+    const n = m.r, Dt = det(m); if (Dt === 0) throw err("MatrixInverse", "die Matrix ist singulär (Determinante 0), es gibt keine Inverse");
+    const cof = (i, j) => { const mi = M(n - 1, n - 1, (r, c) => m.d[r < i ? r : r + 1][c < j ? c : c + 1]); return A.mul((i + j) % 2 ? -1 : 1, det(mi)); };
+    return M(n, n, (i, j) => A.div(cof(j, i), Dt)); }
   const n = m.r, aug = M(n, 2 * n, (i, j) => j < n ? m.d[i][j] : (j - n === i ? 1 : 0)), { m: R, piv } = rref(aug);
   if (piv.length < n || piv[n - 1] !== n - 1) throw err("MatrixInverse", "die Matrix ist singulär (Determinante 0), es gibt keine Inverse");
   return M(n, n, (i, j) => R[i][j + n]);
@@ -437,8 +442,11 @@ function spline(xs, ys, mode = "natural") {
   for (let i = 1; i < n - 1; i++) { Am[i][i - 1] = h[i - 1]; Am[i][i] = 2 * (h[i - 1] + h[i]); Am[i][i + 1] = h[i]; r[i] = 6 * ((ys[i + 1] - ys[i]) / h[i] - (ys[i] - ys[i - 1]) / h[i - 1]); }
   if (mode === "periodic" && n > 2) { Am[0][0] = 1; Am[0][n - 1] = -1; Am[n - 1][0] = 2 * h[0]; Am[n - 1][1] = h[0]; Am[n - 1][n - 2] = h[n - 2]; Am[n - 1][n - 1] = 2 * h[n - 2]; r[n - 1] = 6 * ((ys[1] - ys[0]) / h[0] - (ys[n - 1] - ys[n - 2]) / h[n - 2]); }
   else if (mode === "notaknot" && n > 3) { Am[0][0] = h[1]; Am[0][1] = -(h[0] + h[1]); Am[0][2] = h[0]; Am[n - 1][n - 3] = h[n - 2]; Am[n - 1][n - 2] = -(h[n - 3] + h[n - 2]); Am[n - 1][n - 1] = h[n - 3]; }
+  else if (Array.isArray(mode)) { /* endpoints = [s0, sn]: vorgegebene Steigungen an den Enden (knickfreier Anschluss) */
+    Am[0][0] = 2 * h[0]; Am[0][1] = h[0]; r[0] = 6 * ((ys[1] - ys[0]) / h[0] - mode[0]);
+    Am[n - 1][n - 2] = h[n - 2]; Am[n - 1][n - 1] = 2 * h[n - 2]; r[n - 1] = 6 * (mode[1] - (ys[n - 1] - ys[n - 2]) / h[n - 2]); }
   else { Am[0][0] = 1; Am[n - 1][n - 1] = 1; }
-  const Mm = n === 2 ? [0, 0] : solveSq(Am, r);
+  const Mm = n === 2 && !Array.isArray(mode) ? [0, 0] : solveSq(Am, r);
   const pieces = [];
   for (let i = 0; i < n - 1; i++) { const a = ys[i], b = (ys[i + 1] - ys[i]) / h[i] - h[i] * (2 * Mm[i] + Mm[i + 1]) / 6, c = Mm[i] / 2, d = (Mm[i + 1] - Mm[i]) / (6 * h[i]); pieces.push({ x0: xs[i], x1: xs[i + 1], a, b, c, d }); }
   return pieces;
@@ -708,8 +716,10 @@ function solveSys(S, eqs, vars, ranges) {
   const ex = eqs.map(exprOf).map(ast);
   if (!vars) { const fv = new Set(); ex.forEach(x => free(x, fv)); vars = [...fv].sort(); }
   if (!vars.length) throw err("solve", "keine Unbekannten");
-  if (ex.some(x => [...free(x)].some(v => !vars.includes(v)))) throw err("solve", "die Gleichungen enthalten weitere freie Variablen; weise ihnen zuerst Werte zu");
+  if (ex.some(x => [...free(x)].some(v => !vars.includes(v)))) { if (vars.length === 1 && ex.length === 1) { const s = solvePoly(ex[0], vars[0]); if (s) return { one: true, sym: true, sol: s.map(r => [r]), vars }; } throw err("solve", "die Gleichungen enthalten weitere freie Variablen; weise ihnen zuerst Werte zu"); }
   if (vars.length === 1 && ex.length === 1) { const f = compile(ex[0], vars), r = ranges && ranges[vars[0]]; let rs = roots1(x => f(x), r ? r[0] : -1e3, r ? r[1] : 1e3);
+    /* quadratische Gleichung mit „krummen“ Lösungen: Reihenfolge wie Maples Formel (−b + √D)/(2a) zuerst, damit kreis(x)[1] auch bei Zahlen der obere Halbkreis bleibt */
+    if (!r && rs.length === 2) { const q = quadCoef(ex[0], vars[0]); if (q && !rs.every(x => { const g = recog(x); return g.int != null || (g.q && !g.pi && !g.sq); })) rs = q[2] > 0 ? [rs[1], rs[0]] : rs; }
     /* periodische Gleichungen (sin, cos, tan): wie Maple nur die Hauptlösung (kleinster Betrag) */
     if (!r && rs.length > 6 && /"n":"(sin|cos|tan)"/.test(JSON.stringify(ex[0]))) rs = [rs.slice().sort((a, b) => Math.abs(a) - Math.abs(b) || b - a)[0]];
     return { one: true, sol: rs.map(x => [x]), vars }; }
@@ -718,10 +728,26 @@ function solveSys(S, eqs, vars, ranges) {
   if (ranges) starts = starts.concat(Array.from({ length: 200 }, () => vars.map(v => ranges[v] ? ranges[v][0] + Math.random() * (ranges[v][1] - ranges[v][0]) : (Math.random() - .5) * 20)));
   let sol = fs.length === vars.length ? rootsN(fs, vars.length, starts) : (() => { const g = x => fs.reduce((s, f) => s + f(...x) ** 2, 0); const out = []; starts.slice(0, 300).forEach(s => { const r = nelder(g, s); if (r.f < 1e-14) { const x = r.x.map(v => clean(+v.toPrecision(10))); if (!out.some(o => o.every((v, j) => Math.abs(v - x[j]) < 1e-6))) out.push(x); } }); return out; })();
   if (ranges) sol = sol.filter(x => vars.every((v, j) => !ranges[v] || (x[j] >= ranges[v][0] - 1e-9 && x[j] <= ranges[v][1] + 1e-9)));
-  sol.sort((a, b) => { for (let j = 0; j < a.length; j++) if (Math.abs(a[j] - b[j]) > 1e-9) return a[j] - b[j]; return 0; });
+  /* Lösungen mit weniger negativen Werten zuerst (Längen, Radien …), sonst aufsteigend: assign(%) nimmt dann wie in Maple meist die gesuchte */
+  const neg = x => x.reduce((s, v, j) => s + (v < -1e-12 && !/^l(\d|ambda)?\d*$/.test(vars[j]) ? 1 : 0), 0);
+  sol.sort((a, b) => { const d = neg(a) - neg(b); if (d) return d; for (let j = 0; j < a.length; j++) if (Math.abs(a[j] - b[j]) > 1e-9) return a[j] - b[j]; return 0; });
   return { sol, vars };
 }
-const solOut = (r, asSet, float) => { const W = x => float ? { T: "flt", v: x } : x; if (r.one && !asSet) return r.sol.length ? { T: "seq", it: r.sol.map(x => W(x[0])) } : { T: "nul" }; return r.sol.length ? { T: "seq", it: r.sol.map(x => ({ T: "set", it: r.vars.map((v, j) => ({ k: "rel", o: "=", a: Sy(v), b: N(x[j]), fl: float })) })) } : { T: "nul" }; };
+/* solve(3*x^2 + 4*y^2 = 12, y): nach einer Unbekannten auflösen, wenn weitere Symbole vorkommen (linear oder quadratisch, wie in Maple die +Wurzel zuerst) */
+function quadCoef(e, v) { try { const d1 = D(e, v), d2 = D(d1, v), d3 = simp(D(d2, v)); const c = [e, d1, d2].map(x => numOf(simp(substE(x, { [v]: N(0) })))); if (!(d3.k === "n" && d3.v === 0) && d3 !== 0) return null; if (!c.every(isFinite) || c[2] === 0) return null; return [c[0], c[1], c[2] / 2]; } catch (e) { return null; } }
+function solvePoly(e, v) {
+  const at0 = x => simp(substE(x, { [v]: N(0) })), d1 = D(e, v), d2 = D(d1, v), d3 = D(d2, v);
+  const fv = [...free(e)], zero = x => { const f = compile(simp(x), fv); return [0.37, 1.21, -0.83, 2.9, -1.7].every(t => { const y = f(...fv.map((_, i) => t + 0.31 * i)); return !isFinite(y) || Math.abs(y) < 1e-9; }); };
+  if (!zero(d3)) return null;
+  const c0 = at0(e), c1 = at0(d1), c2 = simp({ k: "mul", f: [N(0.5), at0(d2)] });
+  if (zero(c2)) { if (zero(c1)) return null; return [fin(simp(expand({ k: "mul", f: [N(-1), c0, { k: "pow", b: c1, e: N(-1) }] })))]; }
+  const m = simp({ k: "mul", f: [N(-1), c1, { k: "pow", b: { k: "mul", f: [N(2), c2] }, e: N(-1) }] });
+  const R = simp(expand({ k: "add", t: [{ k: "mul", f: [m, m] }, { k: "mul", f: [N(-1), c0, { k: "pow", b: c2, e: N(-1) }] }] }));
+  const w = { k: "fn", n: "sqrt", a: [R] };
+  const out = [fin(simp({ k: "add", t: [m, w] })), fin(simp({ k: "add", t: [m, { k: "mul", f: [N(-1), w] }] }))];
+  const s2 = simp(c2); return s2.k === "n" && s2.v < 0 ? out.reverse() : out;
+}
+const solOut = (r, asSet, float) => { const W = x => float && typeof x === "number" ? { T: "flt", v: x } : x; if (r.sym) return asSet ? { T: "seq", it: r.sol.map(x => ({ T: "set", it: [{ k: "rel", o: "=", a: Sy(r.vars[0]), b: ast(x[0]) }] })) } : { T: "seq", it: r.sol.map(x => x[0]) }; if (r.one && !asSet) return r.sol.length ? { T: "seq", it: r.sol.map(x => W(x[0])) } : { T: "nul" }; return r.sol.length ? { T: "seq", it: r.sol.map(x => ({ T: "set", it: r.vars.map((v, j) => ({ k: "rel", o: "=", a: Sy(v), b: N(x[j]), fl: float })) })) } : { T: "nul" }; };
 
 const CMD = {
   /* --- Grundbefehle --- */
@@ -738,7 +764,7 @@ const CMD = {
   value(a) { const v = a[0]; if (v && v.k === "fn" && v.n === "int") return evalInt(v.a, this); return v; },
   subs(a) { const e = a[a.length - 1]; let eqs = a.slice(0, -1).flatMap(x => x.T === "set" || x.T === "list" ? x.it : [x]); return substAll(this, e, eqs); },
   eval(a) { if (a.length < 2) return a[0]; const eqs = a[1].T === "set" || a[1].T === "list" ? a[1].it : [a[1]]; return substAll(this, a[0], eqs); },
-  simplify(a) { if (!isExpr(a[0])) return a[0]; const e = simp(ast(a[0])), vs = [...free(e)]; if (vs.length) { const f = compile(e, vs); const vals = [0.37, 1.21, -0.83, 2.9].map(t => f(...vs.map((_, i) => t + 0.17 * i))); if (vals.every(v => isFinite(v) && Math.abs(v - vals[0]) < 1e-10 * Math.max(1, Math.abs(v)))) return clean(vals[0]); } return fin(e); },
+  simplify(a) { if (isM(a[0])) return mmap(a[0], z => CMD.simplify([z])); if (!isExpr(a[0])) return a[0]; const e = simp(ast(a[0])), vs = [...free(e)]; if (vs.length) { const f = compile(e, vs); const vals = [0.37, 1.21, -0.83, 2.9].map(t => f(...vs.map((_, i) => t + 0.17 * i))); if (vals.every(v => isFinite(v) && Math.abs(v - vals[0]) < 1e-10 * Math.max(1, Math.abs(v)))) return clean(vals[0]); } return fin(e); },
   expand(a) { return isExpr(a[0]) ? fin(expand(a[0])) : a[0]; },
   factor(a) { return a[0]; }, normal(a) { return isExpr(a[0]) ? fin(simp(ast(a[0]))) : a[0]; }, combine(a) { return a[0]; },
   lhs(a) { return fin(a[0].a); }, rhs(a) { return fin(a[0].b); },
@@ -751,10 +777,14 @@ const CMD = {
   binomial(a) { const [n, k] = a; let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return clean(r); },
   piecewise(a) { const c = a.map(x => ast(x)); const fv = new Set(); c.forEach(x => free(x, fv)); if (!fv.size) { const f = compile({ k: "fn", n: "piecewise", a: c }, []); return clean(f()); } return { k: "fn", n: "piecewise", a: c }; },
   print(a) { return { T: "seq", it: a }; },
+  /* assign(%) nach solve: Lösungen als Variablen übernehmen (bei mehreren Lösungen die erste, wie assign(%[1])) */
+  assign(a) { let v = a[0]; if (v && v.T === "seq") v = unwrap(v.it[0]); const eqs = v && (v.T === "set" || v.T === "list") ? v.it.map(unwrap) : a.length === 2 && a[0].k === "s" ? [{ k: "rel", o: "=", a: a[0], b: ast(a[1]) }] : [v];
+    eqs.forEach(q => { if (!q || q.k !== "rel" || !q.a || q.a.k !== "s") throw err("assign", "erwartet Gleichungen der Form x = Wert"); this.env[q.a.n] = fin(q.b); if (q.fl || (q.b && q.b.fl)) this.taint.add(q.a.n); }); return { T: "nul" }; },
+  unassign(a) { a.forEach(x => { const n = x && (x.k === "s" ? x.n : x.k === "str" ? x.v : null); if (n) { delete this.env[n]; this.taint.delete(n); } }); return { T: "nul" }; },
   convert(a) { return a[0]; },
   /* --- Gleichungen --- */
   solve(a) { const eq = a[0], eqs = eq.T === "set" || eq.T === "list" ? eq.it : [eq], vars = a[1] ? varsOf(a[1]) : null; return solOut(solveSys(this, eqs, vars), a[1] && a[1].T === "set" || eqs.length > 1); },
-  fsolve(a) { const eq = a[0], eqs = eq.T === "set" || eq.T === "list" ? eq.it : [eq]; const rg = {}; let vars = null; a.slice(1).forEach(x => { if (x.T === "set" || x.T === "list") { const it = x.it; if (it.every(y => y.k === "s")) vars = it.map(y => y.n); else it.forEach(y => { const q = varRange(y); if (q) { rg[q.v] = [q.lo, q.hi]; (vars = vars || []).push(q.v); } }); } else if (x.k === "s") vars = [x.n]; else { const q = varRange(x); if (q) { rg[q.v] = [q.lo, q.hi]; vars = (vars || []).concat(q.v); } } }); const r = solveSys(this, eqs, vars, Object.keys(rg).length ? rg : null); if (!r.one) r.sol = r.sol.slice(0, 1); return solOut(r, eqs.length > 1 || (a[1] && a[1].T === "set"), true); },
+  fsolve(a) { this.fl = true; const eq = a[0], eqs = eq.T === "set" || eq.T === "list" ? eq.it : [eq]; const rg = {}; let vars = null; a.slice(1).forEach(x => { if (x.T === "set" || x.T === "list") { const it = x.it; if (it.every(y => y.k === "s")) vars = it.map(y => y.n); else it.forEach(y => { const q = varRange(y); if (q) { rg[q.v] = [q.lo, q.hi]; (vars = vars || []).push(q.v); } }); } else if (x.k === "s") vars = [x.n]; else { const q = varRange(x); if (q) { rg[q.v] = [q.lo, q.hi]; vars = (vars || []).concat(q.v); } } }); const r = solveSys(this, eqs, vars, Object.keys(rg).length ? rg : null); if (!r.one) r.sol = r.sol.slice(0, 1); return solOut(r, eqs.length > 1 || (a[1] && a[1].T === "set"), true); },
   /* --- Optimierung --- */
   Minimize(a) { return optim(this, a, 1); }, Maximize(a) { return optim(this, a, -1); },
   /* --- Vektoranalysis --- */
@@ -779,7 +809,7 @@ const CMD = {
   Eigenvalues(a) { const m = asMat(a[0]); if (m.r !== m.c || !allNum(m)) throw err("Eigenvalues", "nur numerische quadratische Matrizen"); const n = m.r; const p = x => det(M(n, n, (i, j) => m.d[i][j] - (i === j ? x : 0))); const ev = roots1(p, -1e3, 1e3); return V(ev); },
   /* --- Kurvenanpassung --- */
   PolynomialInterpolation(a) { let xs, ys, x; if (a.length >= 3 && a[0].T === "list" && a[1].T === "list") { xs = a[0].it.map(numOf); ys = a[1].it.map(numOf); x = a[2].n; } else { const P = pointsOf(a[0]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[1].n; } if (new Set(xs).size !== xs.length) throw err("PolynomialInterpolation", "die x-Werte müssen verschieden sein"); return fin(polyAst(polyInterp(xs, ys), x)); },
-  Spline(a) { let xs, ys, x, rest; if (a[0].T === "list" && a[1].T === "list") { xs = a[0].it.map(numOf); ys = a[1].it.map(numOf); x = a[2].n; rest = a.slice(3); } else { const P = pointsOf(a[0]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[1].n; rest = a.slice(2); } const o = optsOf(rest), dg = o.degree ? numOf(o.degree) : 3, ep = o.endpoints ? optStr(o.endpoints) : "natural"; const ord = xs.map((v, i) => i).sort((i, j) => xs[i] - xs[j]); xs = ord.map(i => xs[i]); ys = ord.map(i => ys[i]); if (dg === 1) { const args = []; for (let i = 0; i < xs.length - 1; i++) { const k = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]); if (i < xs.length - 2) args.push({ k: "rel", o: "<", a: Sy(x), b: N(xs[i + 1]) }); args.push(simp({ k: "add", t: [N(ys[i] - k * xs[i]), { k: "mul", f: [N(k), Sy(x)] }] })); } return { k: "fn", n: "piecewise", a: args }; } const sp = splineAst(spline(xs, ys, ep), x); sp.a = sp.a.map((t, i) => i % 2 === 0 && i < sp.a.length - 1 ? t : fltE(t)); return sp; },
+  Spline(a) { let xs, ys, x, rest; if (a[0].T === "list" && a[1].T === "list") { xs = a[0].it.map(numOf); ys = a[1].it.map(numOf); x = a[2].n; rest = a.slice(3); } else { const P = pointsOf(a[0]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[1].n; rest = a.slice(2); } const o = optsOf(rest), dg = o.degree ? numOf(o.degree) : 3, ep = o.endpoints ? (o.endpoints.T === "list" ? o.endpoints.it.map(numOf) : optStr(o.endpoints)) : "natural"; const ord = xs.map((v, i) => i).sort((i, j) => xs[i] - xs[j]); xs = ord.map(i => xs[i]); ys = ord.map(i => ys[i]); if (dg === 1) { const args = []; for (let i = 0; i < xs.length - 1; i++) { const k = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]); if (i < xs.length - 2) args.push({ k: "rel", o: "<", a: Sy(x), b: N(xs[i + 1]) }); args.push(simp({ k: "add", t: [N(ys[i] - k * xs[i]), { k: "mul", f: [N(k), Sy(x)] }] })); } return { k: "fn", n: "piecewise", a: args }; } const sp = splineAst(spline(xs, ys, ep), x); if (sp.a.length === 1) return fltE(sp.a[0]); sp.a = sp.a.map((t, i) => i % 2 === 0 && i < sp.a.length - 1 ? t : fltE(t)); return sp; },
   LeastSquares(a) { let xs, ys, x, rest; if (a[0].T === "list" && a[1].T === "list") { xs = a[0].it.map(numOf); ys = a[1].it.map(numOf); x = a[2].n; rest = a.slice(3); } else { const P = pointsOf(a[0]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[1].n; rest = a.slice(2); } const o = optsOf(rest); let curve = o.curve ? ast(o.curve) : { k: "add", t: [Sy("_a"), { k: "mul", f: [Sy("_b"), Sy(x)] }] }; const params = [...free(curve)].filter(v => v !== x).sort(); const p = leastSquares(xs, ys, curve, x, params); return fitRes(curve, params, p); },
   NonlinearFit(a) { const model = ast(a[0]); let xs, ys, x; if (a[1].T === "list" && a[2].T === "list") { xs = a[1].it.map(numOf); ys = a[2].it.map(numOf); x = a[3].n; } else if (isM(a[1]) && isM(a[2])) { xs = a[1].d.map(numOf); ys = a[2].d.map(numOf); x = a[3].n; } else { const P = pointsOf(a[1]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[2].n; } const o = optsOf(a); const params = [...free(model)].filter(v => v !== x).sort(); let st = null; if (o.initialvalues) { const iv = unwrap(o.initialvalues); const m = {}; (iv.it || []).forEach(q => m[q.a.n] = numOf(q.b)); st = params.map(v => m[v] != null ? m[v] : 1); } const p = nonlinFit(xs, ys, model, x, params, st); return fitRes(model, params, p, true); },
   Fit(a) { return CMD.NonlinearFit.call(this, a); },
@@ -788,9 +818,15 @@ const CMD = {
     const L = seqv[2]; if (!isFinite(L)) return L > 0 ? Sy("infinity") : Sy("-infinity"); if (Math.abs(seqv[2] - seqv[1]) > 1e-4 * Math.max(1, Math.abs(L))) return Math.abs(L) > 1e6 ? Sy(L > 0 ? "infinity" : "-infinity") : { k: "fn", n: "limit", a: [e, r] };
     for (let q = 1; q <= 200; q++) { const p = Math.round(L * q); if (Math.abs(L - p / q) < 1e-7 * Math.max(1, Math.abs(L))) return clean(p / q); } const fp = frac(L / Math.PI, 60); if (fp && Math.abs(L - fp[0] / fp[1] * Math.PI) < 1e-6) return clean(fp[0] / fp[1] * Math.PI); if (Math.abs(L - Math.E) < 1e-6) return { k: "fn", n: "exp", a: [N(1)] }; return clean(+L.toPrecision(10)); },
   LinearFit(a) { const basis = a[0].it.map(ast); let xs, ys, x; if (a[1].T === "list" && a[2].T === "list") { xs = a[1].it.map(numOf); ys = a[2].it.map(numOf); x = a[3].n; } else { const P = pointsOf(a[1]); xs = P.map(p => p[0]); ys = P.map(p => p[1]); x = a[2].n; } const params = basis.map((_, i) => "_c" + i); const model = { k: "add", t: basis.map((b, i) => ({ k: "mul", f: [Sy(params[i]), b] })) }; const p = leastSquares(xs, ys, model, x, params); return fitRes(model, params, p); },
+  DeleteRow(a) { const m = asMat(a[0]), del = new Set((a[1].T === "list" || a[1].T === "seq" ? a[1].it : [a[1]]).map(numOf)), keep = m.d.map((_, i) => i).filter(i => !del.has(i + 1)); return M(keep.length, m.c, (i, j) => m.d[keep[i]][j]); },
+  DeleteColumn(a) { const m = asMat(a[0]), del = new Set((a[1].T === "list" || a[1].T === "seq" ? a[1].it : [a[1]]).map(numOf)), keep = m.d[0].map((_, j) => j).filter(j => !del.has(j + 1)); return M(m.r, keep.length, (i, j) => m.d[i][keep[j]]); },
   Mean(a) { const d = a[0].T === "list" ? a[0].it.map(numOf) : a[0].d.map(numOf); return clean(d.reduce((s, v) => s + v, 0) / d.length); }
 };
 CMD.sqrt = null; delete CMD.sqrt;
+/* p(x) := PolynomialInterpolation(P, x) und dann p(35): wie Maple auch mit einer Zahl (oder einem Ausdruck) statt der Variablen auswerten */
+["PolynomialInterpolation", "Spline", "LeastSquares", "NonlinearFit", "LinearFit", "Fit"].forEach(name => { const f = CMD[name], start = /Fit$/.test(name) ? 1 : 0;
+  CMD[name] = function (a, idx, e) { let i = start; while (i < a.length && a[i] && (a[i].T === "list" || isM(a[i]))) i++; const v = a[i]; if (v == null || (v && v.k === "s")) return f.call(this, a, idx, e);
+    const b = a.slice(); b[i] = Sy("_xv"); const r = f.call(this, b, idx, e), fl = r && r.T === "flt"; const out = substAll(this, unwrap(r), [{ k: "rel", o: "=", a: Sy("_xv"), b: ast(v) }]); return fl && typeof out === "number" ? { T: "flt", v: out } : out; }; });
 /* Plot-Befehle werden in maple-ui.js ergänzt (MPL.CMD) */
 MPL.CMD = CMD;
 

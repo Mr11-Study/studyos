@@ -63,7 +63,7 @@ const tasks = [
 
 list.push({ id: "m2-prep", course: { examPrep: {
   format: "Schriftliche Prüfung mit Maple, 5 Aufgaben mit zusammen 16 Punkten (meist 3 + 3 + 3 + 3 + 4). Jede Prüfung mischt die fünf Kapitel: eine Computergrafik-Aufgabe (Transformationsmatrix), eine Integral-Aufgabe (Fläche, Umfang oder Drehkörper), eine Interpolations- oder Ausgleichsaufgabe, eine Extremwertaufgabe mit Differenzialrechnung und eine Markovkette (meist 4 Punkte). Abgegeben wird das Maple-Worksheet mit Rechenweg und Antwortsätzen. Notenschlüssel: unter 8 Nicht genügend, 8–10 Genügend, 10–12 Befriedigend, 12–14 Gut, 14–16 Sehr gut.",
-  sources: ["Altprüfung SS 2016 (Gruppe C)", "Altprüfung SS 2012", "Skriptum Mathematik 2", "Foliensätze Integral, Mehrdim. Differenzialrechnung, Numerik, Computergrafik, Markovketten"],
+  sources: ["Altprüfung SS 2016 (Gruppe C)", "Altprüfung SS 2012", "Deine Maple-Tests und Übungen (Ordner MathematikUe)", "Skriptum Mathematik 2", "Foliensätze Integral, Mehrdim. Differenzialrechnung, Numerik, Computergrafik, Markovketten"],
   strategy: [
     "Jede Aufgabe mit einer Skizze beginnen (plot, polygonplot). Die Skizze zeigt, welche Kurve oben liegt und wo die Integrationsgrenzen sind.",
     "Schnittpunkte immer mit fsolve(…, x = a..b) im richtigen Bereich suchen, sonst findet Maple den falschen.",
@@ -107,5 +107,5 @@ list.push({ id: "m2-prep", course: { examPrep: {
     { id: "m2c19", topic: "mt-ergod", text: "Ich kann die stabile Verteilung mit NullSpace bzw. LinearSolve berechnen" },
     { id: "m2c20", topic: "mt-absorb", text: "Ich kann Z = N·1 und W = N·R für absorbierende Ketten berechnen" }
   ],
-  tasks } } });
+  tasks: tasks.concat(((window.M2_EIGENE && M2_EIGENE.tasks) || []).map(task)) } } });
 })();
