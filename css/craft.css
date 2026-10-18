@@ -13,6 +13,10 @@ div.pick{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse a
 .pick-tracks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .pick-track{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:16px;border-radius:16px;border:1.5px solid #243244;background:#111924;color:inherit;cursor:pointer}
 .pick-track.on{border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 22%,transparent)}
+.pick-sems{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick-sem{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:12px;border:1.5px solid #243244;background:#111924;color:inherit;cursor:pointer;font:inherit;text-align:left}
+.pick-sem small{opacity:.7;font-size:12px}
+.pick-sem.on{border-color:#8BD126;box-shadow:0 0 0 3px rgba(139,209,38,.22)}
 .pick-track small{color:#8B99AB;font-size:12.5px;line-height:1.35}
 .pt-ic{font-size:22px;color:var(--c)}
 .pick .fld{text-align:left}

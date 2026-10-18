@@ -68,6 +68,13 @@
 [data-theme=study] .hub-apps .hd-mmprov{--c:#C026D3}
 @media (prefers-color-scheme:dark){[data-theme=study] .hub-apps .hd-mmprov{--c:#E879F9}}
 
+/* math2 · Maple */
+[data-theme=study] .th-math2{--f-display:'DM Serif Display',var(--f-fallback);--f-body:'IBM Plex Sans',var(--f-fallback);--r:6px;--r-sm:4px;--btn-r:6px;--bg:hsl(352 16% 96.5%);--side:hsl(352 16% 94%);--card:hsl(352 16% 100%);--card2:hsl(352 16% 98%);--card3:hsl(352 16% 92.5%);--line:hsl(352 16% 88%);--line2:hsl(352 16% 80%);--text:hsl(352 16% 12%);--muted:hsl(352 16% 38%);--faint:hsl(352 16% 60%);--acc:#B3122E;--acc2:#B3122E;--acc-ink:#fff;--acc-soft:rgba(179,18,46,0.09);--acc-line:rgba(179,18,46,0.34);--app-pattern:linear-gradient(#0000 19px,rgba(179,18,46,.05) 20px),linear-gradient(90deg,#0000 19px,rgba(179,18,46,.05) 20px);--app-glow:var(--shadow)}
+@media (prefers-color-scheme:dark){[data-theme=study] .th-math2{--bg:hsl(352 16% 8%);--side:hsl(352 16% 10%);--card:hsl(352 16% 13%);--card2:hsl(352 16% 15.5%);--card3:hsl(352 16% 19%);--line:hsl(352 16% 20%);--line2:hsl(352 16% 27%);--text:hsl(352 16% 92%);--muted:hsl(352 16% 68%);--faint:hsl(352 16% 48%);--acc:#FF5C74;--acc2:#FF5C74;--acc-ink:#2E0410;--acc-soft:rgba(255,92,116,0.13);--acc-line:rgba(255,92,116,0.42);--app-pattern:linear-gradient(#0000 19px,rgba(255,92,116,.045) 20px),linear-gradient(90deg,#0000 19px,rgba(255,92,116,.045) 20px);--app-glow:var(--shadow);--shadow:none}}
+[data-theme=study] .hub-apps .hd-math2{--c:#B3122E}
+@media (prefers-color-scheme:dark){[data-theme=study] .hub-apps .hd-math2{--c:#FF5C74}}
+[data-theme=study] .th-math2.in-app,[data-theme=study] .th-math2.apptile{background-size:20px 20px}
+
 /* sunw2 · Terminal */
 [data-theme=study] .th-sunw2{--f-display:'Chakra Petch',var(--f-fallback);--f-body:'IBM Plex Sans',var(--f-fallback);--r:2px;--r-sm:2px;--btn-r:2px;--bg:hsl(18 12% 96.5%);--side:hsl(18 12% 94%);--card:hsl(18 12% 100%);--card2:hsl(18 12% 98%);--card3:hsl(18 12% 92.5%);--line:hsl(18 12% 88%);--line2:hsl(18 12% 80%);--text:hsl(18 12% 12%);--muted:hsl(18 12% 38%);--faint:hsl(18 12% 60%);--acc:#B23A0B;--acc2:#B23A0B;--acc-ink:#fff;--acc-soft:rgba(178,58,11,0.09);--acc-line:rgba(178,58,11,0.34);--app-pattern:repeating-linear-gradient(45deg,rgba(178,58,11,.05) 0 1px,#0000 1px 16px),repeating-linear-gradient(-45deg,rgba(178,58,11,.05) 0 1px,#0000 1px 16px);--app-glow:var(--shadow)}
 @media (prefers-color-scheme:dark){[data-theme=study] .th-sunw2{--bg:hsl(18 12% 8%);--side:hsl(18 12% 10%);--card:hsl(18 12% 13%);--card2:hsl(18 12% 15.5%);--card3:hsl(18 12% 19%);--line:hsl(18 12% 20%);--line2:hsl(18 12% 27%);--text:hsl(18 12% 92%);--muted:hsl(18 12% 68%);--faint:hsl(18 12% 48%);--acc:#FF7A3D;--acc2:#FF7A3D;--acc-ink:#2B0C00;--acc-soft:rgba(255,122,61,0.13);--acc-line:rgba(255,122,61,0.42);--app-pattern:repeating-linear-gradient(45deg,rgba(255,122,61,.05) 0 1px,#0000 1px 16px),repeating-linear-gradient(-45deg,rgba(255,122,61,.05) 0 1px,#0000 1px 16px);--app-glow:var(--shadow);--shadow:none}}
@@ -132,3 +139,10 @@
 .qt-chips button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
 .qt-score{font:650 52px/1 var(--f-display);letter-spacing:-.03em}
 .qt-rule{border-left:3px solid var(--acc);padding:10px 14px;background:var(--acc-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
+/* Semester-Umschalter im Fächer-Launcher */
+.semtabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 2px}
+.semtab{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--text);cursor:pointer;min-width:150px;text-align:left;font:inherit}
+.semtab small{color:var(--muted);font-size:12px}
+.semtab.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:var(--acc-soft)}
+.semtab:disabled{opacity:.5;cursor:not-allowed}
+.semtab:not(:disabled):not(.on):hover{border-color:var(--line2)}

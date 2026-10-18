@@ -26,6 +26,8 @@ const T = {
              pat: ["linear-gradient(135deg,rgba(122,54,196,.06) 25%,#0000 25%) -12px 0/24px 24px,linear-gradient(225deg,rgba(122,54,196,.06) 25%,#0000 25%) -12px 0/24px 24px", "linear-gradient(135deg,rgba(196,155,255,.05) 25%,#0000 25%) -12px 0/24px 24px,linear-gradient(225deg,rgba(196,155,255,.05) 25%,#0000 25%) -12px 0/24px 24px"], patSize: null },
   mmprov:  { name: "Studio", hue: 292, sat: 20, acc: ["#C026D3", "#E879F9"], ink: ["#fff", "#2A0530"], disp: "'Unbounded'", r: 14, btn: 12, glow: true,
              pat: ["repeating-linear-gradient(#0000 0 3px,rgba(192,38,211,.035) 3px 4px)", "repeating-linear-gradient(#0000 0 3px,rgba(34,211,238,.04) 3px 4px),radial-gradient(60% 40% at 100% 0,rgba(232,121,249,.14),#0000 70%)"] },
+  math2:   { name: "Maple", hue: 352, sat: 16, acc: ["#B3122E", "#FF5C74"], ink: ["#fff", "#2E0410"], disp: "'DM Serif Display'", body: "'IBM Plex Sans'", r: 6, btn: 6,
+             pat: ["linear-gradient(#0000 19px,rgba(179,18,46,.05) 20px),linear-gradient(90deg,#0000 19px,rgba(179,18,46,.05) 20px)", "linear-gradient(#0000 19px,rgba(255,92,116,.045) 20px),linear-gradient(90deg,#0000 19px,rgba(255,92,116,.045) 20px)"], patSize: "20px 20px" },
   sunw2:   { name: "Terminal", hue: 18, sat: 12, acc: ["#B23A0B", "#FF7A3D"], ink: ["#fff", "#2B0C00"], disp: "'Chakra Petch'", r: 2, btn: 2,
              pat: ["repeating-linear-gradient(45deg,rgba(178,58,11,.05) 0 1px,#0000 1px 16px),repeating-linear-gradient(-45deg,rgba(178,58,11,.05) 0 1px,#0000 1px 16px)", "repeating-linear-gradient(45deg,rgba(255,122,61,.05) 0 1px,#0000 1px 16px),repeating-linear-gradient(-45deg,rgba(255,122,61,.05) 0 1px,#0000 1px 16px)"] }
 };
@@ -116,6 +118,13 @@ css += `
 .qt-chips button.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
 .qt-score{font:650 52px/1 var(--f-display);letter-spacing:-.03em}
 .qt-rule{border-left:3px solid var(--acc);padding:10px 14px;background:var(--acc-soft);border-radius:0 var(--r-sm) var(--r-sm) 0}
+/* Semester-Umschalter im Fächer-Launcher */
+.semtabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 2px}
+.semtab{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--text);cursor:pointer;min-width:150px;text-align:left;font:inherit}
+.semtab small{color:var(--muted);font-size:12px}
+.semtab.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:var(--acc-soft)}
+.semtab:disabled{opacity:.5;cursor:not-allowed}
+.semtab:not(:disabled):not(.on):hover{border-color:var(--line2)}
 `;
 fs.writeFileSync(path.join(__dirname, "..", "css", "apps.css"), css);
 console.log("css/apps.css geschrieben,", css.length, "Zeichen");

@@ -43,7 +43,7 @@ function appNav(c) {
   return [
     ["Lernen", [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skript", "❡"], ["review", "c:" + c.id, "Üben", "↻"]]],
     ["Prüfung", [c.examPrep && ["prep", c.id, qt ? "Quick-Test-Vorbereitung" : "Prüfung üben", "✎"], ["exam", "", qt ? "Quick-Test" : "Prüfungssimulation", "⏱"]].filter(Boolean)],
-    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Übungen", "λ"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], ["resources", "", "Material", "⎘"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
+    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Übungen", "λ"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], c.maple && ["maple", "", "Maple-Labor", "▸"], ["resources", "", "Material", "⎘"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
@@ -81,13 +81,15 @@ App.SIDE = () => {
 
 /* ---------- Fächer: Launcher, jede Kachel im Design ihrer App ---------- */
 PAGES.courses = (el) => {
-  el.innerHTML = `<div class="page"><header><span class="eyebrow">Semester 3 · WS 2026/27</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Jedes Fach ist eine eigene App mit eigenem Skript, Üben und Prüfungstraining. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p></header>
+  el.innerHTML = `<div class="page"><header><span class="eyebrow">${esc(App.SEMLABEL || "")}</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Jedes Fach ist eine eigene App mit eigenem Skript, Üben und Prüfungstraining. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p></header>
+   ${App.TRACK === "uni" && window.StudyProfiles && StudyProfiles.active() ? `<div class="semtabs" role="tablist" aria-label="Semester">${App.SEMS.map(x => { const n = App.semCount(x.n); return `<button class="semtab ${x.n === App.SEM ? "on" : ""}" data-sem="${x.n}" role="tab" aria-selected="${x.n === App.SEM}" ${n ? "" : "disabled"}><b>Semester ${x.n}</b><small>${x.term} · ${n ? n + (n === 1 ? " Fach" : " Fächer") : "noch keine Fächer"}</small></button>`; }).join("")}</div>` : ""}
    <div class="appgrid">${COURSES.map(c => { const ls = App.courseLessons(c.id), n = ls.length, u = ls.filter(l => App.isDone(l.id)).length, k = App.knowCourse ? App.knowCourse(c.id) : 0, cn = counts(c.id);
      return `<button class="apptile th-${c.id}" data-go="course" data-p="${c.id}"><div class="spread"><div class="at-ic">${esc(c.icon || c.short[0])}</div><small>${esc(c.short)}</small></div>
        <div><h3>${esc(c.title)}</h3><small>${esc(c.name)}</small></div>
        <div class="col" style="gap:5px"><div class="spread"><small>Wissen</small><small class="tab">${k} %</small></div><div class="at-bar"><i style="width:${k}%"></i></div></div>
        <div class="at-meta"><span>${u}/${n} Lektionen</span>${cn.due ? `<span class="w">${cn.due} fällig</span>` : ""}${c.exam === "quicktest" ? `<span>Quick-Tests</span>` : ""}</div></button>`; }).join("")}</div></div>`;
 };
+document.addEventListener("click", e => { const b = e.target.closest(".semtab[data-sem]"); if (!b || b.disabled || +b.dataset.sem === App.SEM) return; StudyProfiles.setSem(+b.dataset.sem); });
 wrapPage("courses"); // setApp läuft ohnehin
 
 /* ---------- Einstellungen: Fach-Optionen ---------- */
