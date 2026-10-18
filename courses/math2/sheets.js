@@ -118,5 +118,5 @@ const tennis = { id: "ex-tennis", title: "Tennis: das ganze Game (17 Zustände)"
   T("Ab 0:0 gewinnt der Aufschläger mit ≈ 62.3 %, ein Game dauert im Schnitt ≈ 6.68 Ballwechsel. Ab Einstand: p²/(p² + q²) ≈ 0.599. Setz p := 0.5 oder p := 0.6 und führe alles neu aus.")
 ] };
 
-list.push({ id: "m2-sheets", course: { mapleSheets: fromLessons.concat([ss16, ss12, tennis]) } });
+list.push({ id: "m2-sheets", course: { mapleSheets: fromLessons.concat([ss16, ss12, tennis], (window.M2_EIGENE && M2_EIGENE.sheets) || []) } });
 })();

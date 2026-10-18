@@ -60,7 +60,10 @@ CMD.plot = function (a) {
   return P2(items, po);
 };
 CMD.pointplot = function (a) { const o = optsOf(a), st = style(o, 0); let pts; const v = unwrap(a[0]); if (v.T === "list" && v.it.length && v.it.every(x => typeof unwrap(x) === "number") && a[1] && a[1].T === "list") pts = v.it.map((x, i) => [numOf(x), numOf(a[1].it[i])]); else pts = pointsOf(v); return P2([Object.assign({ type: "pts", pts }, st, { color: o.color ? colOf(o.color) : "#1565C0", size: o.symbolsize ? numOf(o.symbolsize) / 3 : 4.5 })], plotOpts(a)); };
-CMD.polygonplot = function (a) { const o = optsOf(a), v = unwrap(a[0]); const polys = isPointList(v) ? [pointsOf(v)] : v.it.map(p => pointsOf(unwrap(p))); return P2(polys.map((pts, i) => Object.assign({ type: "poly", pts }, style(o, i), { alpha: o.transparency != null ? 1 - numOf(o.transparency) : .35 })), plotOpts(a)); };
+CMD.polygonplot = function (a) { const o = optsOf(a), v = unwrap(a[0]);
+  /* Matrix: n×2 (Zeilen = Punkte) oder 2×n (Spalten = Punkte, z. B. DeleteRow(P, 3) aus homogenen Koordinaten) */
+  const isMt = m => m && m.T === "mat", fromM = m => { const d = m.d.map(r => r.map(numOf)); return m.c === 2 && m.r !== 2 ? d : d[0].map((_, j) => [d[0][j], d[1][j]]); };
+  const polys = isMt(v) ? [fromM(v)] : isPointList(v) ? [pointsOf(v)] : v.it.map(p => isMt(unwrap(p)) ? fromM(unwrap(p)) : pointsOf(unwrap(p))); return P2(polys.map((pts, i) => Object.assign({ type: "poly", pts }, style(o, i), { alpha: o.transparency != null ? 1 - numOf(o.transparency) : .35 })), plotOpts(a)); };
 CMD.textplot = function (a) { const o = optsOf(a), v = unwrap(a[0]); const it = v.it && v.it.length === 3 && typeof unwrap(v.it[0]) === "number" ? [v] : v.it; return P2(it.map(t => { t = unwrap(t); return { type: "text", x: numOf(t.it[0]), y: numOf(t.it[1]), s: optStr(unwrap(t.it[2])), color: o.color ? colOf(o.color) : "currentColor" }; }), plotOpts(a)); };
 CMD.arrow = function (a) { const o = optsOf(a), p = unwrap(a[0]), v = unwrap(a[1]); const P = (p.it || p.d).map(numOf), W = (v.it || v.d).map(numOf); return P2([{ type: "arrow", x1: P[0], y1: P[1], x2: P[0] + W[0], y2: P[1] + W[1], color: o.color ? colOf(o.color) : PAL[1], thick: 2 }], plotOpts(a)); };
 CMD.implicitplot = function (a) {
