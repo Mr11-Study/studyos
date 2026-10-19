@@ -1,18 +1,20 @@
-/* StudyOS profiles: several people on one device, each with own data, track (study / craft) and look.
+/* StudyOS profiles: several students on one device, each with own data and semester.
    Runs before everything else. Sets window.STUDYOS_PID / STUDYOS_TRACK or shows the picker. */
 (function () {
   const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } };
   const SS = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { return null; } };
   const TRACKS = {
-    uni: { label: "Studium", sub: "Wirtschaftsinformatik · Kurse, Prüfungen, Git", icon: "◆", color: "#8BD126" },
-    craft: { label: "Stricken & Häkeln", sub: "Techniken, 3D-Maschen, Muster, Projekte", icon: "✿", color: "#C8664B" },
-    tcg: { label: "Sammlung", sub: "Pokémon-Karten & Sealed · Cardmarket-Preise", icon: "◈", color: "#F5C542" }
+    uni: { label: "Studium", sub: "Wirtschaftsinformatik · Kurse, Prüfungen, Git", icon: "◆", color: "#8BD126" }
   };
   /* Semester: jedes Studium-Profil lernt ein Semester; Kurse tragen course.semester (core.js filtert danach) */
   const SEMS = [{ n: 1, term: "WS 2025/26" }, { n: 2, term: "SS 2026" }, { n: 3, term: "WS 2026/27" }];
   const keyOf = id => id === "main" ? "studyos.v2" : "studyos.v2." + id;
   const secretOf = id => id === "main" ? "studyos.secrets" : "studyos.secrets." + id;
+  /* Sync-Link vom QR-Code (#pair=…) aufheben, bevor Profilwahl oder Neuladen den #-Teil verwerfen */
+  if (/^#pair=/.test(location.hash)) { SS("studyos.pair", location.hash.slice(6)); try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { location.hash = ""; } }
   let list = []; try { list = JSON.parse(LS("studyos.profiles") || "[]"); } catch (e) { list = []; }
+  /* Die früheren Profile „Stricken & Häkeln“ und „Sammlung“ gibt es nicht mehr */
+  if (list.some(p => (p.track || "uni") !== "uni")) { list = list.filter(p => (p.track || "uni") === "uni"); LS("studyos.profiles", JSON.stringify(list)); }
   if (!list.length && LS("studyos.v2")) { let n = "Kevin"; try { n = JSON.parse(LS("studyos.v2")).name || n; } catch (e) {} list = [{ id: "main", name: n, track: "uni" }]; LS("studyos.profiles", JSON.stringify(list)); }
   const save = () => LS("studyos.profiles", JSON.stringify(list));
   const byId = id => list.find(p => p.id === id);
@@ -21,14 +23,8 @@
   if (!active && list.length === 1) active = list[0].id;
   const P = byId(active);
   const applyTheme = track => {
-    document.documentElement.dataset.theme = track === "craft" || track === "tcg" ? track : track === "uni" ? "study" : "";
+    document.documentElement.dataset.theme = track === "uni" ? "study" : "";
     if (track === "uni") { const dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = dark ? "#121417" : "#F5F4EF"; const cs = document.querySelector('meta[name="color-scheme"]'); if (cs) cs.content = "light dark"; }
-    if (track === "tcg") { const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = "#0C1016"; }
-    if (track === "craft") {
-      const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"; document.head.appendChild(l);
-      const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = "#FBF6F0";
-      const cs = document.querySelector('meta[name="color-scheme"]'); if (cs) cs.content = "light";
-    }
   };
   if (P) {
     window.STUDYOS_PID = P.id; window.STUDYOS_TRACK = P.track || "uni"; window.STUDYOS_PNAME = P.name; window.STUDYOS_SEM = P.sem || 3;
@@ -41,20 +37,18 @@
   function picker(startCreate) {
     applyTheme("");
     const root = document.createElement("div"); root.className = "pick"; document.body.appendChild(root);
-    let creating = startCreate || !list.length, track = "craft", nameVal = "", sem = 3;
+    let creating = startCreate || !list.length, track = "uni", nameVal = "", sem = 3;
     const draw = () => {
       root.innerHTML = `<div class="pick-box">
         <div class="pick-brand"><div class="logo">S</div><b>StudyOS</b></div>
-        ${creating ? `<h1>${list.length ? "Neues Profil" : "Willkommen"}</h1><p class="muted">${list.length ? "Jedes Profil hat eigene Kurse, eigenen Fortschritt und eigenes Design." : "Lege dein Profil an. Alles bleibt auf diesem Gerät."}</p>
-          <label class="fld">Name<input type="text" id="pk-name" maxlength="24" placeholder="z. B. Angi" autocomplete="off" value="${esc(nameVal)}"></label>
-          <div class="eyebrow">Wofür nutzt du die App?</div>
-          <div class="pick-tracks">${Object.entries(TRACKS).map(([k, t]) => `<button class="pick-track ${k === track ? "on" : ""}" data-track="${k}" style="--c:${t.color}"><span class="pt-ic">${t.icon}</span><b>${t.label}</b><small>${t.sub}</small></button>`).join("")}</div>
+        ${creating ? `<h1>${list.length ? "Neues Profil" : "Willkommen"}</h1><p class="muted">${list.length ? "Jedes Profil hat eigenen Fortschritt und ein eigenes Semester." : "Lege dein Profil an. Alles bleibt auf diesem Gerät."}</p>
+          <label class="fld">Name<input type="text" id="pk-name" maxlength="24" placeholder="Dein Name" autocomplete="off" value="${esc(nameVal)}"></label>
           ${track === "uni" ? `<div class="eyebrow">Welches Semester lernst du?</div><div class="pick-sems">${SEMS.map(x => `<button class="pick-sem ${x.n === sem ? "on" : ""}" data-sem="${x.n}"><b>Semester ${x.n}</b><small>${x.term}</small></button>`).join("")}</div><small class="muted">Später jederzeit unter „Alle Fächer“ umschaltbar.</small>` : ""}
           <label class="pick-rem"><input type="checkbox" id="pk-rem" checked> Auf diesem Gerät automatisch öffnen</label>
           <div class="pick-actions">${list.length ? `<button class="btn ghost" id="pk-back">Zurück</button>` : ""}<button class="btn pri" id="pk-create">Profil erstellen</button></div>`
         : `<h1>Wer lernt heute?</h1>
           <div class="pick-grid">${list.map(p => { const t = TRACKS[p.track] || TRACKS.uni; return `<button class="pick-p" data-pid="${esc(p.id)}" style="--c:${t.color}"><span class="pp-av">${esc((p.name || "?")[0].toUpperCase())}</span><b>${esc(p.name)}</b><small>${t.label}</small></button>`; }).join("")}
-            <button class="pick-p add" id="pk-add"><span class="pp-av">+</span><b>Profil hinzufügen</b><small>Stricken, Häkeln oder Studium</small></button></div>
+            <button class="pick-p add" id="pk-add"><span class="pp-av">+</span><b>Profil hinzufügen</b><small>Weitere Person</small></button></div>
           <label class="pick-rem"><input type="checkbox" id="pk-rem"> Auswahl auf diesem Gerät merken</label>`}
       </div>`;
       root.onclick = e => {

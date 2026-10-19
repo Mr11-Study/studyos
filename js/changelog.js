@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.12.0", d: "2026-10-19", t: "Sprache, besserer Sync, aufgeräumt", items: [
+    "Neue Einstellung „Sprache“: Die ganze App lässt sich in über 20 Sprachen anzeigen. Übersetzt wird direkt auf dem Gerät mit dem Übersetzer des Browsers.",
+    "Sync zwischen Handy und Laptop führt jetzt den Fortschritt beider Geräte zusammen, statt einen Stand zu überschreiben.",
+    "Weiteres Gerät per QR-Code verbinden, ohne Token abzutippen.",
+    "Die Bereiche Pokémon-Sammlung und Stricken & Häkeln sind entfernt, StudyOS konzentriert sich aufs Studium."] },
   { v: "4.11.0", d: "2026-10-19", t: "Versionsverlauf", items: [
     "Neue Seite „Neuigkeiten“: zeigt, was in welcher Version dazugekommen ist.",
     "Nach einem Update weist die App einmal auf die Neuerungen hin."] },

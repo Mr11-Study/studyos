@@ -467,3 +467,5 @@ table.dt{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric
 .cl-v{font:600 12px var(--f-mono);color:var(--acc);background:var(--acc-soft);border:1px solid var(--acc-line);padding:2px 8px;border-radius:20px}
 .cl-d{margin-left:auto}
 .cl-new{border-color:var(--acc-line)}
+.pair-qr{background:#fff;border-radius:var(--r);padding:8px;max-width:260px;margin:4px auto}
+.pair-qr svg{display:block;width:100%;height:auto}

@@ -8,6 +8,7 @@ App.resetLesson = id => {
   const l = App.LBYID[id]; if (!l) return;
   delete S().lessons[id];
   widgetsOf([l]).forEach(w => delete S().widgets[w]);
+  S().epoch = Date.now(); /* Sync: dieser Stand ersetzt den des anderen Geräts, sonst käme der Fortschritt zurück */
   App.save();
 };
 
@@ -27,6 +28,7 @@ App.resetCourse = (cid, what) => {
     Object.values(s.masteryHist || {}).forEach(d => { if (d && typeof d === "object") delete d[cid]; });
   }
   if (what.cards) App.FLASH.filter(f => f.course === cid).forEach(f => delete s.cards[f.id]);
+  s.epoch = Date.now();
   if (s.srs && (what.mastery || what.cards)) { App.QUESTIONS.concat(App.BOSSQ).filter(q => q.course === cid).forEach(q => delete s.srs["q:" + q.id]); App.FLASH.filter(f => f.course === cid).forEach(f => delete s.srs["f:" + f.id]); }
   App.save();
 };
@@ -71,7 +73,7 @@ PAGES.settings = (el, p) => {
   const box = document.createElement("div"); box.className = "card col";
   box.innerHTML = `<h3>Lernfortschritt zurücksetzen</h3><p class="muted" style="font-size:14px">Einzelne Kurse neu lernen, ohne Termine oder Notizen zu verlieren.</p>
     ${App.COURSES.filter(c => App.LESSONS.some(l => l.course === c.id)).map(c => `<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div><span class="dot" style="--c:${c.color}"></span> ${esc(c.title)} <small class="muted">${App.courseLessons(c.id).filter(l => App.isDone(l.id)).length}/${App.courseLessons(c.id).length} Lektionen</small></div><button class="btn sm" data-rs="${c.id}">↺ Zurücksetzen</button></div>`).join("")}
-    ${App.TRACK === "craft" ? "" : `<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div>Git-Labor <small class="muted">Missionen & simulierte Repos</small></div><button class="btn sm" id="rs-git">↺ Zurücksetzen</button></div>`}`;
+    ${`<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div>Git-Labor <small class="muted">Missionen & simulierte Repos</small></div><button class="btn sm" id="rs-git">↺ Zurücksetzen</button></div>`}`;
   danger.closest(".card").insertAdjacentElement("beforebegin", box);
   if (window.StudyProfiles) {
     const P = StudyProfiles, me = P.active(), others = P.list().filter(x => !me || x.id !== me.id);

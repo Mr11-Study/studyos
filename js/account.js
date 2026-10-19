@@ -36,7 +36,7 @@ function onboarding() {
 
 /* ---------------- backup ---------------- */
 function exportBackup() { App.download("studyos-backup-" + App.today() + ".json", JSON.stringify(S(), null, 1), "application/json"); S().profile.lastBackup = Date.now(); App.save(); }
-function importBackup(file) { const rd = new FileReader(); rd.onload = () => { try { const obj = JSON.parse(rd.result); if (!obj || !obj.v) throw new Error("Keine StudyOS-Sicherung"); App.modal(`<h2>Sicherung einspielen?</h2><p>Stand vom ${new Date(obj.updatedAt || 0).toLocaleString("de-AT")}. Dein aktueller Stand auf diesem Gerät wird ersetzt.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="imp-y">Ersetzen</button></div>`, (m, close) => { $("#imp-y", m).onclick = () => { App.replaceState(obj); close(); App.toast("Wiederhergestellt", "Sicherung eingespielt.", "↺"); }; }); } catch (e) { App.toast("Import fehlgeschlagen", e.message, "!"); } }; rd.readAsText(file); }
+function importBackup(file) { const rd = new FileReader(); rd.onload = () => { try { const obj = JSON.parse(rd.result); if (!obj || !obj.v) throw new Error("Keine StudyOS-Sicherung"); App.modal(`<h2>Sicherung einspielen?</h2><p>Stand vom ${new Date(obj.updatedAt || 0).toLocaleString("de-AT")}. Dein aktueller Stand auf diesem Gerät wird ersetzt.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="imp-y">Ersetzen</button></div>`, (m, close) => { $("#imp-y", m).onclick = () => { App.replaceState(Object.assign(obj, { epoch: Date.now(), sync: S().sync })); close(); App.toast("Wiederhergestellt", "Sicherung eingespielt.", "↺"); }; }); } catch (e) { App.toast("Import fehlgeschlagen", e.message, "!"); } }; rd.readAsText(file); }
 
 /* ---------------- GitHub Gist sync ---------------- */
 const GIST_FILE = "studyos-state.json";
@@ -49,17 +49,69 @@ async function pushGist() {
 }
 async function pullGist() { const g = await gh("/gists/" + S().sync.gistId); const f = g.files[GIST_FILE]; if (!f) throw new Error("Datei fehlt im Gist"); let txt = f.content; if (f.truncated) txt = await (await fetch(f.raw_url)).text(); return JSON.parse(txt); }
 let syncBusy = false;
+/* Zwei Stände zusammenführen statt einen zu überschreiben: Fortschritt von beiden Geräten bleibt erhalten.
+   Wurde auf einem Gerät zurückgesetzt oder eine Sicherung eingespielt (epoch), gewinnt dieser Stand ganz. */
+const isObj = x => x && typeof x === "object" && !Array.isArray(x);
+function deepUnion(older, newer) { const o = Object.assign({}, older); Object.keys(newer || {}).forEach(k => { o[k] = isObj(o[k]) && isObj(newer[k]) ? deepUnion(o[k], newer[k]) : newer[k]; }); return o; }
+const perKey = (a, b, pick) => { const o = Object.assign({}, a || {}); Object.keys(b || {}).forEach(k => { o[k] = k in o ? pick(o[k], b[k]) : b[k]; }); return o; };
+const unionList = (a, b) => { const seen = new Set(), out = []; (a || []).concat(b || []).forEach(x => { const k = isObj(x) && (x.id || x.ts) ? String(x.id || "") + "|" + String(x.ts || "") : JSON.stringify(x); if (!seen.has(k)) { seen.add(k); out.push(x); } }); return out.sort((x, y) => ((x && x.ts) || 0) - ((y && y.ts) || 0)); };
+const MERGE = {
+  xp: (a, b) => Math.max(a || 0, b || 0),
+  lessons: (a, b) => perKey(a, b, (x, y) => Object.assign({}, x, y, { done: !!(x.done || y.done), read: !!(x.read || y.read), checks: Object.assign({}, x.checks, y.checks) })),
+  days: (a, b) => perKey(a, b, (x, y) => { const o = Object.assign({}, x); Object.keys(y).forEach(k => { o[k] = typeof y[k] === "number" ? Math.max(o[k] || 0, y[k]) : y[k]; }); return o; }),
+  topics: (a, b) => perKey(a, b, (x, y) => (y || []).length > (x || []).length ? y : x),
+  cards: (a, b) => perKey(a, b, (x, y) => { const n = c => (c.reps || 0) + (c.lapses || 0); return n(y) > n(x) || (n(y) === n(x) && (y.due || 0) > (x.due || 0)) ? y : x; }),
+  srs: (a, b) => perKey(a, b, (x, y) => (y.n || 0) > (x.n || 0) || ((y.n || 0) === (x.n || 0) && String(y.last || "") > String(x.last || "")) ? y : x),
+  ach: (a, b) => perKey(a, b, (x, y) => Math.min(x, y)),
+  quizHist: unionList, exams: unionList, imports: unionList
+};
+App.mergeStates = function (local, remote) {
+  if ((remote.epoch || 0) !== (local.epoch || 0)) return (remote.epoch || 0) > (local.epoch || 0) ? remote : local;
+  const newer = (remote.updatedAt || 0) > (local.updatedAt || 0) ? remote : local, older = newer === remote ? local : remote, out = {};
+  new Set(Object.keys(local).concat(Object.keys(remote))).forEach(k => {
+    const a = older[k], b = newer[k];
+    if (a === undefined) out[k] = b; else if (b === undefined) out[k] = a;
+    else if (MERGE[k]) out[k] = MERGE[k](a, b);
+    else if (isObj(a) && isObj(b) && !["settings", "profile", "ui", "sync", "git", "notify", "ai"].includes(k)) out[k] = deepUnion(a, b);
+    else out[k] = b;
+  });
+  out.updatedAt = Math.max(local.updatedAt || 0, remote.updatedAt || 0);
+  return out;
+};
 async function syncNow(interactive) {
   if (!SEC().ghToken || syncBusy || !navigator.onLine) return; syncBusy = true; setSync("Synchronisiere …");
   try {
-    if (S().sync.gistId) { const remote = await pullGist(); if ((remote.updatedAt || 0) > (S().updatedAt || 0) + 1000) {
-        if (interactive || !S().updatedAt || (S().sync.last && S().updatedAt <= S().sync.last)) { const gid = S().sync.gistId; App.replaceState(Object.assign(remote, { sync: Object.assign(remote.sync || {}, { gistId: gid, last: Date.now() }) })); setSync("Neuerer Stand vom anderen Gerät geladen · " + new Date().toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" })); syncBusy = false; return; }
-        else { conflictDialog(remote); syncBusy = false; return; } } }
+    if (S().sync.gistId) {
+      const remote = await pullGist(), gid = S().sync.gistId, cur = JSON.stringify(S());
+      const merged = App.mergeStates(JSON.parse(cur), remote);
+      merged.sync = Object.assign({}, S().sync, { gistId: gid });
+      merged.profile = Object.assign({}, merged.profile, { pinHash: S().profile.pinHash });
+      if (JSON.stringify(merged) !== cur) App.replaceState(merged);
+    }
     await pushGist(); setSync("Synchronisiert · " + new Date().toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" }));
+    if (interactive) App.toast("Synchronisiert", "Beide Geräte haben jetzt denselben Stand.", "⇅");
   } catch (e) { setSync("Sync-Fehler: " + e.message); if (interactive) App.toast("Sync-Fehler", e.message, "!"); }
   syncBusy = false;
 }
-function conflictDialog(remote) { App.modal(`<h2>Zwei Stände gefunden</h2><p>Auf einem anderen Gerät und auf diesem wurde seit dem letzten Sync gelernt.</p><div class="grid g2"><div class="card stat"><b>Anderes Gerät</b><span> · ${new Date(remote.updatedAt).toLocaleString("de-AT")}</span></div><div class="card stat"><b>Dieses Gerät</b><span> · ${new Date(S().updatedAt).toLocaleString("de-AT")}</span></div></div><div class="row" style="justify-content:flex-end"><button class="btn" id="cf-r">Anderes Gerät übernehmen</button><button class="btn pri" id="cf-l">Dieses Gerät behalten</button></div>`, (m, close) => { $("#cf-r", m).onclick = () => { const gid = S().sync.gistId; App.replaceState(Object.assign(remote, { sync: { gistId: gid, last: Date.now() } })); close(); }; $("#cf-l", m).onclick = async () => { close(); await pushGist(); setSync("Synchronisiert"); }; }); }
+/* Zweites Gerät verbinden: der QR-Code enthält einen Link mit Token und Gist-ID im #-Teil (wird nie an einen Server geschickt) */
+const b64u = str => btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = str => decodeURIComponent(escape(atob(str.replace(/-/g, "+").replace(/_/g, "/"))));
+function pairDialog() {
+  const url = location.origin + location.pathname + "#pair=" + b64u(JSON.stringify({ t: SEC().ghToken, g: S().sync.gistId }));
+  let svg = ""; try { const q = qrcode(0, "M"); q.addData(url); q.make(); svg = q.createSvgTag({ cellSize: 4, margin: 3, scalable: true }); } catch (e) {}
+  App.modal(`<h2>Weiteres Gerät verbinden</h2><p>Scanne den Code mit der Kamera des Handys und öffne den Link. StudyOS übernimmt die Verbindung und lädt deinen Stand.</p>
+    <div class="pair-qr">${svg}</div>
+    <p class="muted" style="font-size:13px">Kein Scanner zur Hand? Link kopieren und auf dem anderen Gerät öffnen. Der Code enthält deinen Sync-Schlüssel, also nur selbst verwenden.</p>
+    <div class="row" style="justify-content:flex-end"><button class="btn sm" id="pair-copy">Link kopieren</button><button class="btn pri sm" data-close>Fertig</button></div>`, m => {
+    $("#pair-copy", m).onclick = () => { (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => App.toast("Kopiert", "Link in der Zwischenablage.", "⎘"), () => prompt("Link kopieren:", url)); };
+  });
+}
+function takePairing() {
+  let raw = null; try { raw = sessionStorage.getItem("studyos.pair"); sessionStorage.removeItem("studyos.pair"); } catch (e) {}
+  if (!raw) return;
+  try { const d = JSON.parse(unb64u(raw)); if (!d.t || !d.g) throw new Error("unvollständig"); SEC().ghToken = d.t; App.saveSecrets(); S().sync.gistId = d.g; App.save(); setSync("Verbunden"); setTimeout(() => syncNow(true), 300); }
+  catch (e) { App.toast("Verbinden fehlgeschlagen", "Der Link ist ungültig. Bitte den QR-Code neu erzeugen.", "!"); }
+}
 const setSync = t => { const el = $("#sync"); if (el) el.textContent = t; };
 let syncTimer; App.onSaved = () => { if (SEC().ghToken && S().sync.auto !== false) { clearTimeout(syncTimer); syncTimer = setTimeout(() => syncNow(false), 20000); } };
 
@@ -116,10 +168,10 @@ PAGES.settings = el => {
      <div class="card col"><h3>Sperre (Anmeldung)</h3><p class="muted" style="font-size:14px">${s.profile.pinHash ? "PIN ist aktiv. StudyOS sperrt sich nach " + (s.profile.lockAfterMin || 5) + " min im Hintergrund." : "Kein PIN gesetzt."} Der PIN ist eine Bildschirmsperre für dieses Gerät, keine Verschlüsselung.</p>
       <div class="row"><input type="password" inputmode="numeric" maxlength="6" id="st-pin" placeholder="Neuer PIN (4–6 Ziffern)" style="max-width:200px"><button class="btn sm" id="st-pinset">${s.profile.pinHash ? "PIN ändern" : "PIN setzen"}</button>${s.profile.pinHash ? `<button class="btn ghost sm" id="st-pinrm">PIN entfernen</button><button class="btn ghost sm" id="st-lock">Jetzt sperren</button>` : ""}<label class="row" style="gap:6px">Sperren nach <input type="number" id="st-lockmin" min="1" max="120" value="${s.profile.lockAfterMin || 5}" style="width:70px"> min</label></div></div>
      <div class="card col"><h3>Sync zwischen Handy und Laptop</h3>
-      <p class="muted" style="font-size:14px">Dein Fortschritt liegt lokal auf jedem Gerät. Zum Abgleichen nutzt StudyOS ein <b>privates GitHub Gist</b> in deinem eigenen GitHub-Konto. Einmal auf beiden Geräten dasselbe Token eintragen, dann synchronisiert die App automatisch.</p>
-      <ol class="install-steps muted" style="font-size:13px"><li>github.com → Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b> → Generate new token</li><li>Nur den Scope <b>gist</b> anhaken, Ablaufdatum z. B. 1 Jahr</li><li>Token hier einfügen → „Verbinden“. Auf dem zweiten Gerät dasselbe Token + die angezeigte Gist-ID eintragen.</li></ol>
+      <p class="muted" style="font-size:14px">Dein Fortschritt liegt lokal auf jedem Gerät. Zum Abgleichen nutzt StudyOS ein <b>privates GitHub Gist</b> in deinem eigenen GitHub-Konto. Einmal am Laptop verbinden, dann das Handy per QR-Code dazuholen. Danach gleicht die App automatisch ab und führt den Fortschritt beider Geräte zusammen, es geht nichts verloren.</p>
+      <ol class="install-steps muted" style="font-size:13px"><li>github.com → Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b> → Generate new token</li><li>Nur den Scope <b>gist</b> anhaken, Ablaufdatum z. B. 1 Jahr</li><li>Token hier einfügen → „Verbinden“.</li><li>Auf diesem Gerät „Weiteres Gerät verbinden“ antippen und den QR-Code mit der Kamera des Handys scannen. Fertig.</li></ol>
       <div class="grid g2"><label class="fld">GitHub-Token (bleibt nur auf diesem Gerät)<input type="password" id="st-tok" value="${SEC().ghToken ? "••••••••" : ""}" placeholder="ghp_…"></label><label class="fld">Gist-ID (leer = neu anlegen)<input type="text" id="st-gist" value="${esc(s.sync.gistId || "")}"></label></div>
-      <div class="row"><button class="btn pri sm" id="st-sync">${SEC().ghToken ? "Jetzt synchronisieren" : "Verbinden"}</button>${SEC().ghToken ? `<button class="btn ghost sm" id="st-unsync">Trennen</button>` : ""}<small class="muted">${s.sync.last ? "Zuletzt: " + new Date(s.sync.last).toLocaleString("de-AT") : ""}</small></div>
+      <div class="row"><button class="btn pri sm" id="st-sync">${SEC().ghToken ? "Jetzt synchronisieren" : "Verbinden"}</button>${SEC().ghToken && s.sync.gistId ? `<button class="btn sm" id="st-pair">Weiteres Gerät verbinden (QR-Code)</button>` : ""}${SEC().ghToken ? `<button class="btn ghost sm" id="st-unsync">Trennen</button>` : ""}<small class="muted">${s.sync.last ? "Zuletzt: " + new Date(s.sync.last).toLocaleString("de-AT") : ""}</small></div>
       <div class="divider"></div><div class="spread"><div><b>Backup-Datei</b><div><small class="muted">Alternative ohne GitHub: exportieren und auf dem anderen Gerät importieren.${s.profile.lastBackup ? " Letztes Backup: " + new Date(s.profile.lastBackup).toLocaleDateString("de-AT") : ""}</small></div></div><div class="row"><button class="btn sm" id="st-exp">Exportieren</button><label class="btn sm">Importieren<input type="file" id="st-imp" accept=".json" hidden></label></div></div></div>
      <div class="card col"><h3>KI-Assistent (optional)</h3>
       <p class="muted" style="font-size:14px">Standardmäßig aus – StudyOS braucht keine KI. Wenn du willst: eigenen Anthropic-API-Schlüssel eintragen (console.anthropic.com). Jede Anfrage wird vorher abgefragt. In Kommunikationstraining ist der Assistent wegen des KI-Verbots immer aus.</p>
@@ -139,6 +191,7 @@ PAGES.settings = el => {
     const lk = $("#st-lock", el); if (lk) lk.onclick = () => lockScreen();
     $("#st-lockmin", el).onchange = e => { s.profile.lockAfterMin = +e.target.value || 5; App.save(); };
     $("#st-sync", el).onclick = async () => { const t = $("#st-tok", el).value.trim(); if (t && !t.startsWith("•")) SEC().ghToken = t; const gid = $("#st-gist", el).value.trim(); if (gid !== (s.sync.gistId || "")) { s.sync.gistId = gid || null; s.sync.last = 0; } App.saveSecrets(); if (!SEC().ghToken) { App.toast("Token fehlt", "Bitte GitHub-Token eintragen.", "!"); return; } await syncNow(true); draw(); };
+    const pr = $("#st-pair", el); if (pr) pr.onclick = pairDialog;
     const us = $("#st-unsync", el); if (us) us.onclick = () => { delete SEC().ghToken; App.saveSecrets(); draw(); };
     $("#st-exp", el).onclick = exportBackup; $("#st-imp", el).onchange = e => e.target.files[0] && importBackup(e.target.files[0]);
     $("#st-ai", el).onchange = e => { s.ai.enabled = e.target.checked; App.save(); };
@@ -148,7 +201,7 @@ PAGES.settings = el => {
     const ib = $("#st-install", el); if (ib) ib.onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; draw(); };
     const r = $("#st-reset", el); if (r) r.onclick = () => { confirmReset = true; draw(); };
     const n = $("#st-no", el); if (n) n.onclick = () => { confirmReset = false; draw(); };
-    const y = $("#st-yes", el); if (y) y.onclick = () => { const keep = { name: s.name, sync: s.sync, profile: s.profile }; App.replaceState(Object.assign({ v: 2 }, keep)); App.go("dash"); };
+    const y = $("#st-yes", el); if (y) y.onclick = () => { const keep = { name: s.name, sync: s.sync, profile: s.profile, epoch: Date.now() }; App.replaceState(Object.assign({ v: 2 }, keep)); App.go("dash"); };
   };
   draw();
 };
@@ -165,6 +218,7 @@ App.afterBoot.push(() => {
   registerSW();
   if (S().profile.pinHash) lockScreen(); else onboarding();
   setTimeout(loadPython, 2500);
+  takePairing();
   if (SEC().ghToken) setTimeout(() => syncNow(false), 1500);
   window.addEventListener("online", () => SEC().ghToken && syncNow(false));
   setSync(SEC().ghToken ? "Sync aktiv" : "Gespeichert auf diesem Gerät");
