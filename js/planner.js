@@ -135,7 +135,7 @@ function reminderList() {
 }
 App.reminderList = reminderList;
 async function show(r) {
-  const opts = { body: r.body, tag: r.tag, icon: "icons/icon-192.png", badge: "icons/icon-192.png", data: { url: "./#dash" } };
+  const opts = { body: r.body, tag: r.tag, icon: "icons/v2/icon-192.png", badge: "icons/v2/icon-192.png", data: { url: "./#dash" } };
   try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) { await reg.showNotification(r.title, opts); return; } } catch (e) {}
   try { new Notification(r.title, opts); } catch (e) {}
 }

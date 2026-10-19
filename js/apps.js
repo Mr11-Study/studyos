@@ -22,7 +22,7 @@ function setApp(v, p) {
   S().app = a; if (a && S().course !== a) S().course = a;
   const b = document.body; b.className = b.className.replace(/\bth-\S+/g, "").replace(/\bin-app\b/g, "").trim();
   if (a) b.classList.add("in-app", "th-" + a);
-  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = a ? CBY[a].color : "#121417";
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = a ? CBY[a].color : matchMedia("(prefers-color-scheme: dark)").matches ? "#121417" : "#F5F4EF";
 }
 App.currentApp = app;
 

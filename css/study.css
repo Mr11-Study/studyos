@@ -1,10 +1,11 @@
-/* ===== Study theme (Lernprofil): helles Papier, Petrol als Akzent, Textmarker-Gelb für „Wissen“. Dunkel per System-Einstellung. ===== */
+/* ===== Study theme (Lernprofil): helles Papier, FH-Grün (Wirtschaftsinformatik, FH JOANNEUM) als Akzent, Textmarker-Gelb für „Wissen“. Dunkel per System-Einstellung. ===== */
 [data-theme=study]{
   color-scheme:light;
   --bg:#F5F4EF; --side:#EFEEE7; --card:#FFFFFF; --card2:#F8F7F3; --card3:#EEEDE6;
   --line:#E4E2D9; --line2:#D3D0C4;
   --text:#1C2027; --muted:#5D636E; --faint:#979CA5;
-  --acc:#0E6B6B; --acc2:#0A5757; --acc-ink:#FFFFFF; --acc-soft:rgba(14,107,107,.08); --acc-line:rgba(14,107,107,.32);
+  --acc:#468417; --acc2:#3A7012; --acc-ink:#FFFFFF; --acc-soft:rgba(70,132,23,.09); --acc-line:rgba(70,132,23,.32);
+  --brand:#76B82A; --hero1:#76B82A; --hero2:#4E8F1A;
   --good:#2F7D4F; --know:#E2A41C;
   --bad:#B83D36; --bad-soft:rgba(184,61,54,.08); --warn:#A86A12; --warn-soft:rgba(206,140,30,.13);
   --info:#2E66AE; --violet:#6E54B8;
@@ -18,7 +19,8 @@
     --bg:#121417; --side:#15181B; --card:#1B1F24; --card2:#20252B; --card3:#272D34;
     --line:#2A3037; --line2:#38414B;
     --text:#E6E8EB; --muted:#9BA3AD; --faint:#69727D;
-    --acc:#4FBFB5; --acc2:#6FD3C9; --acc-ink:#062220; --acc-soft:rgba(79,191,181,.11); --acc-line:rgba(79,191,181,.38);
+    --acc:#8FCB4A; --acc2:#A6D86C; --acc-ink:#0E1A05; --acc-soft:rgba(143,203,74,.11); --acc-line:rgba(143,203,74,.38);
+    --brand:#76B82A; --hero1:#4E8F1A; --hero2:#24450B;
     --good:#5CC48A; --know:#E8B53E;
     --bad:#EF6B63; --bad-soft:rgba(239,107,99,.12); --warn:#E6AE4E; --warn-soft:rgba(230,174,78,.13);
     --info:#6EA3F0; --violet:#A893F0;

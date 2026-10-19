@@ -7,8 +7,8 @@ const MAIL = "kevin.popovic@edu.fh-joanneum.at";
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- Akzentfarbe der App (Hub-Seiten; Fach-Apps behalten ihr eigenes Design) ---------- */
-const ACCENTS = [["petrol", "Petrol", "#0E6B6B"], ["blau", "Blau", "#2E66AE"], ["violett", "Violett", "#6E54B8"], ["beere", "Beere", "#A8336A"], ["gruen", "Grün", "#2F7D4F"], ["orange", "Orange", "#B8611A"]];
-const applyAccent = () => { const a = (S().settings || {}).accent; if (a && a !== "petrol") document.documentElement.dataset.acc = a; else delete document.documentElement.dataset.acc; };
+const ACCENTS = [["fh", "FH-Grün", "#76B82A"], ["petrol", "Petrol", "#0E6B6B"], ["blau", "Blau", "#2E66AE"], ["violett", "Violett", "#6E54B8"], ["beere", "Beere", "#A8336A"], ["orange", "Orange", "#B8611A"]];
+const applyAccent = () => { const a = (S().settings || {}).accent; if (a && a !== "fh" && a !== "gruen" && ACCENTS.some(x => x[0] === a)) document.documentElement.dataset.acc = a; else delete document.documentElement.dataset.acc; };
 App.afterBoot.unshift(applyAccent);
 
 /* ---------- Feedback ---------- */
@@ -50,7 +50,7 @@ PAGES.settings = (el, p) => {
   const st = S().settings, init = (S().name || "?")[0].toUpperCase();
   const box = document.createElement("div"); box.className = "col pf-more";
   box.innerHTML = `<div class="pf-row"><span class="pf-l">Avatar</span><div class="pf-av">${AVATARS.map(a => `<button data-av="${esc(a)}" class="${(st.avatar || "") === a ? "on" : ""}" aria-label="${a ? "Avatar " + a : "Anfangsbuchstabe"}">${a || esc(init)}</button>`).join("")}</div></div>
-    <div class="pf-row"><span class="pf-l">Farbe der App</span><div class="pf-acc">${ACCENTS.map(([k, t, c]) => `<button data-acc="${k}" class="${(st.accent || "petrol") === k ? "on" : ""}" style="--sw:${c}" title="${t}" aria-label="Farbe ${t}"></button>`).join("")}</div></div>
+    <div class="pf-row"><span class="pf-l">Farbe der App</span><div class="pf-acc">${ACCENTS.map(([k, t, c]) => `<button data-acc="${k}" class="${(st.accent && st.accent !== "gruen" ? st.accent : "fh") === k ? "on" : ""}" style="--sw:${c}" title="${t}" aria-label="Farbe ${t}"></button>`).join("")}</div></div>
     <label class="pf-row"><span class="pf-l">Tagesziel</span><span class="pf-goal"><input type="range" id="pf-goal" min="5" max="120" step="5" value="${st.goalMin || 20}"><b id="pf-goal-v">${st.goalMin || 20} min</b></span></label>
     <small class="muted">Das Tagesziel siehst du auf der Startseite. Die Farbe gilt für Startseite, Kalender und Menüs; jedes Fach behält sein eigenes Design.</small>`;
   card.appendChild(box);
