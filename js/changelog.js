@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.16.0", d: "2026-10-19", t: "Gemeinsam lernen: Freunde, Chats und Lerngruppen", items: [
+    "Neuer Bereich „Gemeinsam“: Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.",
+    "Lerngruppen pro Fach gründen, per Code oder QR-Code einladen und gemeinsam an Fragen grübeln.",
+    "Jedes Fach hat einen offenen Live-Chat für alle, die StudyOS nutzen (im Fach-Menü unter „Live-Chat & Gruppen“).",
+    "Der Online-Modus ist freiwillig. Sichtbar sind nur Name und Avatar, alles andere funktioniert weiter ohne Internet."] },
   { v: "4.15.0", d: "2026-10-19", t: "Rechner, Animationen und mehr Übung in allen Fächern", items: [
     "Neue Rechner mit Live-Graph: Werte eintippen oder Regler ziehen, Ergebnis und Rechenweg erscheinen sofort, beim Darüberfahren zeigt der Graph die Werte an jeder Stelle.",
     "In allen Fächern mehr durchgerechnete Beispiele, neue Animationen und zusätzliche Übungsfragen zu jedem Thema.",
