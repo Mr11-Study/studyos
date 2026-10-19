@@ -7,7 +7,7 @@ if ((window.STUDYOS_TRACK || "uni") !== "uni") return;
 const { $, $$, esc, PAGES, CBY, COURSES, TOPICS, LBYID } = App;
 const S = () => App.S();
 
-const HUB = new Set(["dash", "courses", "calendar", "plan", "bookmarks"]);
+const HUB = new Set(["dash", "courses", "calendar", "plan", "bookmarks", "news"]);
 const worldOf = id => { for (const c of COURSES) for (const w of c.worlds) if (w.id === id) return c.id; return null; };
 const app = () => S().app && CBY[S().app] ? S().app : null;
 function setApp(v, p) {
@@ -47,7 +47,7 @@ function appNav(c) {
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
-  ["Planen", [["calendar", "", "Kalender", "▦"], ["plan", "", "Aufgaben & Lernplan", "☑"], ["bookmarks", "", "Merkliste", "★"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"]]]];
+  ["Planen", [["calendar", "", "Kalender", "▦"], ["plan", "", "Aufgaben & Lernplan", "☑"], ["bookmarks", "", "Merkliste", "★"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"]]]];
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
 const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
 

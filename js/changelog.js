@@ -1,0 +1,77 @@
+/* StudyOS · Versionsverlauf ("Neuigkeiten")
+   Neueste Version zuerst. Bei jedem Update oben einen Eintrag ergänzen und sw.js VERSION gleich setzen.
+   Muss vor apps.js geladen werden, damit die Seite als Hub-Seite umhüllt wird. */
+(function () {
+const { esc, PAGES } = App;
+
+const LOG = App.CHANGELOG = [
+  { v: "4.11.0", d: "2026-10-19", t: "Versionsverlauf", items: [
+    "Neue Seite „Neuigkeiten“: zeigt, was in welcher Version dazugekommen ist.",
+    "Nach einem Update weist die App einmal auf die Neuerungen hin."] },
+  { v: "4.10.0", d: "2026-10-18", t: "Mathematik 2: eigene Maple-Übungen", items: [
+    "5 neue Arbeitsblätter im Maple-Labor mit 60 Aufgaben aus den eigenen Maple-Dateien: Extremwerte und Lagrange, Interpolation und Fit, Integrale, Matrizen, Markov-Ketten.",
+    "5 neue Aufgaben in „Prüfung üben“ nach den eigenen Tests.",
+    "Maple-Engine kann jetzt assign/unassign, solve mit Parametern, Splines mit Endpunkten und symbolische Inversen."] },
+  { v: "4.9.0", d: "2026-10-18", t: "Neues Fach Mathematik 2 und Semesterwahl", items: [
+    "Mathematik 2 (Semester 2) mit 5 Kapiteln: Differentialrechnung, Numerik, Integralrechnung, Computergrafik, Markov-Ketten.",
+    "Maple-Labor: Maple-Befehle direkt im Browser ausführen, mit Plots und Matrizen.",
+    "Prüfungssimulation mit zufällig erzeugten Aufgaben, dazu die Altklausuren mit Lösungen.",
+    "Semesterwahl: Fächer sind nach Semester 1, 2 und 3 sortiert."] },
+  { v: "4.8.0", d: "2026-10-14", t: "Bilder und Animationen", items: [
+    "Lektionen können interaktive Grafiken und Schritt-Animationen enthalten.",
+    "24 Grafiken für IT-Infrastruktur V1–V3."] },
+  { v: "4.7.0", d: "2026-10-14", t: "Jedes Fach als eigene App", items: [
+    "Jedes Fach öffnet sich mit eigenem Design und eigenem Menü.",
+    "IT-Infrastruktur: Mehrfachauswahl-Fragen und Quick-Test-Modus."] },
+  { v: "4.6.0", d: "2026-10-14", t: "IT-Infrastruktur V2 und V3", items: [
+    "Kapitel V2 und V3 neu, V1 um Vorlesungsnotizen ergänzt, viele neue Übungsfragen."] },
+  { v: "4.5.0", d: "2026-10-07", t: "Kotlin-Labor", items: [
+    "Kotlin-Labor zum Üben direkt in der App.",
+    "Neue Kapitel für Mobile App Development.",
+    "Anleitung überarbeitet."] },
+  { v: "4.4.0", d: "2026-10-05", t: "Vertiefung für alle Fächer", items: [
+    "Zu jedem Thema Vertiefungen, Alltagsbeispiele und aufklappbare Tipps, in allen 11 Fächern."] },
+  { v: "4.2.0", d: "2026-10-02", t: "Skript-Ansicht", items: [
+    "Jedes Fach hat eine Skript-Ansicht zum Durchlesen.",
+    "Organisatorisches aus dem Syllabus ist kein Lernstoff mehr."] },
+  { v: "4.1.0", d: "2026-10-02", t: "Prüfung üben", items: [
+    "Prüfungsvorbereitung aus Altprüfungen für alle Fächer.",
+    "Neues Fach SUNW2."] },
+  { v: "4.0.0", d: "2026-10-01", t: "Semester 3 und neues Lernsystem", items: [
+    "6 neue Fächer für Semester 3.",
+    "Ruhiges Lernsystem mit Wiederholung im richtigen Abstand statt Punkten.",
+    "Neu gestaltete Oberfläche."] },
+  { v: "3.0.0", d: "2026-09-27", t: "Profile", items: [
+    "Mehrere Profile auf einem Gerät, jeweils mit eigenem Inhalt."] },
+  { v: "2.2.0", d: "2026-09-27", t: "Zurücksetzen und Git-Labor", items: [
+    "Fächer und Lektionen lassen sich zurücksetzen, um neu zu lernen.",
+    "Git-Labor mit eigener Übungsumgebung pro Aufgabe."] },
+  { v: "2.0.0", d: "2026-09-27", t: "Erste Version", items: [
+    "StudyOS als installierbare App für Handy und Laptop, funktioniert offline.",
+    "Lektionen, Quiz, Karteikarten, Kalender und Lernplan."] }
+];
+App.VERSION = LOG[0].v;
+
+const date = d => new Date(d + "T12:00:00").toLocaleDateString("de-AT", { day: "numeric", month: "long", year: "numeric" });
+
+PAGES.news = el => {
+  el.innerHTML = `<div class="page"><div><h1>Neuigkeiten</h1><p class="muted">Was in welcher Version von StudyOS dazugekommen ist. Aktuell: Version ${esc(App.VERSION)}.</p></div>
+    <div class="cl">${LOG.map((e, i) => `<div class="card cl-e${i ? "" : " cl-new"}">
+      <div class="cl-h"><span class="cl-v">v${esc(e.v)}</span><b>${esc(e.t)}</b><small class="cl-d">${date(e.d)}</small></div>
+      <ul>${e.items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div></div>`;
+  const s = App.S(); if (s.settings && s.settings.seenVer !== App.VERSION) { s.settings.seenVer = App.VERSION; App.save(); }
+};
+
+/* Nach einem Update einmal auf die Neuerungen hinweisen */
+App.afterBoot.push(() => setTimeout(() => {
+  const s = App.S(); if (!s.settings) return;
+  if (!s.settings.seenVer) { s.settings.seenVer = App.VERSION; App.save(); return; }
+  if (s.settings.seenVer === App.VERSION) return;
+  const box = document.querySelector("#toasts"); if (!box) return;
+  const t = document.createElement("div"); t.className = "toast ach";
+  t.innerHTML = `<div class="ti">✦</div><div><div class="eyebrow">Neu in Version ${esc(App.VERSION)}</div><div>${esc(LOG[0].t)}</div></div><button class="btn sm pri">Ansehen</button>`;
+  t.querySelector("button").onclick = () => { t.remove(); App.go("news"); };
+  box.appendChild(t); setTimeout(() => t.remove(), 12000);
+  s.settings.seenVer = App.VERSION; App.save();
+}, 1800));
+})();
