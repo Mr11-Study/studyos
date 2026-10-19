@@ -23,15 +23,10 @@ let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") hiddenAt = Date.now(); else if (hiddenAt && S().profile.pinHash && Date.now() - hiddenAt > (S().profile.lockAfterMin || 5) * 60000) lockScreen(); });
 
 /* ---------------- first-run onboarding ---------------- */
+/* Name und Semester kommen schon vom Willkommensbildschirm; PIN und Installation stehen in den Einstellungen. */
 function onboarding() {
   if (S().profile.onboarded) return;
-  App.modal(`<div class="spread"><h2>Willkommen bei StudyOS 👋</h2></div><p>${App.WELCOME || "Deine Lern-App fürs 3. Semester Wirtschaftsinformatik. Alles läuft auf deinem Gerät, ohne Konto und ohne KI-Kosten."}</p>
-    <label class="fld">Wie heißt du?<input type="text" id="ob-name" value="${esc(S().name)}"></label>
-    <label class="fld">Optional: 4-stelliger PIN zum Sperren<input type="password" inputmode="numeric" maxlength="6" id="ob-pin" placeholder="leer lassen = kein PIN"></label>
-    <div class="callout" style="font-size:13px">Tipp: Installiere StudyOS als App (Einstellungen → App installieren) und schalte Erinnerungen ein, damit dich die App an Abgaben und Prüfungen erinnert.</div>
-    <div class="row" style="justify-content:flex-end"><button class="btn pri" id="ob-go">Los geht's</button></div>`, (m, close) => {
-    $("#ob-go", m).onclick = async () => { S().name = $("#ob-name", m).value.trim() || "Student"; const p = $("#ob-pin", m).value.trim(); if (/^\d{4,6}$/.test(p)) { S().profile.pinHash = await hash(p); S().profile.pinLen = p.length; } S().profile.onboarded = true; App.save(); close(); App.renderSide(); App.render(); };
-  });
+  S().profile.onboarded = true; App.save();
 }
 
 /* ---------------- backup ---------------- */

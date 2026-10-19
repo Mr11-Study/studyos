@@ -1,0 +1,33 @@
+/* Willkommens- und Profilbildschirm (läuft vor der App, nutzt die Farben des Studium-Designs) */
+div.pick{position:fixed;inset:0;z-index:100;background:radial-gradient(120% 70% at 50% 0%,var(--acc-soft),transparent 70%),var(--bg);display:grid;place-items:center;padding:28px 16px;overflow:auto;color:var(--text)}
+.pick-box{width:min(520px,100%);display:flex;flex-direction:column;gap:20px;text-align:center}
+.pick-brand{display:flex;gap:10px;align-items:center;justify-content:center;font:650 18px var(--f-display)}
+.pick-brand .logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink);font-weight:700}
+.pick h1{font-size:30px;line-height:1.15;letter-spacing:-.02em}
+.pick-hero p{color:var(--muted);font-size:16px;margin-top:8px;line-height:1.5}
+.pick .muted{color:var(--muted)}
+.pick-how{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;text-align:left}
+.pick-how li{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.pick-how i{font-style:normal;flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);font-weight:700}
+.pick-how b{display:block;font-size:15px}
+.pick-how small{color:var(--muted);font-size:13.5px;line-height:1.4}
+.pick-form{display:flex;flex-direction:column;gap:16px;text-align:left}
+.pick .fld{display:flex;flex-direction:column;gap:8px;font-weight:500;font-size:14px}
+.pick input[type=text]{font:inherit;font-size:17px;font-weight:400;padding:12px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--text)}
+.pick input[type=text]:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.pick-sems{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick-sem{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line2);background:var(--card);color:inherit;cursor:pointer;font:inherit;text-align:left}
+.pick-sem b{font-size:14px}
+.pick-sem small{color:var(--muted);font-size:12px;font-weight:400}
+.pick-sem.on{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.pick-actions{display:flex;gap:10px;justify-content:center}
+.pick-actions .btn{min-width:180px;padding:13px 22px;font-size:16px;border-radius:12px}
+.pick-rem{display:flex;gap:8px;justify-content:center;align-items:center;color:var(--muted);font-size:13.5px}
+.pick-note{color:var(--faint);font-size:13px}
+.pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.pick-p{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:inherit;font:inherit;transition:transform .15s,border-color .15s}
+.pick-p:hover{transform:translateY(-2px);border-color:var(--acc)}
+.pick-p small{color:var(--muted);font-size:12px}
+.pp-av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--acc-soft);color:var(--acc);font:650 22px var(--f-display)}
+.pick-p.add .pp-av{background:transparent;border:2px dashed var(--line2);color:var(--muted)}
+@media (max-width:420px){.pick h1{font-size:26px}.pick-sems{grid-template-columns:1fr 1fr 1fr}.pick-sem{padding:9px 8px}.pick-sem b{font-size:13px}}

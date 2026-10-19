@@ -186,7 +186,7 @@ Die früheren Bereiche „Stricken & Häkeln“ und „Sammlung“ (Pokémon-Kar
 
 ## 10. Sprache
 
-Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingebaute Übersetzer des Browsers (Chrome/Edge am Laptop, aktuelle Version) übersetzt die ganze App direkt auf dem Gerät, beim ersten Mal wird ein Sprachpaket geladen. Code, Maple-Befehle und Formeln bleiben unverändert. Zurück: „Deutsch (Original)“. Hat der Browser keinen eingebauten Übersetzer (z. B. am Handy), StudyOS in Chrome öffnen → Menü ⋮ → „Übersetzen…“.
+Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingebaute Übersetzer des Browsers (Chrome/Edge am Laptop, aktuelle Version) übersetzt die ganze App direkt auf dem Gerät, beim ersten Mal wird ein Sprachpaket geladen. Code, Maple-Befehle und Formeln bleiben unverändert. Zurück: „Deutsch (Original)“. Hat der Browser keinen eingebauten Übersetzer (z. B. am Handy), übersetzt StudyOS online mit Google Übersetzer; dafür ist Internet nötig.
 
 ## 11. Semester und Mathematik 2 mit Maple-Labor
 

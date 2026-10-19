@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.13.0", d: "2026-10-19", t: "Freundlicher Start und Sprache am Handy", items: [
+    "Neuer Willkommensbildschirm: erklärt in drei Schritten, wie StudyOS funktioniert, und fragt nur nach Name und Semester.",
+    "Die Startseite „Heute“ zeigt zuerst einen klaren nächsten Schritt. Woche, Termine und alle Fächer sind eingeklappt.",
+    "Die Spracheinstellung funktioniert jetzt auch am Handy: Ohne eingebauten Übersetzer im Browser übersetzt StudyOS online mit Google Übersetzer."] },
   { v: "4.12.0", d: "2026-10-19", t: "Sprache, besserer Sync, aufgeräumt", items: [
     "Neue Einstellung „Sprache“: Die ganze App lässt sich in über 20 Sprachen anzeigen. Übersetzt wird direkt auf dem Gerät mit dem Übersetzer des Browsers.",
     "Sync zwischen Handy und Laptop führt jetzt den Fortschritt beider Geräte zusammen, statt einen Stand zu überschreiben.",
