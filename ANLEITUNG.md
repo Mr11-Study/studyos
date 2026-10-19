@@ -65,9 +65,9 @@ StudyOS hat kein eigenes Konto (bewusst: keine Server, keine Kosten, keine Daten
 - **Sync über GitHub Gist** (privat, gratis):
   1. GitHub → **Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token (classic)**.
   2. Note: `StudyOS`, Expiration nach Wunsch, **nur** das Häkchen **gist** setzen → Generate → Token kopieren.
-  3. In StudyOS: **Einstellungen → Sync zwischen Handy und Laptop** → Token einfügen, Gist-ID leer lassen → „Verbinden“. Die App legt ein privates Gist an und zeigt dessen ID.
-  4. Auf dem zweiten Gerät denselben Token **und** diese Gist-ID eintragen → „Verbinden“.
-  5. Ab dann synchronisiert StudyOS automatisch beim Öffnen und wenn das Gerät wieder online ist; manuell über „Jetzt synchronisieren“. Bei Konflikten fragt StudyOS, welche Version gelten soll.
+  3. Am Laptop in StudyOS: **Einstellungen → Sync zwischen Handy und Laptop** → Token einfügen, Gist-ID leer lassen → „Verbinden“. Die App legt ein privates Gist an.
+  4. Danach **„Weiteres Gerät verbinden (QR-Code)“** antippen und den Code mit der Handy-Kamera scannen. Der Link öffnet StudyOS am Handy und verbindet es automatisch. (Ohne Kamera: „Link kopieren“ und am anderen Gerät öffnen.)
+  5. Ab dann synchronisiert StudyOS automatisch beim Öffnen, nach dem Lernen und wenn das Gerät wieder online ist; manuell über „Jetzt synchronisieren“. Wurde auf beiden Geräten gelernt, führt StudyOS den Fortschritt zusammen (erledigte Lektionen, Wiederholungen, Lerntage), es geht nichts verloren. Nur nach „Zurücksetzen“ oder dem Einspielen einer Sicherung gilt der Stand dieses Geräts für alle.
   - Der Token wird nur lokal gespeichert und nie mitsynchronisiert.
 - **Backup ohne Konto:** Einstellungen → Backup-Datei → „Exportieren“ (.json) → per Mail/Drive aufs andere Gerät → dort „Importieren“.
 
@@ -175,41 +175,18 @@ Ein Kapitel kann eine neue Welt anlegen oder bestehende Lektionen erweitern (neu
 - Benachrichtigungen bei komplett geschlossener App hängen von Android/Xiaomi ab → Kalender-Export nutzen.
 - Daten liegen pro Browser/Gerät. Ohne Sync oder Backup gehen sie beim Löschen der Browserdaten verloren.
 
-## 9. Mehrere Profile (z. B. Kevin & Angi)
+## 9. Mehrere Profile
 
-StudyOS kann mehrere Personen auf einem Gerät: Jedes Profil hat eigene Kurse, eigenen Fortschritt und eigenes Design.
+StudyOS kann mehrere Studierende auf einem Gerät: Jedes Profil hat eigenen Fortschritt und ein eigenes Semester.
 
-- **Eigenes Handy (z. B. Angi):** Link öffnen → „Wer lernt heute?“ → Name eingeben → **Stricken & Häkeln** wählen → Profil erstellen. Danach wie gewohnt über Chrome „App installieren“.
 - **Gemeinsames Gerät:** Einstellungen → *Profile auf diesem Gerät* → **＋ Neues Profil**. Wechseln über „⇄ Profil wechseln“ unten in der Seitenleiste.
 - „Automatisch öffnen“ an = kein Auswahlbildschirm beim Start.
 
-Das Stricken-&-Häkeln-Profil enthält: Kurse Stricken und Häkeln, 3D-Studio (Maschen drehen & zoomen, Reihe für Reihe aufbauen), animierte Techniken, Musterdesigner mit Anleitungsgenerator, Maschenlexikon, Reihenzähler (Bildschirm bleibt an), Werkzeuge (Maschenprobe, Verteilen, Nadeln, US/UK) und Projekte mit Foto.
-Seit Version 3.2 ist das Stricken-&-Häkeln-Profil **keine Lern-App mehr, sondern ein Nachschlagewerk**: keine XP, Level, Lektionen, Checks, Quiz oder Karteikarten. Unter **Wissen** stehen alle Inhalte als Artikel mit Suche (auch Techniken und Maschenlexikon werden gefunden). Die Startseite hat ein Suchfeld, Themen-Kacheln und „Wo finde ich was?“, und mehrere Lektionen haben neue Schaubilder (Garnstärken, Nadeln, Maschenprobe, Häkelmaschen-Höhen, Magic Ring, Granny Square …).
+Die früheren Bereiche „Stricken & Häkeln“ und „Sammlung“ (Pokémon-Karten) gibt es seit Version 4.12 nicht mehr.
 
-## 10. Profil „Sammlung“ (Pokémon-Karten)
+## 10. Sprache
 
-Für Karten, Displays, ETBs, Booster, Tins usw. mit Cardmarket-Preisen.
-
-- **Anlegen:** Link öffnen → Name → **Sammlung** wählen → Profil erstellen (auf einem gemeinsamen Gerät: Einstellungen → Profile → ＋ Neues Profil).
-- **Filter:** Überall gibt es Suche, Sortierung und einen **Filter**-Knopf (Serie, Set, Seltenheit, Kategorie, Typ, Sprache, Preis von/bis, Illustrator, KP, Variante, eigene/fehlende Karten …). Aktive Filter stehen als Chips darunter und lassen sich einzeln entfernen.
-- **Karten erfassen:** *Sets* oder *Karten suchen* – Name auf Deutsch/Englisch, auch mit Kürzel und Nummer („Glurak MEW 199“) → Karte antippen → Bild in 6 Sprachen, Preistabelle → **Deine Karte**: Variante, Sprache, Zustand wählen → Wert dafür + Knopf **„Angebote auf Cardmarket“** (öffnet genau diese Karte über die Cardmarket-Produktnummer, gefiltert auf Sprache und Mindestzustand) → optional **eigener Preis** → Zur Sammlung.
-- **Preise nach Sprache/Zustand:** Einstellungen → *Preise anpassen*: Prozent je Sprache und Zustand (Standard 100 %). Ein eigener Preis pro Eintrag hat immer Vorrang; in der Sammlung steht bei jedem Eintrag die Preisbasis.
-- **Asiatische Editionen:** Japanische, chinesische (vereinfacht/traditionell), koreanische und indonesisch/thailändische Karten sind auf Cardmarket eigene Produkte. Die App ordnet sie über den Cardmarket-Katalog richtig zu (TCGdex verlinkte z. B. beim japanischen „30th Celebration“ die chinesische Ausgabe). Im Kartenfenster einer japanischen Karte zeigt die Sprachauswahl je Edition den echten Cardmarket-Preis und öffnet das passende Produkt. Die Sammlung hat oben eine Sprach-Auswahl und „Wert nach Sprache“.
-- **Japanisch & Koreanisch:** In *Sets*, *Karten suchen* und *Produkte* oben „International / Japan & Korea / Alle“ wählen. Japanische Karten haben auf Cardmarket eigene Produkte, ihr Preis gilt also direkt für die japanische Version. Für koreanische Karten im Kartenfenster Sprache „Koreanisch“ wählen – der Cardmarket-Link filtert dann die Angebote. „⇄ Andere Versionen“ im Kartenfenster zeigt dieselbe Karte in anderen Sets (auch JP ↔ international).
-- **Bilder:** Kartenbilder kommen von TCGdex; fehlt dort ein Bild (neue Sets, viele japanische Karten), nimmt die App automatisch das Foto aus dem TCGplayer-Katalog (über TCGCSV, täglich). Displays, ETBs, Blister, Tins usw. zeigen ein TCGplayer-Produktfoto, wenn die Zuordnung eindeutig ist; sonst eine gestaltete Verpackung in Kategoriefarbe mit Set-Logo. Japanische Sets zeigen statt Logo ihre wertvollste Karte.
-- **Schnell erfassen:** Im Set oben „⚡ Schnell erfassen“ antippen, Sprache (DE, EN, FR … bzw. JA/KO/ZH bei japanischen Sets), Zustand und Normal/Reverse wählen – dann auf jeder Karte mit + / − die Anzahl in genau dieser Sprache ändern. Jede Sprache wird als eigener Eintrag gezählt; in der Sammlung oben nach Sprache filtern.
-- **Wunschliste → Cardmarket:** Karten/Produkte über „♡ Wunschliste“ (Kartenfenster) oder im Set per „⚡ Schnell erfassen → ♡ auf Wunschliste“ mit + / − sammeln („Alle fehlenden dieses Sets“ geht mit einem Tipp). Die Seite *Wunschliste* trennt nach Sprache und erzeugt pro Sprache eine Cardmarket-Liste (Anzahl, Name, Attacken, Version V.x, Erweiterung). „📋 Kopieren“ → auf Cardmarket unter *Wants* eine Liste anlegen → als Deckliste einfügen → Sprache/Zustand der Liste einstellen → *Shopping Wizard*. Je Wants-Liste max. 150 Einträge – längere Listen werden automatisch geteilt. Auch als .txt oder CSV.
-- **Sprachpreise:** Für internationale Karten gibt Cardmarket frei nur einen Preis über alle Sprachen heraus. Den günstigsten Preis einer Sprache (z. B. Deutsch · NM) liest man auf Cardmarket (Knopf öffnet die Karte gefiltert) und trägt ihn im Kartenfenster bei „Preis für Deutsch · NM“ ein – er gilt dann für alle Einträge dieser Version und wird im Portfolio verwendet. „✎ Sprachpreise eintragen“ in der Sammlung geht alle Versionen der Reihe nach durch. Preise älter als 30 Tage werden markiert.
-- **Preise ehrlich gelesen:** Der Richtwert in der App ist der Cardmarket-Trend über alle Sprachen (meist Near Mint). Den echten Preis für eine bestimmte Sprache/einen Zustand zeigt der Knopf „Angebote …“ direkt auf Cardmarket – diesen Preis als „eigenen Preis“ eintragen.
-- **Sealed:** *Produkte* → Kategorie (Display, Elite Trainer Boxes, Booster, Tins, Blister …), Set-Filter, Preis-Sortierung.
-- **Sammlung:** Gesamtwert, Einkauf, Gewinn/Verlust, Filter (Typ, Set, Sprache, Zustand), Sortierung, Gruppierung nach Set, CSV-Export (Excel).
-- **Beobachtet:** Karten/Produkte mit Preisalarm (über/unter Zielpreis).
-- **Sammler-Wissen:** Nachschlagewerk (Zustände, Seltenheiten, Sealed, Preise, Sprache & Preis, Grading, Set-Symbole, Cardmarket-Tipps, Fälschungen, Aufbewahrung).
-
-**Woher kommen die Preise?** Aus dem offiziellen Cardmarket-Preisführer (Trendpreis, Ø 1/7/30 Tage, „ab“-Preis). Cardmarket veröffentlicht ihn einmal täglich; eine GitHub-Action (`.github/workflows/tcg-prices.yml`) holt ihn zweimal am Tag automatisch und legt kompakte Daten in den Branch `data`. Die App prüft beim Öffnen und alle 30 Minuten selbst, ob es neue Preise gibt – man muss nie manuell aktualisieren. Echte Sekunden-Livepreise gibt es nur über die Cardmarket-API, die eine eigene Freischaltung braucht.
-Hinweis: Der Preisführer fasst alle Sprachen zusammen und bezieht sich meist auf Near Mint. Für den Preis einer bestimmten Sprache/eines Zustands führt „Auf Cardmarket ansehen“ direkt zur Suche.
-
-Kartennamen, Bilder und Set-Daten kommen von TCGdex (freies Projekt). Die Sammlung selbst bleibt auf dem Gerät (Backup über Einstellungen).
+Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingebaute Übersetzer des Browsers (Chrome/Edge am Laptop, aktuelle Version) übersetzt die ganze App direkt auf dem Gerät, beim ersten Mal wird ein Sprachpaket geladen. Code, Maple-Befehle und Formeln bleiben unverändert. Zurück: „Deutsch (Original)“. Hat der Browser keinen eingebauten Übersetzer (z. B. am Handy), StudyOS in Chrome öffnen → Menü ⋮ → „Übersetzen…“.
 
 ## 11. Semester und Mathematik 2 mit Maple-Labor
 
