@@ -27,7 +27,7 @@ async function connect() {
     if (!user) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; user = r.data.user; }
     const prof = { id: user.id, name: (S().name || "Studi").slice(0, 40), avatar: (S().settings.avatar || "").slice(0, 8) || null };
     const r = await sb.from("profiles").upsert(prof).select().single(); if (r.error) throw r.error;
-    me = r.data; names[me.id] = me;
+    me = r.data; names[me.id] = me; cleanOwn();
   })();
   try { await loading; } finally { loading = null; }
 }
@@ -56,18 +56,55 @@ const drop = () => { if (chan && sb) { sb.removeChannel(chan); } chan = null; };
 const stale = () => App.route() !== curR; /* Seite inzwischen gewechselt: nichts mehr hineinschreiben */
 const time = t => { const d = new Date(t), today = new Date().toDateString() === d.toDateString(); return d.toLocaleString("de-AT", today ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 const linkify = s => esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+
+/* Dateien: privater Speicher „chat“, sichtbar nur für alle, die auch die Nachricht sehen dürfen (Policy in supabase-update-2.sql).
+   Anhänge laufen nach 24 Stunden ab, der offene Fach-Chat ebenso; Lerngruppen und Direktchats bleiben. */
+const MAXB = 5 * 1024 * 1024, BUCKET = "chat", DAY = 864e5, urls = {};
+const expired = m => !!(m.file && (m.file.expired || Date.now() - new Date(m.created_at) > DAY));
+/* Fotos vor dem Hochladen verkleinern (max. 1600 px, JPEG), GIFs bleiben unverändert, damit sie sich bewegen */
+async function shrink(f) {
+  if (!/^image\/(jpe?g|png|webp|bmp)$/i.test(f.type) || f.size < 400 * 1024 || !window.createImageBitmap) return f;
+  try {
+    const bmp = await createImageBitmap(f), k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(ok => c.toBlob(ok, "image/jpeg", .82));
+    return blob && blob.size < f.size ? new File([blob], f.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : f;
+  } catch (e) { return f; }
+}
+/* Eigene abgelaufene Dateien beim Öffnen aus dem Speicher entfernen */
+async function cleanOwn() {
+  try { const r = await sb.storage.from(BUCKET).list(me.id, { limit: 100, sortBy: { column: "created_at", order: "asc" } }); const old = (r.data || []).filter(o => o.created_at && Date.now() - new Date(o.created_at) > DAY).map(o => me.id + "/" + o.name); if (old.length) await sb.storage.from(BUCKET).remove(old); } catch (e) {}
+}
+const size = n => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1).replace(".", ",") + " MB";
+const isImg = f => /^image\/(png|jpe?g|gif|webp|avif|bmp)$/i.test(f.type || "");
+const fIcon = f => /pdf/.test(f.type) ? "PDF" : /word|document/.test(f.type) ? "DOC" : /sheet|excel|csv/.test(f.type) ? "XLS" : /presentation|powerpoint/.test(f.type) ? "PPT" : /zip|compressed/.test(f.type) ? "ZIP" : /^text|json|javascript|python|kotlin/.test(f.type) ? "TXT" : ((f.name || "").split(".").pop() || "?").slice(0, 4).toUpperCase();
+async function sign(paths) {
+  const miss = [...new Set(paths)].filter(p => p && !urls[p]); if (!miss.length) return;
+  try { const r = await sb.storage.from(BUCKET).createSignedUrls(miss, 6 * 3600); (r.data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; }); } catch (e) {}
+}
+function fileHTML(m) {
+  const f = m.file, u = !expired(m) && urls[f.path];
+  if (!u && !m.pending) return `<div class="so-file off"><i>${isImg(f) ? "BILD" : esc(fIcon(f))}</i><span><b>${esc(f.name)}</b><small>Datei abgelaufen (Anhänge bleiben 24 Stunden)</small></span></div>`;
+  if (isImg(f)) return u ? `<button class="so-img" data-view="${esc(f.path)}" aria-label="Bild ${esc(f.name)} groß anzeigen"><img src="${esc(u)}" alt="${esc(f.name)}" loading="lazy"></button>` : `<div class="so-file"><i>BILD</i><span><b>${esc(f.name)}</b><small>nicht mehr verfügbar</small></span></div>`;
+  return `<a class="so-file" ${u ? `href="${esc(u)}" download="${esc(f.name)}" target="_blank" rel="noopener"` : ""}><i>${esc(fIcon(f))}</i><span><b>${esc(f.name)}</b><small>${size(f.size || 0)}${u ? " · herunterladen" : " · nicht mehr verfügbar"}</small></span></a>`;
+}
 function msgHTML(m, prev) {
   const mine = m.sender === me.id, same = prev && prev.sender === m.sender && new Date(m.created_at) - new Date(prev.created_at) < 300000;
-  return `<div class="so-m ${mine ? "mine" : ""} ${same ? "cont" : ""}" data-mid="${m.id}">${mine || same ? "" : av(names[m.sender])}
-    <div class="so-b">${mine || same ? "" : `<b>${esc(nm(m.sender))}</b>`}<p>${linkify(m.body)}</p><small>${time(m.created_at)}${mine ? ` · <button class="so-del" data-del="${m.id}" aria-label="Nachricht löschen">löschen</button>` : ""}</small></div></div>`;
+  return `<div class="so-m ${mine ? "mine" : ""} ${same ? "cont" : ""} ${m.file ? "has-file" : ""}" data-mid="${m.id}">${mine || same ? "" : av(names[m.sender])}
+    <div class="so-b">${mine || same ? "" : `<b>${esc(nm(m.sender))}</b>`}${m.file ? fileHTML(m) : ""}${m.body ? `<p>${linkify(m.body)}</p>` : ""}<small>${m.pending ? "wird gesendet …" : time(m.created_at)}${mine && !m.pending ? ` · <button class="so-del" data-del="${m.id}" aria-label="Nachricht löschen">löschen</button>` : ""}</small></div></div>`;
+}
+function viewImage(path, name) {
+  App.modal(`<div class="so-view"><img src="${esc(urls[path])}" alt="${esc(name)}"></div><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><small class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</small><span class="row" style="gap:8px"><a class="btn sm" href="${esc(urls[path])}" download="${esc(name)}" target="_blank" rel="noopener">Herunterladen</a><button class="btn pri sm" data-close>Schließen</button></span></div>`);
 }
 /* target: { to_user } | { group_id } | { course } */
 async function chat(box, target, hint) {
   drop();
   const key = Object.keys(target)[0], val = target[key];
   box.innerHTML = `<div class="so-chat"><div class="so-log" aria-live="polite"><div class="so-load">Lade Nachrichten …</div></div>
-    <form class="so-in"><textarea rows="1" maxlength="2000" placeholder="${esc(hint || "Nachricht schreiben …")}" aria-label="Nachricht"></textarea><button class="btn pri" type="submit" aria-label="Senden">➤</button></form></div>`;
-  const log = $(".so-log", box), ta = $("textarea", box), form = $("form", box), wrap = $(".so-chat", box);
+    <div class="so-drop" aria-hidden="true">Datei hier ablegen</div>
+    <form class="so-in"><input type="file" class="so-fi" hidden multiple><button type="button" class="btn ghost so-att" aria-label="Bild oder Datei anhängen" title="Bild oder Datei anhängen (bis 5 MB, wird nach 24 Stunden gelöscht)">📎</button><textarea rows="1" maxlength="2000" placeholder="${esc(hint || "Nachricht schreiben …")}" aria-label="Nachricht"></textarea><button class="btn pri" type="submit" aria-label="Senden">➤</button></form></div>`;
+  const log = $(".so-log", box), ta = $("textarea", box), form = $("form", box), wrap = $(".so-chat", box), fi = $(".so-fi", box);
   /* Chat füllt den sichtbaren Bereich, das Eingabefeld bleibt über der Handy-Leiste */
   const fit = () => { if (!box.isConnected) return removeEventListener("resize", fit); const bn = $("#bnav"), nb = bn && getComputedStyle(bn).display !== "none" ? bn.offsetHeight : 0; wrap.style.height = Math.max(300, innerHeight - (wrap.getBoundingClientRect().top + scrollY) - nb - 16) + "px"; };
   fit(); addEventListener("resize", fit);
@@ -75,16 +112,18 @@ async function chat(box, target, hint) {
   const paint = () => {
     log.innerHTML = list.length ? list.map((m, i) => msgHTML(m, list[i - 1])).join("") : `<div class="so-empty">Noch keine Nachrichten. Schreib die erste!</div>`;
     log.scrollTop = log.scrollHeight;
+    $$("img", log).forEach(i => { if (!i.complete) i.onload = () => { log.scrollTop = log.scrollHeight; }; });
   };
   let query = sb.from("messages").select("*").order("created_at", { ascending: false }).limit(150);
   query = key === "to_user" ? query.or(`and(sender.eq.${me.id},to_user.eq.${val}),and(sender.eq.${val},to_user.eq.${me.id})`) : query.eq(key, val);
-  try { list = (await q(query)).reverse(); await loadNames(list.map(m => m.sender)); if (!box.isConnected) return; paint(); }
+  if (key === "course") query = query.gt("created_at", new Date(Date.now() - DAY).toISOString()); /* offener Fach-Chat zeigt nur die letzten 24 Stunden */
+  try { list = (await q(query)).reverse(); await Promise.all([loadNames(list.map(m => m.sender)), sign(list.filter(m => m.file && !expired(m)).map(m => m.file.path))]); if (!box.isConnected) return; paint(); }
   catch (e) { log.innerHTML = `<div class="so-empty">${esc(fail(e))}</div>`; return; }
   const add = async m => {
     if (!box.isConnected) return drop();
     if (list.some(x => x.id === m.id)) return;
     if (key === "to_user" && !((m.sender === val && m.to_user === me.id) || (m.sender === me.id && m.to_user === val))) return;
-    await loadNames([m.sender]); list.push(m); paint();
+    await Promise.all([loadNames([m.sender]), sign([m.file && m.file.path])]); list.push(m); paint();
   };
   chan = sb.channel("so-" + key + "-" + val + "-" + Date.now())
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: key === "to_user" ? `to_user=eq.${me.id}` : `${key}=eq.${val}` }, p => add(p.new))
@@ -97,12 +136,39 @@ async function chat(box, target, hint) {
     try { add(await q(sb.from("messages").insert({ body, [key]: val }).select().single())); }
     catch (e) { ta.value = body; App.toast("Nicht gesendet", fail(e), "!"); }
   };
+  /* Bilder, GIFs und Dateien: hochladen, dann als Nachricht mit Anhang senden (Text im Feld wird zur Bildunterschrift) */
+  const upload = async files => {
+    for (const raw of files) {
+      const f = await shrink(raw);
+      if (f.size > MAXB) { App.toast("Zu groß", `${f.name} hat ${size(f.size)}. Erlaubt sind bis 5 MB.`, "!"); continue; }
+      const name = (f.name || "bild.png").replace(/[^\w.\-äöüÄÖÜß ]+/g, "_").slice(-80) || "datei", path = `${me.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${name.replace(/\s+/g, "_")}`;
+      const body = ta.value.trim(); ta.value = ""; ta.style.height = "";
+      const tmp = { id: "tmp" + Date.now(), sender: me.id, body, file: { path, name, type: f.type || "application/octet-stream", size: f.size }, created_at: new Date().toISOString(), pending: true };
+      if (isImg(tmp.file)) urls[path] = URL.createObjectURL(f);
+      list.push(tmp); paint();
+      try {
+        const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: tmp.file.type, upsert: false }); if (up.error) throw up.error;
+        const m = await q(sb.from("messages").insert({ body, file: tmp.file, [key]: val }).select().single());
+        delete urls[path]; await sign([path]); list = list.filter(x => x !== tmp); add(m);
+      } catch (e) { list = list.filter(x => x !== tmp); paint(); if (body && !ta.value) ta.value = body; App.toast("Nicht gesendet", /bucket|not found/i.test(String(e && e.message)) ? "Der Dateispeicher ist noch nicht eingerichtet (supabase-update-2.sql)." : fail(e), "!"); }
+    }
+  };
+  $(".so-att", box).onclick = () => fi.click();
+  fi.onchange = () => { const fs = [...fi.files]; fi.value = ""; upload(fs); };
+  ta.onpaste = e => { const fs = [...((e.clipboardData && e.clipboardData.files) || [])]; if (fs.length) { e.preventDefault(); upload(fs); } };
+  let dragN = 0;
+  wrap.ondragenter = e => { if ([...e.dataTransfer.types].includes("Files")) { dragN++; wrap.classList.add("drag"); } };
+  wrap.ondragleave = () => { if (--dragN <= 0) { dragN = 0; wrap.classList.remove("drag"); } };
+  wrap.ondragover = e => e.preventDefault();
+  wrap.ondrop = e => { e.preventDefault(); dragN = 0; wrap.classList.remove("drag"); const fs = [...e.dataTransfer.files]; if (fs.length) upload(fs); };
   form.onsubmit = e => { e.preventDefault(); send(); };
   ta.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
   ta.oninput = () => { ta.style.height = ""; ta.style.height = Math.min(ta.scrollHeight, 160) + "px"; };
   log.onclick = async e => {
+    const v = e.target.closest("[data-view]"); if (v) { const m = list.find(x => x.file && x.file.path === v.dataset.view); return viewImage(v.dataset.view, m ? m.file.name : ""); }
     const d = e.target.closest("[data-del]"); if (!d || !confirm("Nachricht löschen?")) return;
-    try { await q(sb.from("messages").delete().eq("id", +d.dataset.del)); list = list.filter(m => m.id !== +d.dataset.del); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
+    const m = list.find(x => x.id === +d.dataset.del);
+    try { await q(sb.from("messages").delete().eq("id", +d.dataset.del)); if (m && m.file) sb.storage.from(BUCKET).remove([m.file.path]).catch(() => {}); list = list.filter(x => x.id !== +d.dataset.del); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
   };
 }
 
@@ -174,7 +240,7 @@ PAGES.together = (el, p) => boot(el, async () => {
         ${gs.length ? gs.map(g => `<button class="so-row so-link th-dot-${esc(g.course)}" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc((CBY[g.course] && CBY[g.course].short) || g.course)}</span><b>${esc(g.name)}</b><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe für ein Fach oder tritt mit einem Code bei.</p>`}
         <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
-    <section class="card"><h3>Live-Chat pro Fach</h3><p class="muted">Offen für alle, die StudyOS nutzen. Frag, was du nicht verstehst, oder hilf anderen.</p>
+    <section class="card"><h3>Live-Chat pro Fach</h3><p class="muted">Offen für alle, die StudyOS nutzen, Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p>
       <div class="so-courses">${COURSES.map(c => `<button class="so-cc th-${c.id}" data-go="coursechat" data-p="${c.id}"><i></i><b>${esc(c.title)}</b><small>${esc(c.short)}</small></button>`).join("")}</div></section></div>`;
   $("#so-qr", el).onclick = () => shareDialog("Dein Freundescode", "Lass den Code scannen oder schick den Link. Wer ihn öffnet, schickt dir eine Freundschaftsanfrage.", LINK + "#friend=" + me.code, me.code);
   $("#so-add", el).onclick = () => codeDialog("Freund hinzufügen", "Freundescode (8 Zeichen)", async c => { const id = await addFriend(c); App.toast("Anfrage gesendet", `${nm(id)} muss noch bestätigen.`, "☺"); PAGES.together(el, ""); });
@@ -233,7 +299,7 @@ PAGES.coursechat = (el, p) => boot(el, async () => {
   if (!c) return App.go("together", "");
   if (sub && sub.startsWith("g:")) return groupPage(el, sub.slice(2), ["coursechat", cid, "Live-Chat " + c.short]);
   const gs = (await myGroups()).filter(g => g.course === cid); if (stale()) return;
-  el.innerHTML = `<div class="page so so-full">${head(`Live-Chat · ${esc(c.title)}`, "Offen für alle, die StudyOS nutzen. Bleib freundlich, keine privaten Daten.")}
+  el.innerHTML = `<div class="page so so-full">${head(`Live-Chat · ${esc(c.title)}`, "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten.")}
     <div class="so-tools so-gtabs">${gs.map(g => `<button class="chip" data-go="coursechat" data-p="${cid}|g:${g.id}">◎ ${esc(g.name)}</button>`).join("")}<button class="chip acc" id="so-cnew">+ Lerngruppe</button><button class="chip" id="so-cjoin">Code eingeben</button><button class="chip" data-go="together">Freunde ›</button></div>
     <div class="card so-box"></div></div>`;
   $("#so-cnew", el).onclick = () => newGroupDialog(cid, g => App.go("coursechat", cid + "|g:" + g.id));

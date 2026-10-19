@@ -218,3 +218,8 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Lerngruppen gibt es pro Fach. Beitreten geht per Gruppencode (`#group=CODE`), den nur Mitglieder sehen.
 - **Live-Chat pro Fach:** im Fach-Menü unter „Live-Chat & Gruppen“, lesbar für alle angemeldeten Geräte.
 - **Laden:** Die Bibliothek `js/vendor/supabase.js` (supabase-js 2.45.4) wird erst geladen, wenn man den Bereich öffnet. Ohne Internet bleibt der Rest der App unverändert.
+- **Anhänge und Aufräumen (4.19):**
+  - Bilder und Dateien bis 5 MB liegen im privaten Supabase-Speicher `chat`, in einem Ordner pro Konto. Fotos werden in der App vorher verkleinert.
+  - Abrufbar sind sie 24 Stunden lang und nur für alle, die auch die Nachricht sehen dürfen.
+  - Ein stündlicher pg_cron-Job (`studyos-aufraeumen`) löscht Fach-Live-Chat-Nachrichten, die älter als 24 Stunden sind, und markiert alte Anhänge als abgelaufen. Die Dateien selbst entfernt die App des Absenders beim nächsten Öffnen.
+  - Einrichtung: `supabase-update-2.sql` im SQL Editor ausführen.
