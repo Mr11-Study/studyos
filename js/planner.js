@@ -7,11 +7,9 @@ App.EV_TYPES = TYPES;
 const addDays = (k, n) => { const d = new Date(k + "T12:00:00"); d.setDate(d.getDate() + n); return dkey(d); };
 
 /* ---------------- events model ---------------- */
-function courseEvents() {
-  const out = [];
-  COURSES.forEach(c => (c.events || []).forEach(e => { const ov = S().eventOv[e.id] || {}; if (ov.hidden) return; out.push(Object.assign({ course: c.id, src: "course" }, e, ov)); }));
-  return out;
-}
+/* Seit 4.18 keine vorab eingetragenen Prüfungen, Abgaben und Termine mehr: Kalender und Startseite zeigen nur den
+   eigenen Stundenplan und selbst angelegte Termine. Die events-Listen in courses/*.js bleiben als Nachschlagewerk liegen. */
+function courseEvents() { return []; }
 function userEvents() { return (S().events || []).map(e => Object.assign({ src: "user" }, e)); }
 function planEvents() { return []; } /* Lernpläne gibt es seit 4.14 nicht mehr */
 function expand(e, from, to) {
