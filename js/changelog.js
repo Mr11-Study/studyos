@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.19.0", d: "2026-10-19", t: "Bilder und Dateien im Chat", items: [
+    "In allen Chats lassen sich über 📎 Bilder, GIFs und Dateien bis 5 MB senden, auch per Einfügen oder Hineinziehen. Fotos werden vorher automatisch verkleinert.",
+    "Anhänge sind 24 Stunden abrufbar und werden danach gelöscht.",
+    "Der offene Live-Chat pro Fach zeigt nur die letzten 24 Stunden. Lerngruppen und Direktchats bleiben erhalten."] },
   { v: "4.18.1", d: "2026-10-19", t: "Leerer Kalender zum Start", items: [
     "Die vorab eingetragenen Prüfungen, Abgaben und Termine sind entfernt. Kalender und Startseite zeigen nur noch deinen Stundenplan und Termine, die du selbst anlegst.",
     "Gemeinsam: Fehlermeldungen beim Verbinden zeigen jetzt den genauen Grund von Supabase an."] },
