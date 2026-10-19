@@ -201,3 +201,20 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
 - **Plus-Inhalte pro Fach** liegen in `courses/plus/<fach>.js`: Rechner, Animationen, durchgerechnete Beispiele, zusätzliche Fragen und Karteikarten, eingebunden über `STUDYOS_EXT` (siehe `courses/ext-apply.js`).
 - **Feedback**-Seite (Menü → Konto → Feedback): öffnet eine E-Mail an den Entwickler, mit Version und Gerät im Anhang.
 - **Profil** (Einstellungen → Profil): Avatar, Farbe der App, Tagesziel in Minuten.
+
+### Gemeinsam: Freunde, Chats und Lerngruppen (4.16)
+
+- **Backend:** Supabase-Projekt `nanknvsfotrcyxjzwsyd` (EU).
+  - URL und anon key stehen in `js/social.js`. Der anon key ist öffentlich gedacht.
+  - Geschützt werden die Daten über Row Level Security, siehe `supabase-setup.sql`. Der service_role key gehört nie in die App.
+- **Einrichtung (einmalig):**
+  - Authentication → Sign In / Providers → „Allow anonymous sign-ins“ einschalten.
+  - Im SQL Editor `supabase-setup.sql` ausführen.
+- **Ablauf in der App:**
+  - Wer den Online-Modus einschaltet, bekommt ein anonymes Konto pro Gerät und Profil.
+  - Sichtbar sind für andere nur Name und Avatar.
+- **Einladungen:**
+  - Freunde fügen sich gegenseitig über den Freundescode hinzu (`#friend=CODE`), der andere muss bestätigen.
+  - Lerngruppen gibt es pro Fach. Beitreten geht per Gruppencode (`#group=CODE`), den nur Mitglieder sehen.
+- **Live-Chat pro Fach:** im Fach-Menü unter „Live-Chat & Gruppen“, lesbar für alle angemeldeten Geräte.
+- **Laden:** Die Bibliothek `js/vendor/supabase.js` (supabase-js 2.45.4) wird erst geladen, wenn man den Bereich öffnet. Ohne Internet bleibt der Rest der App unverändert.

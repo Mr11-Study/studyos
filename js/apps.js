@@ -7,13 +7,14 @@ if ((window.STUDYOS_TRACK || "uni") !== "uni") return;
 const { $, $$, esc, PAGES, CBY, COURSES, TOPICS, LBYID } = App;
 const S = () => App.S();
 
-const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback"]);
+const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback", "together"]);
 const worldOf = id => { for (const c of COURSES) for (const w of c.worlds) if (w.id === id) return c.id; return null; };
 const app = () => S().app && CBY[S().app] ? S().app : null;
 function setApp(v, p) {
   let a = app();
   if (HUB.has(v)) a = null;
   else if (v === "course" || v === "skript" || v === "prep") a = CBY[p] ? p : a || S().course;
+  else if (v === "coursechat") { const id = String(p || "").split("|")[0]; a = CBY[id] ? id : a || S().course; }
   else if (v === "lesson") a = LBYID[p] ? LBYID[p].course : a;
   else if (v === "boss" || v === "path") a = worldOf(p) || a || S().course;
   else if (v === "review") { const s = String(p || ""); if (s === "all") a = null; else if (s.startsWith("c:") || s.startsWith("alt:")) a = s.split(":")[1]; else if (s.startsWith("topic:") && TOPICS[s.slice(6)]) a = TOPICS[s.slice(6)].course; }
@@ -43,11 +44,11 @@ function appNav(c) {
   return [
     ["Lernen", [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skript", "❡"], ["review", "c:" + c.id, "Üben", "↻"]]],
     ["Prüfung", [c.examPrep && ["prep", c.id, qt ? "Quick-Test-Vorbereitung" : "Prüfung üben", "✎"], ["exam", "", qt ? "Quick-Test" : "Prüfungssimulation", "⏱"]].filter(Boolean)],
-    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Übungen", "λ"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], c.maple && ["maple", "", "Maple-Labor", "▸"], ["resources", "", "Material", "⎘"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
+    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Übungen", "λ"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], c.maple && ["maple", "", "Maple-Labor", "▸"], ["coursechat", c.id, "Live-Chat & Gruppen", "◌"], ["resources", "", "Material", "⎘"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
-  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
+  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
 const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
 
