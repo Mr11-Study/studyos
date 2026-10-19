@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.15.0", d: "2026-10-19", t: "Rechner, Animationen und mehr Übung in allen Fächern", items: [
+    "Neue Rechner mit Live-Graph: Werte eintippen oder Regler ziehen, Ergebnis und Rechenweg erscheinen sofort, beim Darüberfahren zeigt der Graph die Werte an jeder Stelle.",
+    "In allen Fächern mehr durchgerechnete Beispiele, neue Animationen und zusätzliche Übungsfragen zu jedem Thema.",
+    "Neues Logo, sanftes Einblenden beim Scrollen, Lesefortschritt in Lektionen und Skript, schönere Fach-Übersicht.",
+    "Profil: Avatar, Farbe der App und ein Tagesziel in Minuten, das auf der Startseite angezeigt wird.",
+    "Neue Seite „Feedback“: Feedback, Vorschläge, Fehler und Bewertungen direkt per E-Mail an den Entwickler.",
+    "Handy: Die Seite verrutscht nicht mehr seitlich, breite Tabellen lassen sich innerhalb ihrer Box wischen."] },
   { v: "4.14.0", d: "2026-10-19", t: "Neue Startseite und Kalender mit Stundenplan", items: [
     "Neue Startseite „Heute“: Begrüßung, deine nächste Lektion, was heute an der FH ansteht und alle Fächer mit Fortschritt auf einen Blick.",
     "Neuer Kalender als Wochenansicht. Den Stundenplan holst du dir als iCal-Link oder .ics-Datei, zum Beispiel aus Studo oder dem FH-System.",

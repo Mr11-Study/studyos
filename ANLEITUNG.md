@@ -195,3 +195,9 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
 
 - **Maple-Labor** (`js/maple.js` + `js/maple-ui.js`): rechnet Maple-Befehle im Browser (diff, int, solve, fsolve, Matrizen/LinearAlgebra, CurveFitting, NonlinearFit, plot, plot3d, implicitplot, polygonplot …). Lektionsblock: `{ t: "maple", title, code: ["…", "…"], note }`.
 - **Prüfungssimulation** (`js/mathexam.js`): 5 Aufgaben (3+3+3+3+4 = 16 Punkte) wie in den Altprüfungen, jedes Mal neue Zahlen, Bewertung mit Toleranz, danach Lösungsweg und Maple-Code. Kurse mit `exam: "maple"` bekommen diese Seite.
+
+### Rechner, Plus-Inhalte und Feedback (4.15)
+- **Rechner mit Live-Graph** (`js/calc.js`): Lektionsblock `{ t: "calc", id }`, Definition in `window.STUDYOS_CALC[id]` (Eingaben mit Schiebereglern, Ergebnisse, Rechenweg, Graph mit Werten beim Darüberfahren). Funktioniert in Lektion und Skript.
+- **Plus-Inhalte pro Fach** liegen in `courses/plus/<fach>.js`: Rechner, Animationen, durchgerechnete Beispiele, zusätzliche Fragen und Karteikarten, eingebunden über `STUDYOS_EXT` (siehe `courses/ext-apply.js`).
+- **Feedback**-Seite (Menü → Konto → Feedback): öffnet eine E-Mail an den Entwickler, mit Version und Gerät im Anhang.
+- **Profil** (Einstellungen → Profil): Avatar, Farbe der App, Tagesziel in Minuten.

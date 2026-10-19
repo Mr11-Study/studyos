@@ -7,6 +7,8 @@
     uni: { label: "Studium", sub: "Wirtschaftsinformatik · Kurse, Prüfungen, Git", icon: "◆", color: "#8BD126" }
   };
   /* Semester: jedes Studium-Profil lernt ein Semester; Kurse tragen course.semester (core.js filtert danach) */
+  /* Logo: ein „S.“ – Studium, Punkt. Strich in Textfarbe der Kachel, Punkt in Textmarker-Gelb */
+  window.STUDYOS_LOGO = '<svg viewBox="0 0 100 100" aria-hidden="true" class="logo-mark"><path d="M64 36a13.5 13.5 0 1 0-13.5 13.5a13.5 13.5 0 1 1-13.5 13.5" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"/><circle cx="74" cy="68" r="6" class="logo-dot"/></svg>';
   const SEMS = [{ n: 1, term: "WS 2025/26" }, { n: 2, term: "SS 2026" }, { n: 3, term: "WS 2026/27" }];
   const keyOf = id => id === "main" ? "studyos.v2" : "studyos.v2." + id;
   const secretOf = id => id === "main" ? "studyos.secrets" : "studyos.secrets." + id;
@@ -41,7 +43,7 @@
     const draw = () => {
       const first = !list.length;
       root.innerHTML = `<div class="pick-box">
-        <div class="pick-brand"><div class="logo">S</div><b>StudyOS</b></div>
+        <div class="pick-brand"><div class="logo">${window.STUDYOS_LOGO}</div><b>StudyOS</b></div>
         ${creating ? `${first ? `<div class="pick-hero"><h1>Schön, dass du da bist.</h1><p>StudyOS begleitet dich durchs Studium, in kleinen Schritten und ganz in Ruhe.</p></div>
           <ul class="pick-how"><li><i>1</i><div><b>Lesen</b><small>Kurze Lektionen zu jedem Thema deiner Fächer</small></div></li><li><i>2</i><div><b>Wiederholen</b><small>Ein paar Fragen am Tag, genau dann, wenn du sie brauchst</small></div></li><li><i>3</i><div><b>Prüfung üben</b><small>Mit echten Altfragen und Lösungen</small></div></li></ul>`
           : `<h1>Neues Profil</h1><p class="muted">Jedes Profil hat eigenen Fortschritt und ein eigenes Semester.</p>`}

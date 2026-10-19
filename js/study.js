@@ -55,10 +55,10 @@ App.SIDE = () => {
   const side = $("#side"); if (!side) return;
   const R = App.route(), cur = ACTIVE[R.v] || R.v, due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0, st = App.streak();
   side.innerHTML = `
-    <div class="brand"><div class="logo">S</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
+    <div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
     <nav class="nav" aria-label="Hauptmenü">${NAVG.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(([v, t, i]) => `<button data-go="${v}" class="${cur === v ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "review" && due ? `<span class="badge">${due}</span>` : ""}</button>`).join("")).join("")}
       <div class="eyebrow lbl">Konto</div><button data-go="settings" class="${cur === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button></nav>
-    <div class="me"><div class="me-top"><div class="avatar">${esc((S().name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
+    <div class="me"><div class="me-top"><div class="avatar">${esc((S().settings && S().settings.avatar) || (S().name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
       ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profil wechseln">⇄ Profil wechseln</button>` : ""}</div>`;
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   const tb = $("#tb-stats"); if (tb) tb.innerHTML = due ? `<button class="chip acc" data-go="review">↻ ${due} fällig</button>` : "";
@@ -89,7 +89,7 @@ PAGES.dash = el => {
      <div class="dh-in"><span class="eyebrow">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span>
        <h1>${greet}, <span class="dh-name">${esc(S().name)}</span></h1>
        <p>${fresh ? "Schön, dass du da bist. Fang mit einer kurzen Lektion an, der Rest ergibt sich." : classes.length ? `Heute ${plural(classes.length, "Einheit", "Einheiten")} an der FH${classes[0].time ? ", los geht’s um " + classes[0].time : ""}.` : nx ? "Bereit für die nächste Lektion?" : "Alles gelesen. Stark."}</p>
-       <div class="dh-stats"><div><b data-count="${st}">${st}</b><small>${st === 1 ? "Lerntag" : "Lerntage"} in Folge</small></div><div><b>${wkMin < 60 ? `<span data-count="${wkMin}">${wkMin}</span> min` : fmtMin(wkMin * 60)}</b><small>diese Woche</small></div><div><b><span data-count="${totU}">${totU}</span>/${totN}</b><small>Lektionen verstanden</small></div></div></div></section>
+       <div class="dh-stats">${(() => { const goal = (S().settings || {}).goalMin || 20, m = Math.round(((S().days[t] || {}).sec || 0) / 60), pc = Math.min(100, Math.round(100 * m / goal)); return `<div class="dh-goal" style="--pc:${pc}"><span class="dh-gr"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" pathLength="100"/><circle cx="18" cy="18" r="15" pathLength="100" style="stroke-dashoffset:${100 - pc}"/></svg></span><span><b><span data-count="${m}">${m}</span>/${goal} min</b><small>${pc >= 100 ? "Tagesziel erreicht" : "Tagesziel heute"}</small></span></div>`; })()}<div><b data-count="${st}">${st}</b><small>${st === 1 ? "Lerntag" : "Lerntage"} in Folge</small></div><div><b>${wkMin < 60 ? `<span data-count="${wkMin}">${wkMin}</span> min` : fmtMin(wkMin * 60)}</b><small>diese Woche</small></div><div><b><span data-count="${totU}">${totU}</span>/${totN}</b><small>Lektionen verstanden</small></div></div></div></section>
    <div class="dh-grid">
      ${nx ? `<section class="card dh-next" style="--c:${nc.color}"><div class="spread"><span class="eyebrow">${fresh ? "Dein Start" : "Weiterlernen"}</span>${nx.ev ? `<span class="chip ${daysUntil(nx.ev.date) <= 7 ? "warn" : ""}">${evLabel(nx.ev)}</span>` : ""}</div>
        <div class="dh-course">${badge(nc)}<span>${esc(nc.title)} · Kapitel ${nx.nl.world.n}</span></div>
@@ -336,6 +336,7 @@ function skBlock(b, l, lvl) {
     case "warnbox": return `<div class="warnbox"><span>⚠️</span><span>${b.html}</span></div>`;
     case "check": { const q = App.norm(Object.assign({ course: l.course }, b)); return `<details class="sk-check"><summary>${de ? "Selbsttest" : "Self-check"}: ${q.q}</summary><ol type="A">${q.opts.map((o, i) => `<li class="${i === q.a ? "ok" : ""}">${o}${i === q.a ? " ✓" : ""}</li>`).join("")}</ol>${q.why ? `<p class="muted">${q.why}</p>` : ""}</details>`; }
     case "fig": return window.FX ? FX.html(b, { cls: "sk-fig" }) : "";
+    case "calc": return window.CALCX ? CALCX.html(b, { cls: "sk-calc" }) : "";
     case "maple": return window.MPL && MPL.blockHTML ? `<div class="sk-maple">${MPL.blockHTML(b)}</div>` : "";
     case "widget": if (App.ktSkript && App.ktSkript(b, l)) return App.ktSkript(b, l); return `<p class="sk-widget"><button class="linkbtn" data-go="lesson" data-p="${l.id}">▸ ${de ? "Interaktive Übung" : "Interactive exercise"}${b.title ? ": " + esc(b.title) : ""} – in der Lektion</button></p>`;
   }
@@ -400,7 +401,7 @@ PAGES.prep = (el, p) => {
    <header><h1>Prüfung üben</h1><p class="muted" style="margin-top:6px;max-width:70ch">Aus deinen Altprüfungen und Fragensammlungen: was drankommt, wie es gefragt wird und was du für ein Sehr gut können musst.</p></header>
    <div class="row fchips">${withPrep.map(x => `<button class="chip ${x.id === c.id ? "on" : ""}" data-pc="${x.id}"><span class="dot" style="--c:${x.color}"></span>${esc(x.short)} <b>${readiness(x.id).pct}%</b></button>`).join("")}</div>
    <div class="prep-top">
-     <section class="card prep-ready"><span class="eyebrow">Prüfungsreife · ${esc(c.title)}</span><div class="rv-num"><b>${r.pct} %</b><span>${ex ? `Prüfung ${fmtDate(ex.date, { weekday: "short", day: "numeric", month: "long" })} · ${daysUntil(ex.date) === 0 ? "heute" : "in " + daysUntil(ex.date) + " Tagen"}` : "Prüfungstermin noch nicht eingetragen"}</span></div>
+     <section class="card prep-ready"><span class="eyebrow">Prüfungsreife · ${esc(c.title)}</span><div class="rv-num"><b>${r.pct} %</b><span>${ex ? `Prüfung ${fmtDate(ex.date, { weekday: "short", day: "numeric", month: "long" })} · ${daysUntil(ex.date) === 0 ? "heute" : "in " + daysUntil(ex.date) + " Tagen"}` : "So gut bist du vorbereitet"}</span></div>
        <div class="col" style="gap:8px"><div class="spread"><small>Wissen in den Prüfungsthemen</small><small class="tab">${r.know} %</small></div>${pbar(r.know, "var(--know)")}
        <div class="spread"><small>Checkliste</small><small class="tab">${r.done}/${r.total}</small></div>${pbar(r.check)}
        <div class="spread"><small>Aufgaben gelöst</small><small class="tab">${r.tdone}/${(P.tasks || []).length}</small></div>${pbar((P.tasks || []).length ? 100 * r.tdone / P.tasks.length : 0, "var(--good)")}</div>
