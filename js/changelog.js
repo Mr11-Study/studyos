@@ -5,8 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
-  { v: "4.18.0", d: "2026-10-19", t: "Leerer Kalender zum Start", items: [
-    "Die vorab eingetragenen Prüfungen, Abgaben und Termine sind entfernt. Kalender und Startseite zeigen nur noch deinen Stundenplan und Termine, die du selbst anlegst."] },
+  { v: "4.18.1", d: "2026-10-19", t: "Leerer Kalender zum Start", items: [
+    "Die vorab eingetragenen Prüfungen, Abgaben und Termine sind entfernt. Kalender und Startseite zeigen nur noch deinen Stundenplan und Termine, die du selbst anlegst.",
+    "Gemeinsam: Fehlermeldungen beim Verbinden zeigen jetzt den genauen Grund von Supabase an."] },
   { v: "4.17.0", d: "2026-10-19", t: "Neues Design in FH-Grün", items: [
     "StudyOS trägt jetzt das Grün der Wirtschaftsinformatik an der FH JOANNEUM, mit Facetten-Muster auf Startseite und Willkommensbildschirm.",
     "Neues App-Symbol in Grün. Es erneuert sich auf Handy und Laptop von selbst, sobald die neue Version geladen ist.",
