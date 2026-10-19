@@ -35,7 +35,7 @@
 .dash2>*{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
 .dash2>:nth-child(2){animation-delay:.08s}.dash2>:nth-child(3){animation-delay:.16s}.dash2>:nth-child(4){animation-delay:.24s}
 .dh-hero{position:relative;overflow:hidden;border-radius:22px;padding:30px 28px 26px;color:#fff;
-  background:linear-gradient(120deg,color-mix(in srgb,var(--acc) 72%,#000),var(--acc) 32%,color-mix(in srgb,var(--acc) 62%,#2E3F8F) 70%,color-mix(in srgb,var(--acc) 80%,#000));background-size:200% 100%;animation:rise .5s both,sheen 18s linear infinite;
+  background:var(--facets) center/cover no-repeat,linear-gradient(135deg,var(--hero1),var(--hero2));animation:rise .5s both;
   box-shadow:0 18px 40px -22px color-mix(in srgb,var(--acc) 80%,#000)}
 .dh-orbs i{position:absolute;border-radius:50%;filter:blur(2px);opacity:.5;animation:drift 14s ease-in-out infinite}
 .dh-orbs i:nth-child(1){width:220px;height:220px;right:-50px;top:-80px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.45),rgba(255,255,255,0) 70%)}
@@ -44,13 +44,13 @@
 .dh-in{position:relative;display:flex;flex-direction:column;gap:8px}
 .dh-hero .eyebrow{color:rgba(255,255,255,.75)}
 .dh-hero h1{color:#fff;font-size:32px;line-height:1.15}
-.dh-name{background:linear-gradient(90deg,#fff,#FFE4A3);-webkit-background-clip:text;background-clip:text;color:transparent}
+.dh-name{background:linear-gradient(90deg,#fff,#E6F4D2);-webkit-background-clip:text;background-clip:text;color:transparent}
 .dh-hero p{color:rgba(255,255,255,.86);max-width:56ch;font-size:15.5px}
 .dh-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
 .dh-stats>div{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);min-width:110px}
 .dh-stats b{font:650 20px var(--f-display);font-variant-numeric:tabular-nums}
 .dh-stats small{color:rgba(255,255,255,.75);font-size:12px}
-@media (prefers-color-scheme:dark){.dh-hero{background-image:linear-gradient(120deg,color-mix(in srgb,var(--acc) 22%,#071012),color-mix(in srgb,var(--acc) 38%,#0b1416) 35%,color-mix(in srgb,var(--acc) 26%,#14244a) 70%,color-mix(in srgb,var(--acc) 30%,#0b1416))}}
+
 
 .dh-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
 .dh-next{display:flex;flex-direction:column;gap:10px;padding:22px;position:relative;overflow:hidden;border-top:4px solid var(--c,var(--acc))}
@@ -252,13 +252,13 @@ html,body{overflow-x:clip;max-width:100%}
 [data-theme=study][data-acc=blau]{--acc:#2E66AE;--acc2:#25528C;--acc-soft:rgba(46,102,174,.09);--acc-line:rgba(46,102,174,.32)}
 [data-theme=study][data-acc=violett]{--acc:#6E54B8;--acc2:#5A4399;--acc-soft:rgba(110,84,184,.09);--acc-line:rgba(110,84,184,.32)}
 [data-theme=study][data-acc=beere]{--acc:#A8336A;--acc2:#8C2957;--acc-soft:rgba(168,51,106,.08);--acc-line:rgba(168,51,106,.3)}
-[data-theme=study][data-acc=gruen]{--acc:#2F7D4F;--acc2:#256640;--acc-soft:rgba(47,125,79,.09);--acc-line:rgba(47,125,79,.32)}
+[data-theme=study][data-acc=petrol]{--acc:#0E6B6B;--acc2:#0A5757;--acc-soft:rgba(14,107,107,.08);--acc-line:rgba(14,107,107,.32)}
 [data-theme=study][data-acc=orange]{--acc:#B8611A;--acc2:#9A5015;--acc-soft:rgba(184,97,26,.09);--acc-line:rgba(184,97,26,.32)}
 @media (prefers-color-scheme:dark){
   [data-theme=study][data-acc=blau]{--acc:#6EA3F0;--acc2:#8DB8F5;--acc-ink:#071629;--acc-soft:rgba(110,163,240,.12);--acc-line:rgba(110,163,240,.38)}
   [data-theme=study][data-acc=violett]{--acc:#A893F0;--acc2:#BCAAF5;--acc-ink:#160D33;--acc-soft:rgba(168,147,240,.12);--acc-line:rgba(168,147,240,.38)}
   [data-theme=study][data-acc=beere]{--acc:#EE7FB2;--acc2:#F49CC4;--acc-ink:#2B0817;--acc-soft:rgba(238,127,178,.12);--acc-line:rgba(238,127,178,.38)}
-  [data-theme=study][data-acc=gruen]{--acc:#5CC48A;--acc2:#7DD3A2;--acc-ink:#05200F;--acc-soft:rgba(92,196,138,.12);--acc-line:rgba(92,196,138,.38)}
+  [data-theme=study][data-acc=petrol]{--acc:#4FBFB5;--acc2:#6FD3C9;--acc-ink:#062220;--acc-soft:rgba(79,191,181,.11);--acc-line:rgba(79,191,181,.38)}
   [data-theme=study][data-acc=orange]{--acc:#F0A35E;--acc2:#F5B97F;--acc-ink:#2A1404;--acc-soft:rgba(240,163,94,.12);--acc-line:rgba(240,163,94,.38)}
 }
 
@@ -408,3 +408,28 @@ html,body{overflow-x:clip;max-width:100%}
     .so-m{max-width:88%}
 }
 @media (prefers-reduced-motion:reduce){.so-m,.so-ill i{animation:none}}
+
+/* ---------- FH-Grün und Facetten-Muster (Stil der Wirtschaftsinformatik-Folien) ---------- */
+:root{--facets:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300' preserveAspectRatio='none'%3E%3Cpolygon points='0,0 400,0 400,120' fill='%23fff' fill-opacity='0.07'/%3E%3Cpolygon points='0,0 230,0 0,170' fill='%23000' fill-opacity='0.07'/%3E%3Cpolygon points='0,300 0,80 200,300' fill='%23000' fill-opacity='0.13'/%3E%3Cpolygon points='400,300 160,300 400,50' fill='%23fff' fill-opacity='0.06'/%3E%3Cpolygon points='110,300 270,130 400,300' fill='%23fff' fill-opacity='0.05'/%3E%3Cpolygon points='230,0 400,0 310,90' fill='%23000' fill-opacity='0.05'/%3E%3Cpolygon points='0,170 120,300 0,300' fill='%23000' fill-opacity='0.06'/%3E%3C/svg%3E")}
+[data-theme=study][data-acc]{--hero1:color-mix(in srgb,var(--acc) 70%,#fff);--hero2:var(--acc)}
+@media (prefers-color-scheme:dark){[data-theme=study][data-acc]{--hero1:color-mix(in srgb,var(--acc) 45%,#000);--hero2:color-mix(in srgb,var(--acc) 22%,#000)}}
+.dh-orbs i:nth-child(2),.dh-orbs i:nth-child(3){display:none}
+.dh-hero::before{content:"";position:absolute;inset:-20%;background:var(--facets) center/100% 100% no-repeat;opacity:.55;transform:rotate(180deg);animation:facet 26s ease-in-out infinite alternate;pointer-events:none}
+@keyframes facet{from{transform:rotate(180deg) translate(0,0)}to{transform:rotate(180deg) translate(6%,4%)}}
+.dh-hero .eyebrow{color:#fff;opacity:.9;letter-spacing:.12em}
+/* Willkommen: grüne Facettenfläche, Inhalt auf einer weißen Karte (wie die Anmeldeseite der FH, nur in Grün) */
+div.pick{background:var(--facets) center/cover no-repeat,linear-gradient(135deg,var(--hero1),var(--hero2))}
+.pick-box{background:var(--card);border-radius:20px;padding:28px 24px;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+@media (max-width:560px){.pick-box{padding:22px 16px;border-radius:16px}}
+.lockscreen{background:var(--facets) center/cover no-repeat,linear-gradient(135deg,var(--hero1),var(--hero2))}
+.lockscreen .lock-box{background:var(--card);color:var(--text);padding:28px 22px;border-radius:20px;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+/* Logo: Fläche immer in FH-Grün, weißes S */
+[data-theme=study] .brand .logo,.pick-brand .logo,.lock-box .logo{background:var(--facets) center/cover no-repeat,var(--brand);color:#fff}
+.logo .logo-dot{fill:currentColor;opacity:.6}
+[data-theme=study] .brand small{text-transform:uppercase;letter-spacing:.08em;font-size:10px;color:var(--acc);font-weight:600;border-left:2px solid var(--brand);padding-left:6px;margin-top:3px}
+@media (prefers-reduced-motion:reduce){.dh-hero::before{animation:none}}
+@media (max-width:560px){
+  .dh-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .dh-stats>.dh-goal{grid-column:1/-1}
+  [data-theme=study] .brand small{font-size:9px}
+}

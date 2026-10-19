@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.17.0", d: "2026-10-19", t: "Neues Design in FH-Grün", items: [
+    "StudyOS trägt jetzt das Grün der Wirtschaftsinformatik an der FH JOANNEUM, mit Facetten-Muster auf Startseite und Willkommensbildschirm.",
+    "Neues App-Symbol in Grün. Es erneuert sich auf Handy und Laptop von selbst, sobald die neue Version geladen ist.",
+    "Die frühere Farbe Petrol und weitere Farben lassen sich weiterhin unter Einstellungen → Profil wählen."] },
   { v: "4.16.0", d: "2026-10-19", t: "Gemeinsam lernen: Freunde, Chats und Lerngruppen", items: [
     "Neuer Bereich „Gemeinsam“: Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.",
     "Lerngruppen pro Fach gründen, per Code oder QR-Code einladen und gemeinsam an Fragen grübeln.",
