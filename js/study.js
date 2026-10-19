@@ -45,7 +45,7 @@ App.streak = () => { let n = 0; const d = new Date(); if (!activeDay(S().days[to
 /* ================= Navigation ================= */
 const NAVG = [
   ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript lesen", "❡"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
-  ["Planen", [["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"]]],
+  ["Planen", [["calendar", "Kalender", "▦"]]],
   ["Werkzeuge", [["practice", "Übungen", "λ"], ["ktlab", "Kotlin-Labor", "K"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
 ];
 App.NAV = NAVG.flatMap(g => g[1]);
@@ -56,7 +56,7 @@ App.SIDE = () => {
   const R = App.route(), cur = ACTIVE[R.v] || R.v, due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0, st = App.streak();
   side.innerHTML = `
     <div class="brand"><div class="logo">S</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
-    <nav class="nav" aria-label="Hauptmenü">${NAVG.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(([v, t, i]) => `<button data-go="${v}" class="${cur === v ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "review" && due ? `<span class="badge">${due}</span>` : ""}${v === "plan" && alerts ? `<span class="badge warn">${alerts}</span>` : ""}</button>`).join("")).join("")}
+    <nav class="nav" aria-label="Hauptmenü">${NAVG.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(([v, t, i]) => `<button data-go="${v}" class="${cur === v ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "review" && due ? `<span class="badge">${due}</span>` : ""}</button>`).join("")).join("")}
       <div class="eyebrow lbl">Konto</div><button data-go="settings" class="${cur === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button></nav>
     <div class="me"><div class="me-top"><div class="avatar">${esc((S().name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
       ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profil wechseln">⇄ Profil wechseln</button>` : ""}</div>`;
@@ -68,41 +68,47 @@ App.SIDE = () => {
 /* ================= Heute ================= */
 function nextDated(cid) { const t = today(); return App.eventsBetween ? App.eventsBetween(t, addDays(t, 150), false).find(e => e.course === cid && ["exam", "deadline"].includes(e.type) && !e.done) || null : null; }
 const evLabel = e => { const n = daysUntil(e.date); return (e.type === "exam" ? "Prüfung" : "Abgabe") + " " + (n === 0 ? "heute" : n === 1 ? "morgen" : "in " + n + " Tagen"); };
+const monday0 = k => { const d = new Date(k + "T12:00:00"); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return dkey(d); };
+const endHM = e => { if (!e.time || !e.min) return ""; const [h, m] = e.time.split(":").map(Number), x = h * 60 + m + e.min; return String(Math.floor(x / 60) % 24).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0"); };
+const ring = (pct, c) => `<svg class="dh-ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" pathLength="100"/><circle cx="22" cy="22" r="18" pathLength="100" style="stroke:${c};stroke-dashoffset:${100 - Math.max(0, Math.min(100, pct))}"/></svg>`;
+const KINDS = { exam: "Prüfung", deadline: "Abgabe", register: "Anmeldung", other: "Termin", study: "Lernen" };
 PAGES.dash = el => {
   const t = today(), h = new Date().getHours(), greet = h < 5 ? "Noch wach" : h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend";
-  const cn = counts(), sess = cn.due + Math.min(10, cn.fresh), st = App.streak();
-  const wk = [], base = new Date(), mon = new Date(base); mon.setDate(base.getDate() - (base.getDay() + 6) % 7);
-  for (let i = 0; i < 7; i++) { const x = new Date(mon); x.setDate(mon.getDate() + i); const k = dkey(x), d = S().days[k] || {}; wk.push({ lbl: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][i], min: Math.round((d.sec || 0) / 60), rev: d.rev || 0, on: activeDay(d), today: k === t, future: k > t }); }
-  const wkMin = wk.reduce((s, d) => s + d.min, 0), maxMin = Math.max(30, ...wk.map(d => d.min));
+  const st = App.streak(), mon = monday0(t);
+  let wkMin = 0; for (let i = 0; i < 7; i++) wkMin += Math.round(((S().days[addDays(mon, i)] || {}).sec || 0) / 60);
   const conts = COURSES.map(c => { const ls = App.courseLessons(c.id); return { c, nl: ls.find(l => !App.isDone(l.id) && !touched(l.id)) || ls.find(l => !App.isDone(l.id)), ev: nextDated(c.id) }; })
     .filter(x => x.nl).sort((a, b) => (a.ev ? a.ev.date : "9999").localeCompare(b.ev ? b.ev.date : "9999")).slice(0, 4);
-  el.innerHTML = `<div class="page today">
-   <header class="today-head"><div><span class="eyebrow">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span><h1>${greet}, ${esc(S().name)}</h1></div>
-     <p class="muted">${st ? `${plural(st, "Lerntag", "Lerntage")} in Folge. ` : ""}${wkMin ? `Diese Woche ${fmtMin(wkMin * 60)} gelernt.` : "Diese Woche noch nichts gelernt – fang klein an."}</p></header>
-   ${(() => { const nx = conts[0], fresh = !ITEMS.some(i => !isNew(i)) && !LESSONS.some(l => touched(l.id)), mins = Math.max(2, Math.round(sess * 0.4));
-     if (fresh && nx) return `<section class="card hero-card"><span class="eyebrow">Willkommen</span><h2>So funktioniert StudyOS</h2>
-       <ol class="hero-steps"><li><b>Lies eine kurze Lektion.</b> Etwa 15–25 Minuten, in deinem Tempo.</li><li><b>Beantworte danach ein paar Fragen.</b> Sie landen automatisch in „Wiederholen“.</li><li><b>Komm morgen wieder.</b> StudyOS zeigt dir, was du wiederholen solltest.</li></ol>
-       <div class="row"><button class="btn pri big" data-go="lesson" data-p="${nx.nl.id}">Erste Lektion lesen →</button><small class="muted">${esc(nx.c.title)} · ${esc(nx.nl.title)}</small></div></section>`;
-     if (sess) return `<section class="card hero-card"><span class="eyebrow">Dein nächster Schritt</span><h2>${plural(cn.due + Math.min(10, cn.fresh), "Frage", "Fragen")} wiederholen</h2><p class="muted">Etwa ${mins} Minuten. Was du sicher weißt, kommt erst in einigen Tagen wieder.</p>
-       <div class="row"><button class="btn pri big" data-go="review" data-p="start">Jetzt wiederholen</button>${nx ? `<button class="btn ghost" data-go="lesson" data-p="${nx.nl.id}">oder weiterlesen: ${esc(nx.nl.title)}</button>` : ""}</div></section>`;
-     if (nx) return `<section class="card hero-card"><span class="eyebrow">Dein nächster Schritt</span><h2>${esc(nx.nl.title)}</h2><p class="muted">${esc(nx.c.title)} · ${nx.nl.min} min${ITEMS.some(i => !isNew(i)) ? ". Für heute ist alles wiederholt." : ""}</p>
-       <div class="row"><button class="btn pri big" data-go="lesson" data-p="${nx.nl.id}">${touched(nx.nl.id) ? "Weiterlesen" : "Lesen"} →</button></div></section>`;
-     return `<section class="card hero-card"><span class="eyebrow">Geschafft</span><h2>Alles gelesen und wiederholt.</h2><p class="muted">Du kannst jederzeit frei üben oder eine Prüfung simulieren.</p><div class="row"><button class="btn pri big" data-go="review">Frei üben</button></div></section>`; })()}
-   ${(() => { const ups = COURSES.filter(c => c.examPrep).map(c => ({ c, ex: nextExamOf(c.id), r: readiness(c.id) })).filter(x => x.ex && daysUntil(x.ex.date) <= 60).sort((a, b) => a.ex.date.localeCompare(b.ex.date)).slice(0, 3);
-     return ups.length ? `<section class="col"><div class="spread"><h2>Nächste Prüfungen</h2><button class="btn ghost sm" data-go="prep">Prüfung üben</button></div><div class="card list">${ups.map(x => `<button class="lrow" data-go="prep" data-p="${x.c.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.ex.title)}</div><small>${fmtDate(x.ex.date, { weekday: "short", day: "numeric", month: "short" })} · ${daysUntil(x.ex.date) === 0 ? "heute" : "in " + daysUntil(x.ex.date) + " Tagen"}</small></div><span class="kn">${x.r.pct} % bereit</span><span class="go">Üben →</span></button>`).join("")}</div></section>` : ""; })()}
-   ${conts.length > 1 ? `<section class="col"><div class="spread"><h2>Auch dran</h2><button class="btn ghost sm" data-go="courses">Alle Kurse</button></div>
-     <div class="card list">${conts.slice(1).map(x => `<button class="lrow" data-go="lesson" data-p="${x.nl.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.nl.title)}</div><small>${esc(x.c.title)} · Kapitel ${x.nl.world.n} · ${x.nl.min} min</small></div>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}<span class="go">${touched(x.nl.id) ? "Fortsetzen" : "Lesen"} →</span></button>`).join("")}</div></section>` : ""}
-   <details class="dash-more"><summary>Mehr anzeigen: deine Woche, Termine und alle Fächer</summary><div class="col">
-    <section class="card wk-card"><div class="spread"><span class="eyebrow">Diese Woche</span><small class="tab">${fmtMin(wkMin * 60)}</small></div>
-      <div class="wk">${wk.map(d => `<div class="wk-d ${d.today ? "today" : ""} ${d.future ? "future" : ""}" title="${d.min} min · ${d.rev} Wiederholungen"><div class="wk-col"><i style="height:${d.min ? Math.max(8, Math.round(100 * d.min / maxMin)) : d.on ? 8 : 0}%"></i></div><small>${d.lbl}</small></div>`).join("")}</div></section>
-   <div id="todo-today"></div>
-   <section class="col"><div class="spread"><h2>Semester</h2><small class="muted">${COURSES.reduce((s, c) => s + (+c.ects || 0), 0).toString().replace(".", ",")} ECTS</small></div>
-     <div class="card list ctable">${COURSES.map(c => { const n = App.courseLessons(c.id).length, u = understood(c.id), k = knowCourse(c.id), ev = nextDated(c.id);
-       return `<button class="crow" data-go="course" data-p="${c.id}">${badge(c)}<div class="crow-t"><div>${esc(c.title)}</div><small>${[ects(c), ev ? evLabel(ev) : ""].filter(Boolean).join(" · ")}</small></div>
-         <div class="crow-m"><small>Verstanden ${u}/${n}</small>${pbar(n ? 100 * u / n : 0, c.color)}</div><div class="crow-m"><small>Wissen ${k} %</small>${pbar(k, "var(--know)")}</div></button>`; }).join("")}</div></section>
-   </div></details>
+  const nx = conts[0], fresh = !ITEMS.some(i => !isNew(i)) && !LESSONS.some(l => touched(l.id));
+  const totN = COURSES.reduce((s, c) => s + App.courseLessons(c.id).length, 0), totU = COURSES.reduce((s, c) => s + understood(c.id), 0);
+  const hasTT = (S().timetable || []).length, cal = App.calendarItems || (() => []);
+  const classes = cal(t, t).filter(e => e.type === "class"), soon = cal(t, addDays(t, 30)).filter(e => e.type !== "class" && !e.done).slice(0, 3);
+  const nowHM = new Date().toTimeString().slice(0, 5);
+  const nc = nx && nx.c, ncN = nc ? App.courseLessons(nc.id).length : 0, ncU = nc ? understood(nc.id) : 0;
+  el.innerHTML = `<div class="page dash2">
+   <section class="dh-hero"><div class="dh-orbs" aria-hidden="true"><i></i><i></i><i></i></div>
+     <div class="dh-in"><span class="eyebrow">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span>
+       <h1>${greet}, <span class="dh-name">${esc(S().name)}</span></h1>
+       <p>${fresh ? "Schön, dass du da bist. Fang mit einer kurzen Lektion an, der Rest ergibt sich." : classes.length ? `Heute ${plural(classes.length, "Einheit", "Einheiten")} an der FH${classes[0].time ? ", los geht’s um " + classes[0].time : ""}.` : nx ? "Bereit für die nächste Lektion?" : "Alles gelesen. Stark."}</p>
+       <div class="dh-stats"><div><b data-count="${st}">${st}</b><small>${st === 1 ? "Lerntag" : "Lerntage"} in Folge</small></div><div><b>${wkMin < 60 ? `<span data-count="${wkMin}">${wkMin}</span> min` : fmtMin(wkMin * 60)}</b><small>diese Woche</small></div><div><b><span data-count="${totU}">${totU}</span>/${totN}</b><small>Lektionen verstanden</small></div></div></div></section>
+   <div class="dh-grid">
+     ${nx ? `<section class="card dh-next" style="--c:${nc.color}"><div class="spread"><span class="eyebrow">${fresh ? "Dein Start" : "Weiterlernen"}</span>${nx.ev ? `<span class="chip ${daysUntil(nx.ev.date) <= 7 ? "warn" : ""}">${evLabel(nx.ev)}</span>` : ""}</div>
+       <div class="dh-course">${badge(nc)}<span>${esc(nc.title)} · Kapitel ${nx.nl.world.n}</span></div>
+       <h2>${esc(nx.nl.title)}</h2><p class="muted">${esc(nx.nl.world.title)} · etwa ${nx.nl.min} min${fresh ? ". Danach ein paar Fragen, damit es hängen bleibt." : ""}</p>
+       <div class="dh-prog"><div class="spread"><small>${esc(nc.title)}</small><small class="tab">${ncU}/${ncN} verstanden</small></div>${pbar(ncN ? 100 * ncU / ncN : 0, nc.color)}</div>
+       <div class="row"><button class="btn pri big" data-go="lesson" data-p="${nx.nl.id}">${touched(nx.nl.id) ? "Weiterlesen" : "Lesen"} →</button><button class="btn ghost" data-go="course" data-p="${nc.id}">Zum Fach</button></div></section>`
+     : `<section class="card dh-next"><span class="eyebrow">Geschafft</span><h2>Alles gelesen.</h2><p class="muted">Üb frei weiter oder simuliere eine Prüfung.</p><div class="row"><button class="btn pri big" data-go="review" data-p="all">Frei üben</button><button class="btn ghost" data-go="prep">Prüfung üben</button></div></section>`}
+     <section class="card dh-today"><div class="spread"><h3>Heute</h3><button class="btn ghost sm" data-go="calendar">Kalender →</button></div>
+       ${classes.length ? `<div class="dh-tl">${classes.map(e => `<div class="dh-tli ${e.time && endHM(e) && endHM(e) < nowHM ? "past" : ""}" style="--c:${e.course && CBY[e.course] ? CBY[e.course].color : "var(--acc)"}"><b class="tab">${e.time || "–"}</b><div><div>${esc(e.title)}</div>${e.loc ? `<small>${esc(e.loc)}</small>` : ""}</div></div>`).join("")}</div>`
+         : hasTT ? `<p class="muted dh-free">Heute keine Vorlesungen. Gute Gelegenheit zum Lernen.</p>`
+         : `<div class="dh-tt"><div class="tt-ill" aria-hidden="true"><i></i><i></i><i></i></div><div><b>Stundenplan holen</b><small>Aus Studo oder dem FH-System, dann siehst du hier deine Vorlesungen.</small></div><button class="btn sm" data-go="calendar">Holen</button></div>`}
+       ${soon.length ? `<div class="dh-soon"><span class="eyebrow">Demnächst</span>${soon.map(e => `<div class="dh-si" style="--c:${e.course && CBY[e.course] ? CBY[e.course].color : "var(--warn)"}"><span>${esc(e.title)}</span><small>${KINDS[e.type] || "Termin"} · ${daysUntil(e.date) === 0 ? "heute" : daysUntil(e.date) === 1 ? "morgen" : "in " + daysUntil(e.date) + " Tagen"}</small></div>`).join("")}</div>` : ""}</section>
+   </div>
+   ${conts.length > 1 ? `<section class="col"><h2>Auch dran</h2><div class="dh-also">${conts.slice(1).map(x => `<button class="card dh-a" data-go="lesson" data-p="${x.nl.id}" style="--c:${x.c.color}">${badge(x.c)}<b>${esc(x.nl.title)}</b><small>${esc(x.c.title)} · ${x.nl.min} min</small>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}</button>`).join("")}</div></section>` : ""}
+   <section class="col"><div class="spread"><h2>Deine Fächer</h2><button class="btn ghost sm" data-go="courses">Alle →</button></div>
+     <div class="dh-courses">${COURSES.map(c => { const n = App.courseLessons(c.id).length, u = understood(c.id), k = knowCourse(c.id), p = n ? Math.round(100 * u / n) : 0;
+       return `<button class="dh-c" data-go="course" data-p="${c.id}" style="--c:${c.color}"><div class="dh-rw">${ring(p, c.color)}<span class="tab">${p}%</span></div><div class="dh-ct"><b>${esc(c.title)}</b><small>${u}/${n} Lektionen · Wissen ${k} %</small></div></button>`; }).join("")}</div></section>
   </div>`;
-  if (App.renderTodayTodo) App.renderTodayTodo($("#todo-today", el));
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) $$("[data-count]", el).forEach(b => { const to = +b.dataset.count; if (!to) return; const t0 = performance.now(), D = 700; const f = now => { const x = Math.min(1, (now - t0) / D); b.textContent = Math.round(to * (1 - Math.pow(1 - x, 3))); if (x < 1 && b.isConnected) requestAnimationFrame(f); }; b.textContent = "0"; requestAnimationFrame(f); });
 };
 
 /* ================= Kurse ================= */
