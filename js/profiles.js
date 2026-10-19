@@ -35,19 +35,25 @@
   const choose = (id, remember) => { SS("studyos.session", id); if (remember) LS("studyos.active", id); else LS("studyos.active", null); location.hash = ""; location.reload(); };
 
   function picker(startCreate) {
-    applyTheme("");
+    applyTheme("uni");
     const root = document.createElement("div"); root.className = "pick"; document.body.appendChild(root);
     let creating = startCreate || !list.length, track = "uni", nameVal = "", sem = 3;
     const draw = () => {
+      const first = !list.length;
       root.innerHTML = `<div class="pick-box">
         <div class="pick-brand"><div class="logo">S</div><b>StudyOS</b></div>
-        ${creating ? `<h1>${list.length ? "Neues Profil" : "Willkommen"}</h1><p class="muted">${list.length ? "Jedes Profil hat eigenen Fortschritt und ein eigenes Semester." : "Lege dein Profil an. Alles bleibt auf diesem Gerät."}</p>
-          <label class="fld">Name<input type="text" id="pk-name" maxlength="24" placeholder="Dein Name" autocomplete="off" value="${esc(nameVal)}"></label>
-          ${track === "uni" ? `<div class="eyebrow">Welches Semester lernst du?</div><div class="pick-sems">${SEMS.map(x => `<button class="pick-sem ${x.n === sem ? "on" : ""}" data-sem="${x.n}"><b>Semester ${x.n}</b><small>${x.term}</small></button>`).join("")}</div><small class="muted">Später jederzeit unter „Alle Fächer“ umschaltbar.</small>` : ""}
+        ${creating ? `${first ? `<div class="pick-hero"><h1>Schön, dass du da bist.</h1><p>StudyOS begleitet dich durchs Studium, in kleinen Schritten und ganz in Ruhe.</p></div>
+          <ul class="pick-how"><li><i>1</i><div><b>Lesen</b><small>Kurze Lektionen zu jedem Thema deiner Fächer</small></div></li><li><i>2</i><div><b>Wiederholen</b><small>Ein paar Fragen am Tag, genau dann, wenn du sie brauchst</small></div></li><li><i>3</i><div><b>Prüfung üben</b><small>Mit echten Altfragen und Lösungen</small></div></li></ul>`
+          : `<h1>Neues Profil</h1><p class="muted">Jedes Profil hat eigenen Fortschritt und ein eigenes Semester.</p>`}
+          <div class="pick-form">
+          <label class="fld">Wie heißt du?<input type="text" id="pk-name" maxlength="24" placeholder="Dein Vorname" autocomplete="off" value="${esc(nameVal)}"></label>
+          <div class="fld">Welches Semester lernst du?<div class="pick-sems">${SEMS.map(x => `<button class="pick-sem ${x.n === sem ? "on" : ""}" data-sem="${x.n}"><b>${x.n}. Semester</b><small>${x.term}</small></button>`).join("")}</div><small class="muted">Kannst du später jederzeit wechseln.</small></div>
+          </div>
+          <div class="pick-actions">${list.length ? `<button class="btn ghost" id="pk-back">Zurück</button>` : ""}<button class="btn pri" id="pk-create">${first ? "Los geht’s" : "Profil erstellen"}</button></div>
           <label class="pick-rem"><input type="checkbox" id="pk-rem" checked> Auf diesem Gerät automatisch öffnen</label>
-          <div class="pick-actions">${list.length ? `<button class="btn ghost" id="pk-back">Zurück</button>` : ""}<button class="btn pri" id="pk-create">Profil erstellen</button></div>`
+          ${first ? `<p class="pick-note">Alles bleibt auf deinem Gerät. Kein Konto nötig.</p>` : ""}`
         : `<h1>Wer lernt heute?</h1>
-          <div class="pick-grid">${list.map(p => { const t = TRACKS[p.track] || TRACKS.uni; return `<button class="pick-p" data-pid="${esc(p.id)}" style="--c:${t.color}"><span class="pp-av">${esc((p.name || "?")[0].toUpperCase())}</span><b>${esc(p.name)}</b><small>${t.label}</small></button>`; }).join("")}
+          <div class="pick-grid">${list.map(p => `<button class="pick-p" data-pid="${esc(p.id)}"><span class="pp-av">${esc((p.name || "?")[0].toUpperCase())}</span><b>${esc(p.name)}</b><small>${p.sem || 3}. Semester</small></button>`).join("")}
             <button class="pick-p add" id="pk-add"><span class="pp-av">+</span><b>Profil hinzufügen</b><small>Weitere Person</small></button></div>
           <label class="pick-rem"><input type="checkbox" id="pk-rem"> Auswahl auf diesem Gerät merken</label>`}
       </div>`;
@@ -61,11 +67,11 @@
           const inp = root.querySelector("#pk-name"), name = inp.value.trim(); if (!name) { inp.focus(); inp.classList.add("shake"); return; }
           const id = "p" + Date.now().toString(36);
           list.push(track === "uni" ? { id, name, track, sem } : { id, name, track }); save();
-          try { localStorage.setItem(keyOf(id), JSON.stringify({ v: 2, name })); } catch (e2) {}
+          try { localStorage.setItem(keyOf(id), JSON.stringify({ v: 2, name, profile: { onboarded: true, created: Date.now() } })); } catch (e2) {}
           choose(id, root.querySelector("#pk-rem").checked);
         }
       };
-      const n = root.querySelector("#pk-name"); if (n) { n.oninput = () => { nameVal = n.value; }; n.focus(); n.onkeydown = e => { if (e.key === "Enter") root.querySelector("#pk-create").click(); }; }
+      const n = root.querySelector("#pk-name"); if (n) { n.oninput = () => { nameVal = n.value; }; if (list.length) n.focus(); n.onkeydown = e => { if (e.key === "Enter") root.querySelector("#pk-create").click(); }; }
     };
     draw();
   }

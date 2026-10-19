@@ -79,28 +79,28 @@ PAGES.dash = el => {
   el.innerHTML = `<div class="page today">
    <header class="today-head"><div><span class="eyebrow">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span><h1>${greet}, ${esc(S().name)}</h1></div>
      <p class="muted">${st ? `${plural(st, "Lerntag", "Lerntage")} in Folge. ` : ""}${wkMin ? `Diese Woche ${fmtMin(wkMin * 60)} gelernt.` : "Diese Woche noch nichts gelernt – fang klein an."}</p></header>
-   <div class="today-grid">
-    <section class="card rv-card ${sess ? "" : "calm"}">
-      <span class="eyebrow">Wiederholen</span>
-      ${sess ? `<div class="rv-num"><b>${cn.due}</b><span>${cn.due === 1 ? "Frage fällig" : "Fragen & Karten fällig"}${cn.fresh ? ` <br>+ ${cn.fresh} neue aus gelesenen Lektionen` : ""}</span></div>
-        <p class="muted">Etwa ${Math.max(2, Math.round(sess * 0.4))} Minuten. Was du sicher weißt, kommt erst in einigen Tagen wieder.</p>
-        <div class="row"><button class="btn pri" data-go="review" data-p="start">Jetzt wiederholen</button></div>`
-      : `<div class="rv-num"><b>✓</b><span>${ITEMS.some(i => !isNew(i)) ? "Für heute alles wiederholt." : "Noch nichts zu wiederholen."}</span></div>
-        <p class="muted">${ITEMS.some(i => !isNew(i)) ? "Morgen kommen die nächsten Fragen. Du kannst jederzeit frei üben." : "Lies eine Lektion. Ihre Fragen und Karteikarten landen danach automatisch hier."}</p>
-        <div class="row"><button class="btn" data-go="review">Frei üben</button></div>`}
-    </section>
-    <section class="card wk-card"><div class="spread"><span class="eyebrow">Diese Woche</span><small class="tab">${fmtMin(wkMin * 60)}</small></div>
-      <div class="wk">${wk.map(d => `<div class="wk-d ${d.today ? "today" : ""} ${d.future ? "future" : ""}" title="${d.min} min · ${d.rev} Wiederholungen"><div class="wk-col"><i style="height:${d.min ? Math.max(8, Math.round(100 * d.min / maxMin)) : d.on ? 8 : 0}%"></i></div><small>${d.lbl}</small></div>`).join("")}</div></section>
-   </div>
+   ${(() => { const nx = conts[0], fresh = !ITEMS.some(i => !isNew(i)) && !LESSONS.some(l => touched(l.id)), mins = Math.max(2, Math.round(sess * 0.4));
+     if (fresh && nx) return `<section class="card hero-card"><span class="eyebrow">Willkommen</span><h2>So funktioniert StudyOS</h2>
+       <ol class="hero-steps"><li><b>Lies eine kurze Lektion.</b> Etwa 15–25 Minuten, in deinem Tempo.</li><li><b>Beantworte danach ein paar Fragen.</b> Sie landen automatisch in „Wiederholen“.</li><li><b>Komm morgen wieder.</b> StudyOS zeigt dir, was du wiederholen solltest.</li></ol>
+       <div class="row"><button class="btn pri big" data-go="lesson" data-p="${nx.nl.id}">Erste Lektion lesen →</button><small class="muted">${esc(nx.c.title)} · ${esc(nx.nl.title)}</small></div></section>`;
+     if (sess) return `<section class="card hero-card"><span class="eyebrow">Dein nächster Schritt</span><h2>${plural(cn.due + Math.min(10, cn.fresh), "Frage", "Fragen")} wiederholen</h2><p class="muted">Etwa ${mins} Minuten. Was du sicher weißt, kommt erst in einigen Tagen wieder.</p>
+       <div class="row"><button class="btn pri big" data-go="review" data-p="start">Jetzt wiederholen</button>${nx ? `<button class="btn ghost" data-go="lesson" data-p="${nx.nl.id}">oder weiterlesen: ${esc(nx.nl.title)}</button>` : ""}</div></section>`;
+     if (nx) return `<section class="card hero-card"><span class="eyebrow">Dein nächster Schritt</span><h2>${esc(nx.nl.title)}</h2><p class="muted">${esc(nx.c.title)} · ${nx.nl.min} min${ITEMS.some(i => !isNew(i)) ? ". Für heute ist alles wiederholt." : ""}</p>
+       <div class="row"><button class="btn pri big" data-go="lesson" data-p="${nx.nl.id}">${touched(nx.nl.id) ? "Weiterlesen" : "Lesen"} →</button></div></section>`;
+     return `<section class="card hero-card"><span class="eyebrow">Geschafft</span><h2>Alles gelesen und wiederholt.</h2><p class="muted">Du kannst jederzeit frei üben oder eine Prüfung simulieren.</p><div class="row"><button class="btn pri big" data-go="review">Frei üben</button></div></section>`; })()}
    ${(() => { const ups = COURSES.filter(c => c.examPrep).map(c => ({ c, ex: nextExamOf(c.id), r: readiness(c.id) })).filter(x => x.ex && daysUntil(x.ex.date) <= 60).sort((a, b) => a.ex.date.localeCompare(b.ex.date)).slice(0, 3);
      return ups.length ? `<section class="col"><div class="spread"><h2>Nächste Prüfungen</h2><button class="btn ghost sm" data-go="prep">Prüfung üben</button></div><div class="card list">${ups.map(x => `<button class="lrow" data-go="prep" data-p="${x.c.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.ex.title)}</div><small>${fmtDate(x.ex.date, { weekday: "short", day: "numeric", month: "short" })} · ${daysUntil(x.ex.date) === 0 ? "heute" : "in " + daysUntil(x.ex.date) + " Tagen"}</small></div><span class="kn">${x.r.pct} % bereit</span><span class="go">Üben →</span></button>`).join("")}</div></section>` : ""; })()}
-   ${conts.length ? `<section class="col"><div class="spread"><h2>Weiter lernen</h2><button class="btn ghost sm" data-go="courses">Alle Kurse</button></div>
-     <div class="card list">${conts.map(x => `<button class="lrow" data-go="lesson" data-p="${x.nl.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.nl.title)}</div><small>${esc(x.c.title)} · Kapitel ${x.nl.world.n} · ${x.nl.min} min</small></div>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}<span class="go">${touched(x.nl.id) ? "Fortsetzen" : "Lesen"} →</span></button>`).join("")}</div></section>` : ""}
+   ${conts.length > 1 ? `<section class="col"><div class="spread"><h2>Auch dran</h2><button class="btn ghost sm" data-go="courses">Alle Kurse</button></div>
+     <div class="card list">${conts.slice(1).map(x => `<button class="lrow" data-go="lesson" data-p="${x.nl.id}">${badge(x.c)}<div class="lrow-main"><div class="lrow-t">${esc(x.nl.title)}</div><small>${esc(x.c.title)} · Kapitel ${x.nl.world.n} · ${x.nl.min} min</small></div>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}<span class="go">${touched(x.nl.id) ? "Fortsetzen" : "Lesen"} →</span></button>`).join("")}</div></section>` : ""}
+   <details class="dash-more"><summary>Mehr anzeigen: deine Woche, Termine und alle Fächer</summary><div class="col">
+    <section class="card wk-card"><div class="spread"><span class="eyebrow">Diese Woche</span><small class="tab">${fmtMin(wkMin * 60)}</small></div>
+      <div class="wk">${wk.map(d => `<div class="wk-d ${d.today ? "today" : ""} ${d.future ? "future" : ""}" title="${d.min} min · ${d.rev} Wiederholungen"><div class="wk-col"><i style="height:${d.min ? Math.max(8, Math.round(100 * d.min / maxMin)) : d.on ? 8 : 0}%"></i></div><small>${d.lbl}</small></div>`).join("")}</div></section>
    <div id="todo-today"></div>
    <section class="col"><div class="spread"><h2>Semester</h2><small class="muted">${COURSES.reduce((s, c) => s + (+c.ects || 0), 0).toString().replace(".", ",")} ECTS</small></div>
      <div class="card list ctable">${COURSES.map(c => { const n = App.courseLessons(c.id).length, u = understood(c.id), k = knowCourse(c.id), ev = nextDated(c.id);
        return `<button class="crow" data-go="course" data-p="${c.id}">${badge(c)}<div class="crow-t"><div>${esc(c.title)}</div><small>${[ects(c), ev ? evLabel(ev) : ""].filter(Boolean).join(" · ")}</small></div>
          <div class="crow-m"><small>Verstanden ${u}/${n}</small>${pbar(n ? 100 * u / n : 0, c.color)}</div><div class="crow-m"><small>Wissen ${k} %</small>${pbar(k, "var(--know)")}</div></button>`; }).join("")}</div></section>
+   </div></details>
   </div>`;
   if (App.renderTodayTodo) App.renderTodayTodo($("#todo-today", el));
 };

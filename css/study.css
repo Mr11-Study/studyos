@@ -272,3 +272,17 @@
 .hintbox details[open]>summary,details.hintbox[open]>summary{border-bottom:1px dashed var(--line2)}
 .hintbox .body{padding:10px 14px 12px;font-size:14.5px}
 @media print{details.hintbox>.body{display:block}}
+
+/* Startseite: ein klarer nächster Schritt, der Rest eingeklappt */
+.hero-card{display:flex;flex-direction:column;gap:12px;padding:22px;border-left:4px solid var(--acc);background:linear-gradient(135deg,var(--acc-soft),transparent 60%),var(--card)}
+.hero-card h2{font-size:22px;line-height:1.25}
+.hero-card .row{gap:12px;align-items:center}
+.btn.big{padding:12px 20px;font-size:15.5px}
+.hero-steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
+.hero-steps b{font-weight:600}
+.dash-more{border-top:1px solid var(--line);padding-top:6px}
+.dash-more>summary{cursor:pointer;list-style:none;padding:10px 0;color:var(--muted);font-weight:500}
+.dash-more>summary::-webkit-details-marker{display:none}
+.dash-more>summary::before{content:"▸";display:inline-block;margin-right:8px;transition:transform .15s}
+.dash-more[open]>summary::before{transform:rotate(90deg)}
+.dash-more>.col{gap:18px;padding-top:6px}
