@@ -489,6 +489,7 @@ function renderBlock(b, i, l, st, lvl) {
   }
   else if (b.t === "widget") { div.className = "card"; div.dataset.widget = b.w; div._block = b; }
   else if (b.t === "fig") { div.className = "fig-wrap"; div.innerHTML = window.FX ? FX.html(b) : ""; }
+  else if (b.t === "calc") { div.className = "calc-wrap"; div.innerHTML = window.CALCX ? CALCX.html(b) : ""; }
   else if (b.t === "maple") { div.className = "sk-maple"; div.innerHTML = window.MPL && MPL.blockHTML ? MPL.blockHTML(b) : ""; }
   return div;
 }
