@@ -48,7 +48,7 @@ Xiaomi beendet Hintergrund-Apps sehr aggressiv. Einmalig einstellen:
 | Ebene | Wann | Zuverlässigkeit |
 |---|---|---|
 | App-Erinnerungen | beim Öffnen und im Hintergrund (Periodic Sync) | gut, aber nicht auf die Minute |
-| **Kalender-Export (.ics)** | Kalender → „Export (.ics)“ → im Handy-/Google-Kalender importieren | **sehr zuverlässig** (7, 3, 1, 0 Tage vorher) |
+| **Kalender-Export (.ics)** | Kalender → „Stundenplan“ → „Export (.ics)“ → im Handy-/Google-Kalender importieren | **sehr zuverlässig** (7, 3, 1, 0 Tage vorher) |
 
 Empfehlung: Nach dem Eintragen von Prüfungen/Anmeldungen einmal exportieren und importieren. Nach Änderungen neu exportieren – doppelte Termine entstehen nicht (gleiche IDs).
 
@@ -90,15 +90,14 @@ Seit 4.0 gibt es im Lernprofil **keine XP, Level, Bosse oder Erfolge mehr**. For
 **Wiederholen** (Spaced Repetition): Sobald du eine Lektion öffnest, kommen ihre Fragen und Karteikarten in die Wiederholung (pro Sitzung höchstens 10–20 neue). Richtig → kommt nach 2, 4, 8, 16, 32 Tagen wieder. Falsch → morgen wieder (und am Ende der Sitzung nochmal). Tastatur: 1–4 wählt Antworten, Enter = weiter, Leertaste = Antwort zeigen, 1/2 = nicht gewusst/wusste ich. Unter „Wiederholen“ kannst du einen Kurs wählen und einzelne Themen oder den ganzen Kurs frei üben.
 
 1. **Heute**: fällige Wiederholungen, „Weiter lernen“ (nächste Lektion je Kurs, nach nächster Abgabe/Prüfung sortiert), Lernzeit der Woche, Termine, Semesterüberblick.
-2. **Kurse → Kurs**: KI-Regel der LV, Kapitel mit Lektionen (○ ungelesen, ◐ gelesen, ✓ verstanden), **Kapiteltests** (10 Fragen, ab 70 % bestanden), Notenrechner, Termine & Moodle-Aufgaben, Zurücksetzen.
-3. **Kalender**: fehlende Termine (Kasten auf „Heute“) eintragen, vor allem **Prüfungsanmeldungen**.
-4. **Aufgaben & Lernplan**: Moodle-Aufgaben abhaken, Lernpläne und Arbeitspläne.
-5. **Prüfung üben**: Prüfungssimulation pro Kurs. **Übungen**: alle interaktiven Aufgaben eines Kurses an einem Ort. **Git-Labor**: simuliertes Terminal + GitLab.
+2. **Kurse → Kurs**: KI-Regel der LV, Kapitel mit Lektionen (○ ungelesen, ◐ gelesen, ✓ verstanden), **Kapiteltests** (10 Fragen, ab 70 % bestanden), Notenrechner, Termine mit Datum, Zurücksetzen.
+3. **Kalender**: Wochenansicht mit Stundenplan, Abgaben und eigenen Terminen. Den Stundenplan holst du über „Stundenplan holen“ als iCal-Link oder .ics-Datei (z. B. aus Studo oder dem FH-System). Ein Link wird einmal am Tag aktualisiert; lässt der Server den Abruf aus dem Browser nicht zu, die .ics-Datei speichern und auswählen.
+4. **Prüfung üben**: Prüfungssimulation pro Kurs. **Übungen**: alle interaktiven Aufgaben eines Kurses an einem Ort. **Git-Labor**: simuliertes Terminal + GitLab.
 6. **Lerntage in Folge** zählen Tage mit ≥ 5 Minuten Lernzeit, einer Wiederholung oder einer Lektion.
 
 Design: hell (Papier/Petrol); stellt dein Gerät auf Dunkelmodus, wird StudyOS automatisch dunkel.
 
-**Kurse im Semester 3 (WS 2026/27):** EF-DASC, KOMMU, ENG3, GL-BWL-2 sowie neu MAPPDEV (Kotlin/Android), DB-AENT (T-SQL), ITINF-GL (Cloud/Azure), GL-PMGT (inkl. Scrum), GL-UFO und MMPROV (Unity/C#). Termine ohne Datum stehen als „fehlt“ im Kalender – laut Moodle eintragen. Bei ITINF-GL ergibt die Beurteilung im Syllabus nur 70 Punkte – bitte in Moodle prüfen.
+**Kurse im Semester 3 (WS 2026/27):** EF-DASC, KOMMU, ENG3, GL-BWL-2 sowie neu MAPPDEV (Kotlin/Android), DB-AENT (T-SQL), ITINF-GL (Cloud/Azure), GL-PMGT (inkl. Scrum), GL-UFO und MMPROV (Unity/C#). Bei ITINF-GL ergibt die Beurteilung im Syllabus nur 70 Punkte – bitte in Moodle prüfen.
 
 ### Prüfung üben (ab Version 4.1)
 
@@ -123,7 +122,7 @@ Jede Lektion aller 11 Fächer hat jetzt zusätzlich eine **Vertiefung** (in alle
 
 ### Jedes Fach ist eine eigene App (ab Version 4.7)
 
-Unter **Fächer** liegt der Starter mit einer Kachel pro Fach. Ein Klick öffnet die App des Fachs: Sidebar, Unterseiten (Übersicht, Skript, Üben, Prüfung, Übungen, Material) und Wiederholung zeigen dann **nur noch dieses Fach**. Mit „← Alle Fächer“ geht es zurück. „Heute“, Kalender, Lernplan und Merkliste bleiben fächerübergreifend.
+Unter **Fächer** liegt der Starter mit einer Kachel pro Fach. Ein Klick öffnet die App des Fachs: Sidebar, Unterseiten (Übersicht, Skript, Üben, Prüfung, Übungen, Material) und Wiederholung zeigen dann **nur noch dieses Fach**. Mit „← Alle Fächer“ geht es zurück. „Heute“, Kalender und Merkliste bleiben fächerübergreifend.
 
 Jede App hat ein eigenes Design (Farben, Schriften, Formen, Hintergrundmuster), hell und dunkel. Die Designs stehen in `dev/app-themes.js`; nach einer Änderung `node dev/app-themes.js` ausführen, das schreibt `css/apps.css` neu (die CSS-Datei nicht von Hand ändern).
 

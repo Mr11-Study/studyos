@@ -1,13 +1,13 @@
 /* StudyOS · Fach-Apps (uni)
    Jedes Fach ist eine eigene App mit eigenem Design (css/apps.css): Wer Data Science öffnet, sieht nur Data Science.
-   Übergreifend (Hub) bleiben: Heute, Fächer, Wiederholen über alle Fächer, Kalender, Aufgaben, Merkliste.
+   Übergreifend (Hub) bleiben: Heute, Fächer, Wiederholen über alle Fächer, Kalender, Merkliste.
    Muss nach allen Seiten-Dateien geladen werden, weil es die Seiten umhüllt. */
 (function () {
 if ((window.STUDYOS_TRACK || "uni") !== "uni") return;
 const { $, $$, esc, PAGES, CBY, COURSES, TOPICS, LBYID } = App;
 const S = () => App.S();
 
-const HUB = new Set(["dash", "courses", "calendar", "plan", "bookmarks", "news"]);
+const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news"]);
 const worldOf = id => { for (const c of COURSES) for (const w of c.worlds) if (w.id === id) return c.id; return null; };
 const app = () => S().app && CBY[S().app] ? S().app : null;
 function setApp(v, p) {
@@ -47,7 +47,7 @@ function appNav(c) {
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
-  ["Planen", [["calendar", "", "Kalender", "▦"], ["plan", "", "Aufgaben & Lernplan", "☑"], ["bookmarks", "", "Merkliste", "★"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"]]]];
+  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"]]]];
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
 const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
 
@@ -64,7 +64,7 @@ App.SIDE = () => {
   } else {
     const due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0;
     side.innerHTML = `<div class="brand"><div class="logo">S</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
-      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0], x[0] === "review" && due ? `<span class="badge">${due}</span>` : x[0] === "plan" && alerts ? `<span class="badge warn">${alerts}</span>` : "")).join("")).join("")}
+      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0], x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("")).join("")}
         <div class="eyebrow lbl">Deine Fächer</div><div class="hub-apps">${COURSES.map(x => `<button data-go="course" data-p="${x.id}" class="hd-${x.id}"><i></i>${esc(x.title)}</button>`).join("")}</div></nav>${meHTML}`;
   }
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();

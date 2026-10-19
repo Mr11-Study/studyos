@@ -200,7 +200,7 @@ App.go = go;
 document.addEventListener("click", e => { const a = e.target.closest("[data-go]"); if (!a || a.disabled) return; e.preventDefault(); go(a.dataset.go, a.dataset.p || null); });
 
 const NAV = App.NAV = [
-  ["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["plan", "Aufgaben & Lernplan", "☑"], ["courses", "Meine Kurse", "◫"], ["path", "Lernpfad", "⤳"],
+  ["dash", "Heute", "⌂"], ["calendar", "Kalender", "▦"], ["courses", "Meine Kurse", "◫"], ["path", "Lernpfad", "⤳"],
   ["quiz", "Quiz Arena", "?"], ["flash", "Karteikarten", "▭"], ["practice", "Übungen", "λ"], ["gitlab", "Git-Labor", "⑂"],
   ["challenges", "Challenges", "♛"], ["exam", "Prüfungstrainer", "⏱"], ["stats", "Statistik", "▟"], ["resources", "Ressourcen", "⎘"], ["bookmarks", "Lesezeichen", "★"]
 ];
@@ -215,7 +215,7 @@ function renderSide() {
     <div class="brand"><div class="logo">${App.BRAND ? App.BRAND.logo : "S"}</div><div><b>${App.BRAND ? App.BRAND.name : "StudyOS"}</b><small class="muted">${App.BRAND ? App.BRAND.sub : "Wirtschaftsinformatik · FH JOANNEUM"}</small></div></div>
     <div class="course-switch"><span class="eyebrow">Aktueller Kurs</span><div class="row" style="gap:8px;flex-wrap:nowrap"><span class="dot" style="--c:${c.color}"></span><select id="cswitch" aria-label="Kurs wählen">${COURSES.map(x => `<option value="${x.id}" ${x.id === S.course ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select></div></div>
     <nav class="nav" aria-label="Hauptmenü">
-      ${App.NAV.map(([v, t, i]) => `<button data-go="${v}" class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "flash" && due ? `<span class="badge">${due}</span>` : ""}${v === "plan" && alerts ? `<span class="badge" style="background:var(--bad-soft);color:var(--bad)">${alerts}</span>` : ""}</button>`).join("")}
+      ${App.NAV.map(([v, t, i]) => `<button data-go="${v}" class="${navActive(v) ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "flash" && due ? `<span class="badge">${due}</span>` : ""}</button>`).join("")}
       <div class="eyebrow lbl">Konto</div>
       <button data-go="settings" class="${R.v === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button>
       <button data-go="profile" class="${R.v === "profile" ? "on" : ""}"><span class="ni">◉</span>Profil & Erfolge</button>
@@ -255,8 +255,6 @@ function recommendations() {
   const out = []; const soon = App.nextExam ? App.nextExam() : null;
   const focus = soon && soon.course && daysUntil(soon.date) <= 21 ? soon.course : S.course;
   const nl = nextLesson(focus); const weak = weakTopics(3); const due = App.dueCount ? App.dueCount() : 0;
-  const plan = App.todayPlanBlocks ? App.todayPlanBlocks().filter(b => !b.done) : [];
-  plan.slice(0, 1).forEach(b => out.push({ kind: "plan", title: "Lernblock: " + (TOPICS[b.topic] ? TOPICS[b.topic].name : "Wiederholung"), why: "Aus deinem Lernplan für " + b.examTitle, min: b.min, xp: 30, go: "lesson", p: TOPICS[b.topic] ? TOPICS[b.topic].lesson : null }));
   if (weak.length && weak[0][1] < 50) out.push({ kind: "review", title: TOPICS[weak[0][0]].name + " wiederholen", why: "Mastery " + weak[0][1] + " %. Ein kurzes Themenquiz hilft.", min: 5, xp: 30, go: "quiz", p: "topic:" + weak[0][0] });
   if (nl) out.push({ kind: "lesson", title: nl.title, why: CBY[nl.course].title + " · " + nl.world.title, min: nl.min, xp: nl.xp + 5, go: "lesson", p: nl.id, lesson: nl });
   if (due) out.push({ kind: "cards", title: due + " Karteikarten fällig", why: "Spaced Repetition wirkt am besten pünktlich.", min: Math.max(3, Math.round(due / 3)), xp: due * 2, go: "flash" });
@@ -346,7 +344,6 @@ PAGES.dash = el => {
   const ex = App.nextExam ? App.nextExam() : null;
   el.innerHTML = `<div class="page">
    <div class="hello"><div><h1>${greet}, ${esc(S.name)}</h1><p>Was willst du heute meistern?</p></div><span class="chip tab">${new Date().toLocaleDateString("de-AT", { weekday: "long", day: "numeric", month: "long" })}</span></div>
-   <div id="todo-today"></div>
    ${top ? `<div class="card next"><div class="ring-wrap">${ring(top.kind === "lesson" ? worldProgress(top.lesson.world) : goalPct)}<span>${top.kind === "lesson" ? esc(CBY[top.lesson.course].icon) : "↻"}</span></div>
      <div class="col" style="gap:4px"><span class="eyebrow">Empfohlen als Nächstes</span><h2>${esc(top.title)}</h2><p class="muted">${esc(top.why)} · <span class="tab">${top.min} min · +${top.xp} XP</span></p></div>
      <button class="btn pri" data-go="${top.go}" data-p="${esc(top.p || "")}">Los geht's →</button></div>` : ""}
@@ -356,12 +353,11 @@ PAGES.dash = el => {
      <div class="card col"><div class="spread"><h3>Empfohlene Session</h3><small>${recs.slice(0, 3).reduce((s, r) => s + r.min, 0)} min</small></div>
        ${recs.slice(0, 3).map((r, i) => `<div class="spread" style="padding:8px 0;${i ? "border-top:1px solid var(--line)" : ""}"><div class="row" style="gap:12px;flex-wrap:nowrap"><span class="chip tab">${i + 1}</span><div><div>${esc(r.title)}</div><small>${esc(r.why)}</small></div></div><button class="btn sm" data-go="${r.go}" data-p="${esc(r.p || "")}">${r.min} min</button></div>`).join("") || `<p class="muted">Alles erledigt.</p>`}</div>
    </div><div class="col" style="gap:16px">
-     ${ex ? `<div class="card col" style="border-color:${CBY[ex.course] ? CBY[ex.course].color : "var(--line)"}"><span class="eyebrow">Nächste Prüfung</span><div class="spread"><div><h3>${esc(ex.title)}</h3><small>${fmtDate(ex.date, { weekday: "long", day: "numeric", month: "long" })}${ex.time ? " · " + ex.time : ""}</small></div><div class="countdown">${daysUntil(ex.date)}<small class="muted" style="font-size:13px"> Tage</small></div></div>${App.S().plans[ex.id] ? `<button class="btn sm" data-go="plan">Lernplan ansehen</button>` : `<button class="btn sm pri" data-go="plan" data-p="mk:${esc(ex.id)}">Lernplan erstellen</button>`}</div>` : `<div class="card col"><span class="eyebrow">Prüfungstermine</span><p class="muted">Trag deine Prüfungstermine ein, dann plant StudyOS rückwärts.</p><button class="btn sm" data-go="calendar">Termine eintragen</button></div>`}
+     ${ex ? `<div class="card col" style="border-color:${CBY[ex.course] ? CBY[ex.course].color : "var(--line)"}"><span class="eyebrow">Nächste Prüfung</span><div class="spread"><div><h3>${esc(ex.title)}</h3><small>${fmtDate(ex.date, { weekday: "long", day: "numeric", month: "long" })}${ex.time ? " · " + ex.time : ""}</small></div><div class="countdown">${daysUntil(ex.date)}<small class="muted" style="font-size:13px"> Tage</small></div></div></div>` : ""}
      <div class="card col"><div class="spread"><h3>Tägliche Challenge</h3><span class="chip ${dqDone !== undefined ? "acc" : "warn"}">${dqDone !== undefined ? "Erledigt" : "+20 XP"}</span></div><small class="muted">${esc(CBY[dq.course].title)}</small><div id="dq"></div></div>
      <div class="card"><div class="spread"><h3>Lernserie</h3><span class="streak"><i class="flame ${streak() ? "" : "off"}"></i>${streak()} Tage</span></div><div class="week">${wk.map(w => `<div class="day ${w.done ? "done" : ""} ${w.today ? "today" : ""}"><i>${w.done ? "✓" : ""}</i>${w.lbl}</div>`).join("")}</div></div>
    </div></div>
    <div class="col"><div class="spread"><h2>Kurse</h2><button class="btn ghost sm" data-go="courses">Alle</button></div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">${COURSES.map(courseCard).join("")}</div></div></div>`;
-  if (App.renderTodayTodo) App.renderTodayTodo($("#todo-today", el));
   const box = $("#dq", el); box.innerHTML = questionHTML(dq, "dq"); if (dqDone !== undefined) reveal(box, dq, dqDone);
   box.onclick = e => { const b = e.target.closest("[data-dq]"); if (!b || S.daily[today()] !== undefined) return; const pick = +b.dataset.dq, ok = reveal(box, dq, pick); S.daily[today()] = pick; rec(dq.topic, ok ? 1 : 0); addXP(ok ? 20 : 5, "daily", b); save(); };
 };

@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.14.0", d: "2026-10-19", t: "Neue Startseite und Kalender mit Stundenplan", items: [
+    "Neue Startseite „Heute“: Begrüßung, deine nächste Lektion, was heute an der FH ansteht und alle Fächer mit Fortschritt auf einen Blick.",
+    "Neuer Kalender als Wochenansicht. Den Stundenplan holst du dir als iCal-Link oder .ics-Datei, zum Beispiel aus Studo oder dem FH-System.",
+    "„Aufgaben & Lernplan“ und die Aufforderungen, Prüfungstermine einzutragen, sind entfernt.",
+    "Sanfte Animationen und mehr Feinschliff in der ganzen App, auch im Willkommensbildschirm."] },
   { v: "4.13.0", d: "2026-10-19", t: "Freundlicher Start und Sprache am Handy", items: [
     "Neuer Willkommensbildschirm: erklärt in drei Schritten, wie StudyOS funktioniert, und fragt nur nach Name und Semester.",
     "Die Startseite „Heute“ zeigt zuerst einen klaren nächsten Schritt. Woche, Termine und alle Fächer sind eingeklappt.",
