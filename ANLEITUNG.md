@@ -223,3 +223,6 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Abrufbar sind sie 24 Stunden lang und nur für alle, die auch die Nachricht sehen dürfen.
   - Ein stündlicher pg_cron-Job (`studyos-aufraeumen`) löscht Fach-Live-Chat-Nachrichten, die älter als 24 Stunden sind, und markiert alte Anhänge als abgelaufen. Die Dateien selbst entfernt die App des Absenders beim nächsten Öffnen.
   - Einrichtung: `supabase-update-2.sql` im SQL Editor ausführen.
+- **Dateien wirklich löschen (Update 3):**
+  - Die Edge Function `supabase/functions/aufraeumen` entfernt alle Anhänge, die älter als 24 Stunden sind, mit dem Service-Schlüssel, den Supabase intern bereitstellt.
+  - `supabase-update-3.sql` ruft sie stündlich über pg_cron und pg_net auf.
