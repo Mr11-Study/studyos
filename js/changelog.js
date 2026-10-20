@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.22.0", d: "2026-10-20", t: "Gemeinsam nur mit Konto, Freunde sofort", items: [
+    "Für Freunde, Chats und Gruppen erstellst du jetzt ein Konto mit E-Mail und Passwort oder meldest dich an. So bist du in der App, im Browser und auf jedem Gerät dieselbe Person.",
+    "Bisherige Gastkonten werden einmal mit E-Mail und Passwort gesichert, Freunde und Gruppen bleiben dabei erhalten.",
+    "Wer deinen Freundescode benutzt, ist sofort mit dir befreundet und erscheint direkt in der Freundesliste.",
+    "Die Freundesliste aktualisiert sich live und zeigt offene Anfragen deutlich an."] },
   { v: "4.21.0", d: "2026-10-20", t: "Offene und private Gruppen mit Tags", items: [
     "Gruppen gibt es jetzt für alles: fürs Lernen in einem Fach, mit Freunden oder für ein Projekt. Ein Fach ist optional.",
     "Beim Gründen wählst du, ob die Gruppe privat ist (nur mit Einladung) oder offen (alle können sie finden und beitreten), und vergibst Tags wie #Prüfung, #Freunde oder eigene.",
