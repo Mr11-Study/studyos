@@ -226,3 +226,8 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
 - **Dateien wirklich löschen (Update 3):**
   - Die Edge Function `supabase/functions/aufraeumen` entfernt alle Anhänge, die älter als 24 Stunden sind, mit dem Service-Schlüssel, den Supabase intern bereitstellt.
   - `supabase-update-3.sql` ruft sie stündlich über pg_cron und pg_net auf.
+- **Konten und Einladungslinks (4.20):**
+  - Ein Gastkonto (anonym) lässt sich unter Gemeinsam mit E-Mail und Passwort sichern. Die Konto-ID bleibt dabei gleich, Freunde und Gruppen bleiben also erhalten. Auf anderen Geräten oder im Browser meldet man sich mit „Anmelden“ an.
+  - Dafür in Supabase unter Authentication → Sign In / Providers → Email „Confirm email“ ausschalten.
+  - Der QR-Scanner in der App nutzt `BarcodeDetector` oder, wo es den nicht gibt, `js/vendor/jsqr.js` (jsQR 1.4.0).
+  - Das Manifest enthält `handle_links` und `launch_handler`, damit Android-Chrome Einladungslinks in der installierten App öffnet. iOS unterstützt das für Web-Apps nicht.
