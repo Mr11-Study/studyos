@@ -490,3 +490,12 @@ a.so-file:hover{background:rgba(0,0,0,.09)}
 .so-gcard-h{display:flex;align-items:center;gap:8px}
 .so-find input[type=search]{background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:8px;padding:8px 10px;font:inherit}
 .so-tagpick + input{margin-top:2px}
+/* Gemeinsam: Anmeldung (4.22) */
+.so-auth-wrap{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.so-auth-wrap{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}
+.so-auth{display:flex;flex-direction:column;gap:10px;max-width:520px}
+.so-auth h3{margin:4px 0 0}
+.so-auth p{margin:0}
+.so-seg{display:flex;gap:6px}
+.so-seg .chip{cursor:pointer;font-size:13px;padding:6px 12px}
+@media (max-width:899px){.so-auth-wrap .so-auth{order:-1}}

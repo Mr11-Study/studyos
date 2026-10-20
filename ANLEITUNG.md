@@ -211,7 +211,7 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Authentication → Sign In / Providers → „Allow anonymous sign-ins“ einschalten.
   - Im SQL Editor `supabase-setup.sql` ausführen.
 - **Ablauf in der App:**
-  - Wer den Online-Modus einschaltet, bekommt ein anonymes Konto pro Gerät und Profil.
+  - Seit 4.22 nur mit Konto (E-Mail und Passwort, `signUp` / `signInWithPassword`). Alte anonyme Gastkonten werden über `updateUser` gesichert.
   - Sichtbar sind für andere nur Name und Avatar.
 - **Einladungen:**
   - Freunde fügen sich gegenseitig über den Freundescode hinzu (`#friend=CODE`), der andere muss bestätigen.
@@ -235,3 +235,6 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Gruppen haben jetzt optional ein Fach, eine Sichtbarkeit (`open`), bis zu 6 Tags und eine Beschreibung.
   - Offene Gruppen findet man unter Gemeinsam → Gruppen entdecken (Funktion `discover_groups`, ohne Einladungscode) und tritt mit `join_open_group` bei. Private Gruppen bleiben nur per Code erreichbar.
   - Einrichtung: `supabase-update-4.sql` im SQL Editor ausführen. Ohne das Update funktionieren private Gruppen weiter, die App zeigt beim Entdecken einen Hinweis.
+- **Pflicht-Konto und Freundescodes (4.22, Update 5):**
+  - `supabase-update-5.sql` verschiebt die Freundescodes in die Tabelle `friend_codes` (nur der eigene ist lesbar, Funktion `my_code`) und lässt `add_friend` sofort befreunden. Offene Anfragen werden dabei angenommen.
+  - Danach in Supabase „Allow anonymous sign-ins“ ausschalten. „Confirm email“ muss aus bleiben.

@@ -24,10 +24,13 @@ async function connect() {
   loading = (async () => {
     await client();
     const { data } = await sb.auth.getSession(); user = data && data.session && data.session.user;
-    if (!user) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; user = r.data.user; }
+    if (!user) throw Object.assign(new Error("Nicht angemeldet"), { auth: "login" });
+    if (isGuest()) throw Object.assign(new Error("Gastkonto"), { auth: "secure" }); /* alte Gastkonten erst mit E-Mail sichern */
     const prof = { id: user.id, name: (S().name || "Studi").slice(0, 40), avatar: (S().settings.avatar || "").slice(0, 8) || null };
     const r = await sb.from("profiles").upsert(prof).select().single(); if (r.error) throw r.error;
-    me = r.data; names[me.id] = me; cleanOwn();
+    me = r.data; names[me.id] = me;
+    try { const c = await sb.rpc("my_code"); if (!c.error && c.data) me.code = c.data; } catch (e) {} /* ab Update 5 steht der Code nicht mehr im Profil */
+    cleanOwn();
   })();
   try { await loading; } finally { loading = null; }
 }
@@ -36,7 +39,7 @@ const q = async p => { const r = await p; if (r.error) throw r.error; return r.d
 
 /* Namen und Avatare anderer zwischenspeichern */
 const names = {};
-async function loadNames(ids) { const miss = [...new Set(ids)].filter(id => id && !names[id]); if (miss.length) (await q(sb.from("profiles").select("id,name,avatar,code").in("id", miss))).forEach(p => { names[p.id] = p; }); }
+async function loadNames(ids) { const miss = [...new Set(ids)].filter(id => id && !names[id]); if (miss.length) (await q(sb.from("profiles").select("id,name,avatar").in("id", miss))).forEach(p => { names[p.id] = p; }); }
 const av = p => `<span class="so-av" aria-hidden="true">${esc((p && p.avatar) || ((p && p.name) || "?")[0].toUpperCase())}</span>`;
 const nm = id => (names[id] && names[id].name) || "Unbekannt";
 const qr = url => { try { const x = qrcode(0, "M"); x.addData(url); x.make(); return x.createSvgTag({ cellSize: 4, margin: 3, scalable: true }); } catch (e) { return ""; } };
@@ -179,6 +182,19 @@ async function friends() {
   return { ok: rows.filter(r => r.accepted).map(other), inc: rows.filter(r => !r.accepted && r.b === me.id).map(other), out: rows.filter(r => !r.accepted && r.a === me.id).map(other) };
 }
 const myGroups = async () => (await q(sb.from("group_members").select("group_id, groups(*)").eq("user_id", me.id))).map(r => r.groups).filter(Boolean);
+/* Freundesliste live halten: neue Anfragen und Bestätigungen erscheinen ohne Neuladen */
+function watchFriends(redraw) {
+  drop(); let t = null; const again = () => { clearTimeout(t); t = setTimeout(() => { if (!stale()) redraw(); }, 250); };
+  chan = sb.channel("so-fr-" + Date.now())
+    .on("postgres_changes", { event: "*", schema: "public", table: "friendships", filter: `a=eq.${me.id}` }, again)
+    .on("postgres_changes", { event: "*", schema: "public", table: "friendships", filter: `b=eq.${me.id}` }, again)
+    .subscribe();
+  App.cleanup = drop;
+}
+async function friendToast(id) {
+  const ok = (await friends()).ok.includes(id);
+  App.toast(ok ? "Ihr seid befreundet" : "Anfrage gesendet", ok ? `${nm(id)} ist jetzt in deiner Freundesliste.` : `${nm(id)} muss deine Anfrage noch annehmen.`, "☺");
+}
 async function addFriend(code) { const id = await q(sb.rpc("add_friend", { code: code.trim().toUpperCase() })); await loadNames([id]); return id; }
 const joinOpen = gid => q(sb.rpc("join_open_group", { gid }));
 async function joinGroup(code) { return q(sb.rpc("join_group", { code: code.trim().toUpperCase() })); }
@@ -193,50 +209,57 @@ async function takeInvite() {
   if (!inv) return null;
   if (inv[2] === "link" && !standalone()) { inv = inv.slice(0, 2); try { sessionStorage.setItem("studyos.invite", JSON.stringify(inv)); } catch (e) {} browserHint(inv, () => App.go("together", "")); return null; }
   try {
-    if (inv[0] === "friend") { const id = await addFriend(inv[1]); App.toast("Freundschaftsanfrage", `${nm(id)} bekommt deine Anfrage.`, "☺"); return "dm:" + id; }
+    if (inv[0] === "friend") { const id = await addFriend(inv[1]); await friendToast(id); return "dm:" + id; }
     const g = await joinGroup(inv[1]); App.toast("Beigetreten", "Du bist jetzt in der Lerngruppe.", "◎"); return "g:" + g;
   } catch (e) { App.toast("Einladung", /Unbekannt/.test(fail(e)) ? "Der Code ist ungültig oder abgelaufen." : fail(e), "!"); return null; }
 }
 
-/* ---------- Konto: Gastkonto mit E-Mail und Passwort sichern, auf anderen Geräten anmelden ----------
-   Ein Gastkonto (anonyme Anmeldung) gilt nur für diesen Browser bzw. diese installierte App. Mit E-Mail und Passwort
-   wird daraus ein richtiges Konto, die ID bleibt gleich, Freunde und Gruppen bleiben also erhalten.
+/* ---------- Konto: Online-Funktionen nur mit Konto (E-Mail und Passwort) ----------
+   Dasselbe Konto gilt in der installierten App, im Browser und auf jedem Gerät. Alte Gastkonten (anonyme Anmeldung)
+   müssen erst mit E-Mail und Passwort gesichert werden, die ID bleibt dabei gleich.
    Voraussetzung in Supabase: Authentication → Sign In / Providers → Email: „Confirm email“ ausgeschaltet. */
 const isGuest = () => !user || user.is_anonymous || !user.email;
-function accountDialog(mode, done) {
-  const login = mode === "login";
-  App.modal(`<h2>${login ? "Mit Konto anmelden" : "Konto sichern"}</h2>
-    <p class="muted">${login ? "Melde dich mit der E-Mail und dem Passwort an, mit denen du dein Konto gesichert hast. Freunde, Gruppen und Chats sind dann auch hier da." : "Mit E-Mail und Passwort kannst du dich auf jedem Gerät und in jedem Browser anmelden. Freunde, Gruppen und Chats bleiben erhalten."}</p>
-    <form class="col" id="so-af"><label class="fld">E-Mail<input id="so-ae" type="email" autocomplete="email" required placeholder="name@edu.fh-joanneum.at"></label>
-      <label class="fld">Passwort${login ? "" : " (mindestens 8 Zeichen)"}<input id="so-ap" type="password" minlength="${login ? 1 : 8}" autocomplete="${login ? "current-password" : "new-password"}" required></label>
-      ${login && me && isGuest() ? `<small class="muted">Das Gastkonto auf diesem Gerät wird dabei ersetzt.</small>` : ""}
-      <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost sm" data-close>Abbrechen</button><button class="btn pri sm">${login ? "Anmelden" : "Sichern"}</button></div></form>`, (m, close) => {
-    const e = $("#so-ae", m), pw = $("#so-ap", m); setTimeout(() => e.focus(), 50);
-    $("#so-af", m).onsubmit = async ev => {
-      ev.preventDefault(); const btn = $("#so-af .pri", m); btn.disabled = true;
-      try {
-        await client();
-        const email = e.value.trim().toLowerCase();
-        if (login) {
-          const r = await sb.auth.signInWithPassword({ email, password: pw.value }); if (r.error) throw r.error;
-          user = r.data.user; me = null; st().on = true; App.save(); await connect();
-          App.toast("Angemeldet", email, "✓");
-        } else {
-          const a = await sb.auth.updateUser({ email }); if (a.error) throw a.error;
-          if ((a.data.user.email || "").toLowerCase() !== email) throw new Error("confirm");
-          const b = await sb.auth.updateUser({ password: pw.value }); if (b.error) throw b.error;
-          user = b.data.user; App.toast("Konto gesichert", "Melde dich auf anderen Geräten mit " + email + " an.", "✓");
-        }
-        close(); done && done();
-      } catch (er) {
-        btn.disabled = false; const t = String((er && er.message) || er);
-        App.toast("Hat nicht geklappt", /invalid login|invalid credentials/i.test(t) ? "E-Mail oder Passwort stimmt nicht." : /already|registered|exists/i.test(t) ? "Diese E-Mail hat schon ein Konto. Melde dich damit an." : /confirm|not confirmed/i.test(t) ? "Supabase verlangt noch eine E-Mail-Bestätigung. In Supabase unter Authentication → Sign In / Providers → Email „Confirm email“ ausschalten." : /weak|short|at least/i.test(t) ? "Das Passwort ist zu kurz oder zu einfach." : fail(er), "!");
+const authErr = er => { const t = String((er && er.message) || er); return /invalid login|invalid credentials/i.test(t) ? "E-Mail oder Passwort stimmt nicht." : /already|registered|exists/i.test(t) ? "Diese E-Mail hat schon ein Konto. Melde dich damit an." : /confirm|not confirmed/i.test(t) ? "Supabase verlangt noch eine E-Mail-Bestätigung. In Supabase unter Authentication → Sign In / Providers → Email „Confirm email“ ausschalten." : /weak|short|at least|password/i.test(t) ? "Das Passwort ist zu kurz oder zu einfach (mindestens 8 Zeichen)." : /valid email|invalid.*email|email.*invalid/i.test(t) ? "Diese E-Mail-Adresse ist ungültig." : /rate|too many/i.test(t) ? "Zu viele Versuche. Warte kurz und versuch es dann nochmal." : fail(er); };
+/* mode: "signup" | "login" | "secure" (altes Gastkonto) */
+function authView(el, cont, mode) {
+  const intro = mode !== "secure" && !st().on;
+  const T = { signup: ["Konto erstellen", "Erstelle ein Konto mit E-Mail und Passwort. Damit bist du in der App, im Browser und auf jedem Gerät dieselbe Person.", "Konto erstellen"],
+    login: ["Anmelden", "Melde dich mit deiner E-Mail und deinem Passwort an. Freunde, Gruppen und Chats sind dann auch hier da.", "Anmelden"],
+    secure: ["Konto sichern", "Gemeinsam funktioniert jetzt nur noch mit Konto. Sichere dein bisheriges Gastkonto mit E-Mail und Passwort, dann bleiben Freunde, Gruppen und Chats erhalten.", "Konto sichern"] }[mode];
+  el.innerHTML = `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Gruppen und ein offener Live-Chat zu jedem Fach.")}
+    <div class="so-auth-wrap">${intro ? `<section class="card so-intro"><div class="so-ill" aria-hidden="true"><i></i><i></i><i></i></div>
+        <ul class="muted"><li>Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.</li><li>Offene oder private Gruppen gründen, zum Lernen, mit Freunden oder für Projekte.</li><li>Zu jedem Fach ein offener Live-Chat mit allen, die StudyOS nutzen.</li></ul>
+        <p class="muted" style="font-size:13px">Sichtbar für andere sind nur dein Name „${esc(S().name || "Studi")}“ und dein Avatar, nicht deine E-Mail und nicht dein Lernstand. Nachrichten liegen auf einem Server in der EU. Ohne Internet funktioniert alles andere in StudyOS wie bisher.</p></section>` : ""}
+    <section class="card so-auth">${mode === "secure" ? "" : `<div class="so-seg" role="tablist"><button class="chip ${mode === "signup" ? "acc" : ""}" data-mode="signup" role="tab" aria-selected="${mode === "signup"}">Konto erstellen</button><button class="chip ${mode === "login" ? "acc" : ""}" data-mode="login" role="tab" aria-selected="${mode === "login"}">Anmelden</button></div>`}
+      <h3>${T[0]}</h3><p class="muted">${T[1]}</p>
+      <form class="col" id="so-af"><label class="fld">E-Mail<input id="so-ae" type="email" autocomplete="email" required placeholder="name@edu.fh-joanneum.at"></label>
+        <label class="fld">Passwort${mode === "login" ? "" : " (mindestens 8 Zeichen)"}<input id="so-ap" type="password" minlength="${mode === "login" ? 1 : 8}" autocomplete="${mode === "login" ? "current-password" : "new-password"}" required></label>
+        <div class="row so-gate-act"><button type="submit" class="btn pri">${T[2]}</button>${mode === "secure" ? `<button type="button" class="btn ghost sm" id="so-other">Mit anderem Konto anmelden</button>` : ""}</div></form></section></div></div>`;
+  $$("[data-mode]", el).forEach(b => b.onclick = () => authView(el, cont, b.dataset.mode));
+  const oth = $("#so-other", el); if (oth) oth.onclick = async () => { if (!confirm("Das Gastkonto auf diesem Gerät geht dabei verloren. Weiter?")) return; try { await sb.auth.signOut(); } catch (e) {} user = me = null; authView(el, cont, "login"); };
+  $("#so-af", el).onsubmit = async ev => {
+    ev.preventDefault(); const btn = $("#so-af [type=submit]", el); btn.disabled = true;
+    const email = $("#so-ae", el).value.trim().toLowerCase(), password = $("#so-ap", el).value;
+    try {
+      await client();
+      if (mode === "login") { const r = await sb.auth.signInWithPassword({ email, password }); if (r.error) throw r.error; user = r.data.user; }
+      else if (mode === "signup") {
+        const r = await sb.auth.signUp({ email, password }); if (r.error) throw r.error;
+        if (!r.data.session) throw new Error("confirm"); user = r.data.user;
+      } else {
+        const a = await sb.auth.updateUser({ email }); if (a.error) throw a.error;
+        if ((a.data.user.email || "").toLowerCase() !== email) throw new Error("confirm");
+        const b = await sb.auth.updateUser({ password }); if (b.error) throw b.error; user = b.data.user;
       }
-    };
-  });
+      me = null; st().on = true; App.save();
+      App.toast(mode === "login" ? "Angemeldet" : mode === "signup" ? "Konto erstellt" : "Konto gesichert", "Mit " + email + " meldest du dich auf jedem Gerät an.", "✓");
+      cont();
+    } catch (er) { btn.disabled = false; App.toast("Hat nicht geklappt", authErr(er), "!"); }
+  };
+  setTimeout(() => { const e = $("#so-ae", el); if (e && !intro) e.focus(); }, 50);
 }
 async function logout() {
-  if (!confirm(isGuest() ? "Online-Modus beenden? Dein Gastkonto auf diesem Gerät geht dabei verloren." : "Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
+  if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
   drop(); try { await sb.auth.signOut(); } catch (e) {}
   me = null; user = null; st().on = false; App.save(); App.go("together", "");
 }
@@ -297,7 +320,7 @@ function browserHint(inv, cont) {
   App.modal(`<h2>${inv[0] === "friend" ? "Freundschaftsanfrage" : "Einladung in eine Lerngruppe"}</h2>
     <p>Du hast den Link im Browser geöffnet. Wenn du StudyOS als App installiert hast, öffne lieber die App, geh auf <b>Gemeinsam</b> und tippe auf <b>QR scannen</b> oder <b>Code eingeben</b>:</p>
     <p class="so-code-big">${esc(inv[1])}</p>
-    <p class="muted" style="font-size:13px">Im Browser hast du sonst ein eigenes Gastkonto. Mit einem gesicherten Konto kannst du dich aber auch hier anmelden.</p>
+    <p class="muted" style="font-size:13px">Du kannst auch hier im Browser weitermachen und dich mit deinem Konto anmelden.</p>
     <div class="row" style="justify-content:flex-end;flex-wrap:wrap"><button class="btn sm" id="so-hc">Code kopieren</button><button class="btn pri sm" id="so-hb" data-close>Hier im Browser weiter</button></div>`, m => {
     $("#so-hc", m).onclick = () => copy(inv[1], "Code in der Zwischenablage.");
     $("#so-hb", m).addEventListener("click", cont);
@@ -307,17 +330,7 @@ function browserHint(inv, cont) {
 /* ---------- Seiten ---------- */
 const head = (title, sub, back) => `<header class="so-head">${back ? `<button class="btn ghost sm so-back" data-go="${back[0]}"${back[1] ? ` data-p="${esc(back[1])}"` : ""}>← ${esc(back[2])}</button>` : ""}<span class="eyebrow">Gemeinsam</span><h1>${title}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}</header>`;
 function gate(el, cont) {
-  if (!st().on) {
-    el.innerHTML = `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Lerngruppen und ein offener Live-Chat zu jedem Fach.")}
-      <section class="card so-intro"><div class="so-ill" aria-hidden="true"><i></i><i></i><i></i></div>
-        <h3>Online-Modus einschalten</h3>
-        <ul class="muted"><li>Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.</li><li>Lerngruppen pro Fach gründen, Fragen reinschicken und gemeinsam grübeln.</li><li>Zu jedem Fach ein offener Live-Chat mit allen, die StudyOS nutzen.</li></ul>
-        <p class="muted" style="font-size:13px">Sichtbar für andere sind nur dein Name „${esc(S().name || "Studi")}“ und dein Avatar, nicht dein Lernstand. Nachrichten liegen auf einem Server in der EU. Ohne Internet funktioniert alles andere in StudyOS wie bisher.</p>
-        <div class="row so-gate-act"><button class="btn pri big" id="so-on">Online-Modus einschalten</button><button class="btn ghost" id="so-login">Ich habe schon ein Konto</button></div></section></div>`;
-    $("#so-on", el).onclick = () => { st().on = true; App.save(); cont(); };
-    $("#so-login", el).onclick = () => accountDialog("login", cont);
-    return false;
-  }
+  if (!st().on && !(sb && me)) { authView(el, cont, "signup"); return false; }
   if (!navigator.onLine) { el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">Du bist gerade offline. Freunde und Chats brauchen Internet, alles andere in StudyOS funktioniert weiter.</div></div>`; return false; }
   return true;
 }
@@ -325,7 +338,7 @@ async function boot(el, render) {
   curR = App.route();
   if (!gate(el, () => boot(el, render))) return;
   if (!(sb && me)) el.innerHTML = `<div class="page so"><div class="so-wait"><span class="so-spin"></span>Verbinde …</div></div>`;
-  try { await connect(); } catch (e) { drop(); if (stale()) return; el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}<br><br><button class="btn sm" id="so-re">Nochmal versuchen</button></div></div>`; $("#so-re", el).onclick = () => boot(el, render); return; }
+  try { await connect(); } catch (e) { drop(); if (stale()) return; if (e && e.auth) return authView(el, () => boot(el, render), e.auth); el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}<br><br><button class="btn sm" id="so-re">Nochmal versuchen</button></div></div>`; $("#so-re", el).onclick = () => boot(el, render); return; }
   if (stale()) return;
   try { await render(); } catch (e) { if (stale()) return; el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}</div></div>`; }
 }
@@ -343,26 +356,26 @@ PAGES.together = (el, p) => boot(el, async () => {
   el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und die Live-Chats der Fächer.")}
     <section class="card so-me">${av(me)}<div><b>${esc(me.name)}</b><small class="muted">Dein Freundescode</small><span class="so-code">${esc(me.code)}</span></div>
       <div class="so-me-act"><button class="btn pri sm" id="so-qr">QR-Code zeigen</button><button class="btn sm" id="so-scan">QR scannen</button><button class="btn sm" id="so-add">Code eingeben</button></div>
-      <div class="so-acc">${isGuest() ? `<span><b>Gastkonto</b> · gilt nur auf diesem Gerät</span><span class="so-sp"></span><button class="btn sm pri" id="so-secure">Konto sichern</button><button class="btn ghost sm" id="so-login2">Anmelden</button>` : `<span>Angemeldet als <b>${esc(user.email)}</b></span><span class="so-sp"></span>`}<button class="btn ghost sm" id="so-out">${isGuest() ? "Online-Modus beenden" : "Abmelden"}</button></div></section>
+      <div class="so-acc"><span>Angemeldet als <b>${esc(user.email)}</b></span><span class="so-sp"></span><button class="btn ghost sm" id="so-out">Abmelden</button></div></section>
     ${fr.inc.length ? `<section class="card so-req"><h3>Anfragen</h3>${fr.inc.map(id => `<div class="so-row">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><button class="btn pri sm" data-acc="${id}">Annehmen</button><button class="btn ghost sm" data-rej="${id}">Ablehnen</button></div>`).join("")}</section>` : ""}
     <div class="so-grid">
       <section class="card"><div class="spread"><h3>Freunde</h3><span class="chip">${fr.ok.length}</span></div>
-        ${fr.ok.length ? fr.ok.map(id => `<button class="so-row so-link" data-go="together" data-p="dm:${id}">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><span class="muted">Chat ›</span></button>`).join("") : `<p class="muted">Noch keine Freunde. Zeig deinen QR-Code oder gib einen Freundescode ein.</p>`}
-        ${fr.out.length ? `<p class="muted so-out">Wartet auf Bestätigung: ${fr.out.map(id => esc(nm(id))).join(", ")}</p>` : ""}</section>
+        ${fr.ok.map(id => `<button class="so-row so-link" data-go="together" data-p="dm:${id}">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><span class="muted">Chat ›</span></button>`).join("")}
+        ${fr.out.map(id => `<div class="so-row">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><span class="so-tag">wartet auf Bestätigung</span></div>`).join("")}
+        ${fr.ok.length || fr.out.length ? "" : `<p class="muted">Noch keine Freunde. Zeig deinen QR-Code oder gib einen Freundescode ein.</p>`}</section>
       <section class="card"><div class="spread"><h3>Gruppen</h3><span class="chip">${gs.length}</span></div>
         ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe, zum Lernen, mit Freunden oder für ein Projekt, oder tritt einer offenen Gruppe bei.</p>`}
         <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
     <section class="card"><h3>Live-Chat pro Fach</h3><p class="muted">Offen für alle, die StudyOS nutzen, Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p>
       <div class="so-courses">${COURSES.map(c => `<button class="so-cc th-${c.id}" data-go="coursechat" data-p="${c.id}"><i></i><b>${esc(c.title)}</b><small>${esc(c.short)}</small></button>`).join("")}</div></section></div>`;
-  $("#so-qr", el).onclick = () => shareDialog("Dein Freundescode", "Lass den Code scannen oder schick den Link. Wer ihn öffnet, schickt dir eine Freundschaftsanfrage.", LINK + "#friend=" + me.code, me.code);
+  $("#so-qr", el).onclick = () => shareDialog("Dein Freundescode", "Lass den Code scannen oder schick den Link. Wer ihn öffnet, ist mit dir befreundet.", LINK + "#friend=" + me.code, me.code);
   $("#so-scan", el).onclick = () => scanDialog(handleScan);
-  const sec = $("#so-secure", el); if (sec) sec.onclick = () => accountDialog("secure", () => PAGES.together(el, ""));
-  const li = $("#so-login2", el); if (li) li.onclick = () => accountDialog("login", () => PAGES.together(el, ""));
   $("#so-out", el).onclick = logout;
-  $("#so-add", el).onclick = () => codeDialog("Freund hinzufügen", "Freundescode (8 Zeichen)", async c => { const id = await addFriend(c); App.toast("Anfrage gesendet", `${nm(id)} muss noch bestätigen.`, "☺"); PAGES.together(el, ""); });
+  $("#so-add", el).onclick = () => codeDialog("Freund hinzufügen", "Freundescode (8 Zeichen)", async c => { const id = await addFriend(c); await friendToast(id); PAGES.together(el, ""); });
   $("#so-new", el).onclick = () => newGroupDialog(App.currentApp && App.currentApp(), g => App.go("together", "g:" + g.id));
   $("#so-join", el).onclick = () => codeDialog("Lerngruppe beitreten", "Gruppencode (8 Zeichen)", async c => { const g = await joinGroup(c); App.go("together", "g:" + g); });
+  watchFriends(() => PAGES.together(el, ""));
   el.onclick = async e => {
     const a = e.target.closest("[data-acc],[data-rej]"); if (!a) return;
     try {
@@ -443,6 +456,13 @@ async function findPage(el, fach) {
   load();
 }
 async function dmPage(el, id) {
+  const fr = await friends(); if (stale()) return;
+  if (!fr.ok.includes(id)) {
+    const inc = fr.inc.includes(id), out = fr.out.includes(id);
+    el.innerHTML = `<div class="page so">${head(`${av(names[id])} ${esc(nm(id))}`, "", ["together", "", "Gemeinsam"])}<div class="empty">${inc ? `${esc(nm(id))} möchte mit dir befreundet sein.<br><br><button class="btn pri sm" id="so-dacc">Annehmen</button>` : out ? `${esc(nm(id))} muss deine Anfrage noch annehmen. Sobald das passiert, könnt ihr hier schreiben.` : "Ihr seid (noch) nicht befreundet."}</div></div>`;
+    const b = $("#so-dacc", el); if (b) b.onclick = async () => { try { await q(sb.from("friendships").update({ accepted: true }).eq("a", id).eq("b", me.id)); dmPage(el, id); } catch (e) { App.toast("Fehler", fail(e), "!"); } };
+    watchFriends(() => dmPage(el, id)); return;
+  }
   await loadNames([id]); if (stale()) return;
   el.innerHTML = `<div class="page so so-full">${head(`${av(names[id])} ${esc(nm(id))}`, "", ["together", "", "Gemeinsam"])}<div class="so-tools"><button class="btn ghost sm" id="so-unf">Freundschaft beenden</button></div><div class="card so-box"></div></div>`;
   $("#so-unf", el).onclick = async () => { if (!confirm(`Freundschaft mit ${nm(id)} beenden?`)) return; try { await q(sb.from("friendships").delete().or(`and(a.eq.${me.id},b.eq.${id}),and(a.eq.${id},b.eq.${me.id})`)); App.go("together", ""); } catch (e) { App.toast("Fehler", fail(e), "!"); } };
