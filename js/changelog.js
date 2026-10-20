@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.21.0", d: "2026-10-20", t: "Offene und private Gruppen mit Tags", items: [
+    "Gruppen gibt es jetzt für alles: fürs Lernen in einem Fach, mit Freunden oder für ein Projekt. Ein Fach ist optional.",
+    "Beim Gründen wählst du, ob die Gruppe privat ist (nur mit Einladung) oder offen (alle können sie finden und beitreten), und vergibst Tags wie #Prüfung, #Freunde oder eigene.",
+    "Neu unter Gemeinsam: „Gruppen entdecken“ mit Suche, Fach-Filter und Tags. Offenen Gruppen trittst du mit einem Tipp bei.",
+    "Wer eine Gruppe gegründet hat, kann Name, Sichtbarkeit, Tags und Beschreibung später ändern."] },
   { v: "4.20.0", d: "2026-10-20", t: "Richtige Konten und QR-Scanner", items: [
     "Gemeinsam: Dein Gastkonto lässt sich mit E-Mail und Passwort sichern. Damit meldest du dich in der App, im Browser und auf jedem anderen Gerät als dieselbe Person an, Freunde und Gruppen bleiben erhalten.",
     "Neuer QR-Scanner direkt in der App (Gemeinsam → QR scannen), damit Einladungen nicht im Browser landen.",

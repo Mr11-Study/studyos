@@ -31,7 +31,7 @@ async function connect() {
   })();
   try { await loading; } finally { loading = null; }
 }
-const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
+const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
 const q = async p => { const r = await p; if (r.error) throw r.error; return r.data; };
 
 /* Namen und Avatare anderer zwischenspeichern */
@@ -178,11 +178,14 @@ async function friends() {
   const other = r => r.a === me.id ? r.b : r.a; await loadNames(rows.map(other));
   return { ok: rows.filter(r => r.accepted).map(other), inc: rows.filter(r => !r.accepted && r.b === me.id).map(other), out: rows.filter(r => !r.accepted && r.a === me.id).map(other) };
 }
-const myGroups = async () => (await q(sb.from("group_members").select("group_id, groups(id,name,course,invite,owner)").eq("user_id", me.id))).map(r => r.groups).filter(Boolean);
+const myGroups = async () => (await q(sb.from("group_members").select("group_id, groups(*)").eq("user_id", me.id))).map(r => r.groups).filter(Boolean);
 async function addFriend(code) { const id = await q(sb.rpc("add_friend", { code: code.trim().toUpperCase() })); await loadNames([id]); return id; }
+const joinOpen = gid => q(sb.rpc("join_open_group", { gid }));
 async function joinGroup(code) { return q(sb.rpc("join_group", { code: code.trim().toUpperCase() })); }
-async function createGroup(course, name) {
-  const g = await q(sb.from("groups").insert({ course, name, owner: me.id }).select().single());
+async function createGroup(f) {
+  const row = { course: f.course || null, name: f.name, owner: me.id };
+  if (f.open || f.tags.length || f.about) Object.assign(row, { open: f.open, tags: f.tags, about: f.about || null }); /* ohne Update 4 klappen private Gruppen weiterhin */
+  const g = await q(sb.from("groups").insert(row).select().single());
   await q(sb.from("group_members").insert({ group_id: g.id, user_id: me.id })); return g;
 }
 async function takeInvite() {
@@ -335,6 +338,7 @@ PAGES.together = (el, p) => boot(el, async () => {
   if (kind === "dm") return dmPage(el, id);
   if (kind === "g") return groupPage(el, id, ["together", "", "Gemeinsam"]);
   if (kind === "c" && CBY[id]) return App.go("coursechat", id);
+  if (kind === "find") return findPage(el, id || "");
   const [fr, gs] = await Promise.all([friends(), myGroups()]); if (stale()) return;
   el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und die Live-Chats der Fächer.")}
     <section class="card so-me">${av(me)}<div><b>${esc(me.name)}</b><small class="muted">Dein Freundescode</small><span class="so-code">${esc(me.code)}</span></div>
@@ -345,9 +349,9 @@ PAGES.together = (el, p) => boot(el, async () => {
       <section class="card"><div class="spread"><h3>Freunde</h3><span class="chip">${fr.ok.length}</span></div>
         ${fr.ok.length ? fr.ok.map(id => `<button class="so-row so-link" data-go="together" data-p="dm:${id}">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><span class="muted">Chat ›</span></button>`).join("") : `<p class="muted">Noch keine Freunde. Zeig deinen QR-Code oder gib einen Freundescode ein.</p>`}
         ${fr.out.length ? `<p class="muted so-out">Wartet auf Bestätigung: ${fr.out.map(id => esc(nm(id))).join(", ")}</p>` : ""}</section>
-      <section class="card"><div class="spread"><h3>Lerngruppen</h3><span class="chip">${gs.length}</span></div>
-        ${gs.length ? gs.map(g => `<button class="so-row so-link th-dot-${esc(g.course)}" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc((CBY[g.course] && CBY[g.course].short) || g.course)}</span><b>${esc(g.name)}</b><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe für ein Fach oder tritt mit einem Code bei.</p>`}
-        <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" id="so-join">Mit Code beitreten</button></div></section>
+      <section class="card"><div class="spread"><h3>Gruppen</h3><span class="chip">${gs.length}</span></div>
+        ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe, zum Lernen, mit Freunden oder für ein Projekt, oder tritt einer offenen Gruppe bei.</p>`}
+        <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
     <section class="card"><h3>Live-Chat pro Fach</h3><p class="muted">Offen für alle, die StudyOS nutzen, Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p>
       <div class="so-courses">${COURSES.map(c => `<button class="so-cc th-${c.id}" data-go="coursechat" data-p="${c.id}"><i></i><b>${esc(c.title)}</b><small>${esc(c.short)}</small></button>`).join("")}</div></section></div>`;
@@ -369,19 +373,74 @@ PAGES.together = (el, p) => boot(el, async () => {
   };
 });
 function codeDialog(title, label, run) {
-  App.modal(`<h2>${esc(title)}</h2><form class="col" id="so-cf"><label class="fld">${esc(label)}<input id="so-ci" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label>
+  App.modal(`<h2>${esc(title)}</h2><form class="col" id="so-cf"><label class="fld">${esc(label)}<input type="text" id="so-ci" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label>
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost sm" data-close>Abbrechen</button><button class="btn pri sm">OK</button></div></form>`, (m, close) => {
     const i = $("#so-ci", m); setTimeout(() => i.focus(), 50);
     $("#so-cf", m).onsubmit = async e => { e.preventDefault(); if (!i.value.trim()) return; try { await run(i.value); close(); } catch (er) { App.toast("Hat nicht geklappt", /Unbekannt/.test(fail(er)) ? "Diesen Code gibt es nicht." : fail(er), "!"); } };
   });
 }
-function newGroupDialog(course, done) {
-  App.modal(`<h2>Lerngruppe gründen</h2><form class="col" id="so-gf"><label class="fld">Fach<select id="so-gc">${COURSES.map(c => `<option value="${c.id}" ${c.id === course ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label>
-    <label class="fld">Name der Gruppe<input id="so-gn" maxlength="60" placeholder="z. B. BWL Lerngruppe Dienstag"></label>
-    <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost sm" data-close>Abbrechen</button><button class="btn pri sm">Gründen</button></div></form>`, (m, close) => {
-    $("#so-gf", m).onsubmit = async e => { e.preventDefault(); const n = $("#so-gn", m).value.trim(); if (!n) return $("#so-gn", m).focus();
-      try { const g = await createGroup($("#so-gc", m).value, n); close(); App.toast("Gruppe gegründet", "Lade andere mit dem Gruppencode ein.", "◎"); done(g); } catch (er) { App.toast("Fehler", fail(er), "!"); } };
+/* ---------- Gruppen: offen oder privat, mit Tags ---------- */
+const TAGS = ["Lerngruppe", "Freunde", "Prüfung", "Hausübung", "Projekt", "Erstsemester", "Austausch"];
+const gIcon = g => (CBY[g.course] && CBY[g.course].short) || (g.tags && g.tags.includes("Freunde") ? "☺" : "◎");
+const badges = (g, n) => `<span class="so-tags">${g.open ? `<span class="so-tag open">Offen</span>` : `<span class="so-tag priv">Privat</span>`}${(g.tags || []).map(t => `<span class="so-tag">#${esc(t)}</span>`).join("")}${n != null ? `<span class="so-tag n">${n} ${n === 1 ? "Mitglied" : "Mitglieder"}</span>` : ""}</span>`;
+const cleanTags = list => [...new Set(list.map(t => t.replace(/^#+/, "").replace(/[<>]/g, "").trim().slice(0, 20)).filter(Boolean))].slice(0, 6);
+function groupDialog(course, g, done) {
+  const tags = new Set((g && g.tags) || []), extra = [...tags].filter(t => !TAGS.includes(t)).join(", "), open = !!(g && g.open);
+  App.modal(`<h2>${g ? "Gruppe bearbeiten" : "Gruppe gründen"}</h2><form class="col" id="so-gf">
+    <label class="fld">Name der Gruppe<input type="text" id="so-gn" maxlength="60" placeholder="z. B. BWL Lerngruppe Dienstag" value="${esc((g && g.name) || "")}"></label>
+    <label class="fld">Fach<select id="so-gc"><option value="">Kein bestimmtes Fach</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === ((g && g.course) || course) ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label>
+    <div class="fld">Wer kann beitreten?<div class="so-vis">
+      <label class="so-opt"><input type="radio" name="so-vis" value="0" ${open ? "" : "checked"}><span><b>Privat</b><small>Nur mit Einladung per Code oder QR-Code</small></span></label>
+      <label class="so-opt"><input type="radio" name="so-vis" value="1" ${open ? "checked" : ""}><span><b>Offen</b><small>Alle finden die Gruppe unter „Gruppen entdecken“ und können direkt beitreten</small></span></label></div></div>
+    <div class="fld">Tags<div class="so-tagpick">${TAGS.map(t => `<button type="button" class="chip" data-tag="${esc(t)}" aria-pressed="${tags.has(t)}">#${esc(t)}</button>`).join("")}</div>
+      <input type="text" id="so-gt" maxlength="80" placeholder="Eigene Tags, mit Komma getrennt" value="${esc(extra)}"></div>
+    <label class="fld">Beschreibung (optional)<textarea id="so-ga" maxlength="200" rows="2" placeholder="Worum geht es, wann trefft ihr euch?">${esc((g && g.about) || "")}</textarea></label>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost sm" data-close>Abbrechen</button><button type="submit" class="btn pri sm">${g ? "Speichern" : "Gründen"}</button></div></form>`, (m, close) => {
+    $(".so-tagpick", m).onclick = e => { const b = e.target.closest("[data-tag]"); if (b) b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); };
+    setTimeout(() => $("#so-gn", m).focus(), 50);
+    $("#so-gf", m).onsubmit = async e => {
+      e.preventDefault(); const name = $("#so-gn", m).value.trim(); if (!name) return $("#so-gn", m).focus();
+      const f = { name, course: $("#so-gc", m).value, open: $("[name=so-vis]:checked", m).value === "1", about: $("#so-ga", m).value.trim(),
+        tags: cleanTags($$("[data-tag][aria-pressed=true]", m).map(b => b.dataset.tag).concat($("#so-gt", m).value.split(","))) };
+      try {
+        if (g) { await q(sb.from("groups").update({ name: f.name, course: f.course || null, open: f.open, tags: f.tags, about: f.about || null }).eq("id", g.id)); close(); App.toast("Gespeichert", f.open ? "Die Gruppe ist offen und auffindbar." : "Die Gruppe ist privat.", "✓"); return done(g); }
+        const ng = await createGroup(f); close();
+        App.toast("Gruppe gegründet", f.open ? "Sie ist offen, andere finden sie unter „Gruppen entdecken“." : "Lade andere mit dem Gruppencode ein.", "◎"); done(ng);
+      } catch (er) { App.toast("Fehler", fail(er), "!"); }
+    };
   });
+}
+const newGroupDialog = (course, done) => groupDialog(course, null, done);
+/* Offene Gruppen finden und beitreten (p = "find" oder "find:FACH") */
+async function findPage(el, fach) {
+  const f = { search: "", tag: null, fach: CBY[fach] ? fach : null };
+  el.innerHTML = `<div class="page so">${head("Gruppen entdecken", "Offene Gruppen, denen du direkt beitreten kannst. Private Gruppen erscheinen hier nicht.", ["together", "", "Gemeinsam"])}
+    <div class="so-find"><input type="search" id="so-fq" placeholder="Name, Thema oder Tag suchen …" autocomplete="off"><select id="so-fc"><option value="">Alle Fächer</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === f.fach ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select><button class="btn pri sm" id="so-fnew">Gruppe gründen</button></div>
+    <div class="so-tagbar"><button class="chip acc" data-ft="">Alle</button>${TAGS.map(t => `<button class="chip" data-ft="${esc(t)}">#${esc(t)}</button>`).join("")}</div>
+    <div class="so-found"><p class="muted">Lädt …</p></div></div>`;
+  const box = $(".so-found", el); let tmr = null, n = 0;
+  const load = async () => {
+    const my = ++n;
+    try {
+      const rows = await q(sb.rpc("discover_groups", { search: f.search, tag: f.tag, fach: f.fach })); if (my !== n || stale()) return;
+      box.innerHTML = rows.length ? rows.map(g => `<article class="card so-gcard"><div class="so-gcard-h"><span class="so-gi">${esc(gIcon(g))}</span><b>${esc(g.name)}</b></div>${badges(Object.assign({ open: true }, g), Number(g.members))}
+        ${g.about ? `<p class="muted">${esc(g.about)}</p>` : ""}<div class="row">${g.joined ? `<button class="btn sm" data-go="together" data-p="g:${g.id}">Öffnen</button>` : `<button class="btn pri sm" data-join="${g.id}">Beitreten</button>`}</div></article>`).join("")
+        : `<div class="empty">Keine offene Gruppe gefunden.<br><br><button class="btn sm pri" id="so-fnew2">Selbst eine gründen</button></div>`;
+      const b2 = $("#so-fnew2", box); if (b2) b2.onclick = () => newGroupDialog(f.fach, g => App.go("together", "g:" + g.id));
+    } catch (e) { if (my === n && !stale()) box.innerHTML = `<div class="empty">${esc(fail(e))}</div>`; }
+  };
+  $("#so-fq", el).oninput = e => { clearTimeout(tmr); tmr = setTimeout(() => { f.search = e.target.value.trim(); load(); }, 250); };
+  $("#so-fc", el).onchange = e => { f.fach = e.target.value || null; load(); };
+  $("#so-fnew", el).onclick = () => newGroupDialog(f.fach, g => App.go("together", "g:" + g.id));
+  el.onclick = async e => {
+    const t = e.target.closest("[data-ft]");
+    if (t) { f.tag = t.dataset.ft || null; $$("[data-ft]", el).forEach(b => b.classList.toggle("acc", b === t)); return load(); }
+    const j = e.target.closest("[data-join]"); if (!j) return;
+    j.disabled = true;
+    try { await joinOpen(j.dataset.join); App.toast("Beigetreten", "Du bist jetzt in der Gruppe.", "◎"); App.go("together", "g:" + j.dataset.join); }
+    catch (er) { j.disabled = false; App.toast("Hat nicht geklappt", /privat/i.test(fail(er)) ? "Die Gruppe ist inzwischen privat." : fail(er), "!"); }
+  };
+  load();
 }
 async function dmPage(el, id) {
   await loadNames([id]); if (stale()) return;
@@ -393,10 +452,11 @@ async function groupPage(el, gid, back) {
   const g = await q(sb.from("groups").select("*").eq("id", gid).single());
   const mem = await q(sb.from("group_members").select("user_id").eq("group_id", gid)); await loadNames(mem.map(m => m.user_id)); if (stale()) return;
   const c = CBY[g.course];
-  el.innerHTML = `<div class="page so so-full">${head(esc(g.name), `${esc(c ? c.title : g.course)} · ${mem.length} ${mem.length === 1 ? "Mitglied" : "Mitglieder"}`, back)}
+  el.innerHTML = `<div class="page so so-full">${head(esc(g.name), `${esc(c ? c.title : "Allgemeine Gruppe")} · ${mem.length} ${mem.length === 1 ? "Mitglied" : "Mitglieder"}${g.about ? " · " + esc(g.about) : ""}`, back)}${badges(g)}
     <div class="so-tools"><div class="so-mem">${mem.slice(0, 8).map(m => `<span title="${esc(nm(m.user_id))}">${av(names[m.user_id])}</span>`).join("")}</div><span class="so-sp"></span>
-      <button class="btn sm pri" id="so-inv">Einladen</button><button class="btn ghost sm" id="so-leave">${g.owner === me.id ? "Gruppe löschen" : "Verlassen"}</button></div>
+      <button class="btn sm pri" id="so-inv">Einladen</button>${g.owner === me.id ? `<button class="btn sm" id="so-edit">Bearbeiten</button>` : ""}<button class="btn ghost sm" id="so-leave">${g.owner === me.id ? "Gruppe löschen" : "Verlassen"}</button></div>
     <div class="card so-box"></div></div>`;
+  const ed = $("#so-edit", el); if (ed) ed.onclick = () => groupDialog(null, g, () => groupPage(el, gid, back));
   $("#so-inv", el).onclick = () => shareDialog("In die Gruppe einladen", `Wer den Code scannt oder den Link öffnet, tritt „${g.name}“ bei.`, LINK + "#group=" + g.invite, g.invite);
   $("#so-leave", el).onclick = async () => {
     const own = g.owner === me.id; if (!confirm(own ? "Gruppe für alle löschen?" : "Gruppe verlassen?")) return;
@@ -413,7 +473,7 @@ PAGES.coursechat = (el, p) => boot(el, async () => {
   if (sub && sub.startsWith("g:")) return groupPage(el, sub.slice(2), ["coursechat", cid, "Live-Chat " + c.short]);
   const gs = (await myGroups()).filter(g => g.course === cid); if (stale()) return;
   el.innerHTML = `<div class="page so so-full">${head(`Live-Chat · ${esc(c.title)}`, "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten.")}
-    <div class="so-tools so-gtabs">${gs.map(g => `<button class="chip" data-go="coursechat" data-p="${cid}|g:${g.id}">◎ ${esc(g.name)}</button>`).join("")}<button class="chip acc" id="so-cnew">+ Lerngruppe</button><button class="chip" id="so-cjoin">Code eingeben</button><button class="chip" data-go="together">Freunde ›</button></div>
+    <div class="so-tools so-gtabs">${gs.map(g => `<button class="chip" data-go="coursechat" data-p="${cid}|g:${g.id}">◎ ${esc(g.name)}</button>`).join("")}<button class="chip acc" id="so-cnew">+ Gruppe</button><button class="chip" data-go="together" data-p="find:${cid}">Offene Gruppen</button><button class="chip" id="so-cjoin">Code eingeben</button><button class="chip" data-go="together">Freunde ›</button></div>
     <div class="card so-box"></div></div>`;
   $("#so-cnew", el).onclick = () => newGroupDialog(cid, g => App.go("coursechat", cid + "|g:" + g.id));
   $("#so-cjoin", el).onclick = () => codeDialog("Lerngruppe beitreten", "Gruppencode (8 Zeichen)", async code => { const g = await joinGroup(code); App.go("together", "g:" + g); });
