@@ -231,3 +231,7 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Dafür in Supabase unter Authentication → Sign In / Providers → Email „Confirm email“ ausschalten.
   - Der QR-Scanner in der App nutzt `BarcodeDetector` oder, wo es den nicht gibt, `js/vendor/jsqr.js` (jsQR 1.4.0).
   - Das Manifest enthält `handle_links` und `launch_handler`, damit Android-Chrome Einladungslinks in der installierten App öffnet. iOS unterstützt das für Web-Apps nicht.
+- **Offene und private Gruppen (4.21, Update 4):**
+  - Gruppen haben jetzt optional ein Fach, eine Sichtbarkeit (`open`), bis zu 6 Tags und eine Beschreibung.
+  - Offene Gruppen findet man unter Gemeinsam → Gruppen entdecken (Funktion `discover_groups`, ohne Einladungscode) und tritt mit `join_open_group` bei. Private Gruppen bleiben nur per Code erreichbar.
+  - Einrichtung: `supabase-update-4.sql` im SQL Editor ausführen. Ohne das Update funktionieren private Gruppen weiter, die App zeigt beim Entdecken einen Hinweis.
