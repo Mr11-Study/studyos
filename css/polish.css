@@ -361,6 +361,12 @@ html,body{overflow-x:clip;max-width:100%}
 .so-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:20px;letter-spacing:.14em;font-weight:700;color:var(--acc)}
 .so-code-big{text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:26px;letter-spacing:.18em;font-weight:700;margin:4px 0 12px}
 .so-me-act,.so-gact{display:flex;gap:8px;flex-wrap:wrap}
+.so-gate-act{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.so-acc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:14px}
+.so-acc .so-sp{flex:1}
+.so-scan{position:relative;aspect-ratio:1;max-width:360px;margin:0 auto 10px;border-radius:16px;overflow:hidden;background:#111}
+.so-scan video{width:100%;height:100%;object-fit:cover;display:block}
+.so-scan i{position:absolute;inset:18%;border:3px solid #fff;border-radius:14px;box-shadow:0 0 0 999px rgba(0,0,0,.35);pointer-events:none}
 .so-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .so-grid .card{display:flex;flex-direction:column;gap:8px}
 .so-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;min-width:0}

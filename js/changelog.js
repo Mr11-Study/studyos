@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.20.0", d: "2026-10-20", t: "Richtige Konten und QR-Scanner", items: [
+    "Gemeinsam: Dein Gastkonto lässt sich mit E-Mail und Passwort sichern. Damit meldest du dich in der App, im Browser und auf jedem anderen Gerät als dieselbe Person an, Freunde und Gruppen bleiben erhalten.",
+    "Neuer QR-Scanner direkt in der App (Gemeinsam → QR scannen), damit Einladungen nicht im Browser landen.",
+    "Auf Android öffnen Einladungslinks von der normalen Kamera direkt die installierte App, wenn sie installiert ist, sonst den Browser.",
+    "Landet ein Einladungslink doch im Browser, zeigt StudyOS den Code zum Abtippen in der App an."] },
   { v: "4.19.0", d: "2026-10-19", t: "Bilder und Dateien im Chat", items: [
     "In allen Chats lassen sich über 📎 Bilder, GIFs und Dateien bis 5 MB senden, auch per Einfügen oder Hineinziehen. Fotos werden vorher automatisch verkleinert.",
     "Anhänge sind 24 Stunden abrufbar und werden danach gelöscht.",
