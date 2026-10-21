@@ -242,3 +242,9 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
   - Viele Kalender-Server (z. B. almaty.fh-joanneum.at) erlauben keinen Abruf aus dem Browser (CORS). Dann lädt die App den Link über `supabase/functions/kalender` (Kopie: `kalender.ts`).
   - Die Funktion holt nur https-Links von freigegebenen Servern (fh-joanneum.at, Google, Outlook, iCloud), höchstens 3 MB und nur echte Kalenderdateien. Sie ist also kein offener Proxy.
   - Einrichtung: In Supabase → Edge Functions → Deploy a new function → Name `kalender` → Code einfügen → Deploy. „Verify JWT“ darf an bleiben, die App schickt den anon key mit.
+- **Mitteilungen bei geschlossener App (4.32, Update 6, Edge Function `push`):**
+  - Neue Direkt- und Gruppennachrichten sowie Freundschaften lösen per Datenbank-Trigger die Funktion `supabase/functions/push` aus (Kopie: `push.ts`). Sie schickt eine Web-Push-Mitteilung an alle Geräte der Empfänger, die „Am Gerät“ gewählt haben.
+  - Das VAPID-Schlüsselpaar erzeugt die Funktion beim ersten Aufruf selbst und speichert es in `push_keys`, das nur der interne Service-Schlüssel lesen kann. Niemand muss einen Schlüssel kopieren.
+  - Einrichtung: 1. `supabase-update-6.sql` im SQL Editor ausführen. 2. Edge Functions → Deploy a new function → Name `push` → Code einfügen → Deploy. „Verify JWT“ darf an bleiben.
+  - Am Handy (Xiaomi/MIUI): Einstellungen → Apps → Chrome (und StudyOS, falls installiert) → Autostart an, Energiesparen „Keine Einschränkungen“, Benachrichtigungen erlaubt. Sonst beendet MIUI den Browser im Hintergrund und Mitteilungen kommen verspätet oder gar nicht.
+  - Am Laptop: Der Browser muss im Hintergrund laufen dürfen (Chrome: Einstellungen → System → „Apps im Hintergrund weiter ausführen, wenn Chrome geschlossen ist“; Edge: „Erweiterungen und Apps im Hintergrund weiter ausführen“).

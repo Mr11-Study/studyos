@@ -261,7 +261,8 @@ function authView(el, cont, mode) {
 }
 async function logout() {
   if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
-  drop(); if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
+  drop(); try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(), sub = reg && reg.pushManager && await reg.pushManager.getSubscription(); if (sub && me) await sb.from("push_subs").delete().eq("user_id", me.id).eq("endpoint", sub.endpoint); } catch (e) {} delete st().push;
+  if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
   me = null; user = null; st().on = false; App.save(); App.go("together", "");
 }
 
@@ -503,6 +504,37 @@ PAGES.coursechat = (el, p) => boot(el, async () => {
   chat($(".so-box", el), { course: cid }, `Frag etwas zu ${c.title} …`);
 });
 
+/* ---------- Web Push: Mitteilungen auch bei geschlossener App ----------
+   Nur im Modus „Am Gerät“. Das Gerät meldet sich bei der Edge Function „push“ an (supabase-update-6.sql + supabase/functions/push).
+   st().push: "ok" | "missing" (Dienst noch nicht eingerichtet) | "unsupported" | Fehlertext */
+const u8 = b64 => { const s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64.length + 3) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+const pushOk = () => st().push === "ok";
+async function pushSync() {
+  if (!sb || !me) return;
+  const s = st(), want = note().mode === "system" && typeof Notification !== "undefined" && Notification.permission === "granted";
+  let reg = null; try { reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); } catch (e) {}
+  if (!reg || !reg.pushManager) { if (want) { s.push = "unsupported"; App.save(); } return; }
+  let sub = null; try { sub = await reg.pushManager.getSubscription(); } catch (e) {}
+  if (!want) { if (sub) try { await sb.from("push_subs").delete().eq("user_id", me.id).eq("endpoint", sub.endpoint); } catch (e) {} if (s.push) { delete s.push; App.save(); } return; }
+  try {
+    const r = await fetch(SB_URL + "/functions/v1/push", { headers: { Authorization: "Bearer " + SB_KEY, apikey: SB_KEY } });
+    if (!r.ok) throw Object.assign(new Error("HTTP " + r.status), { missing: r.status === 404 || r.status === 500 });
+    const key = (await r.json()).key; if (!key) throw Object.assign(new Error("kein Schlüssel"), { missing: true });
+    const opts = { userVisibleOnly: true, applicationServerKey: u8(key) };
+    try { if (!sub) sub = await reg.pushManager.subscribe(opts); }
+    catch (e) { if (sub) await sub.unsubscribe().catch(() => {}); sub = await reg.pushManager.subscribe(opts); }
+    if (sub.options && sub.options.applicationServerKey && btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") !== key) { await sub.unsubscribe(); sub = await reg.pushManager.subscribe(opts); }
+    const j = sub.toJSON();
+    await q(sb.from("push_subs").upsert({ user_id: me.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "user_id,endpoint" }));
+    s.push = "ok";
+  } catch (e) { s.push = e && e.missing || /push_subs|relation|schema cache/i.test(String(e && e.message)) ? "missing" : String((e && e.message) || e).slice(0, 120); }
+  App.save(); const ps = $(".so-push"); if (ps) ps.textContent = pushText();
+}
+const pushText = () => { if (note().mode !== "system") return ""; const p = st().push;
+  return p === "ok" ? "✓ Auch bei geschlossener App: Dieses Gerät bekommt Mitteilungen, solange der Browser bzw. das Handy sie zulässt."
+    : p === "missing" ? "Bei geschlossener App noch nicht: Der Push-Dienst ist in Supabase noch nicht eingerichtet (supabase-update-6.sql und Funktion „push“). Solange StudyOS offen oder im Hintergrund ist, klappt es schon."
+    : p === "unsupported" ? "Dieser Browser kann keine Mitteilungen bei geschlossener App. Installiere StudyOS als App (Chrome oder Edge)."
+    : p ? "Push-Anmeldung fehlgeschlagen: " + p : "Melde dieses Gerät an …"; };
 /* ---------- Benachrichtigungen und ungelesene Nachrichten ----------
    Sobald man angemeldet ist, hört StudyOS im Hintergrund auf neue Direktnachrichten, Gruppen-Nachrichten und Freundschaftsanfragen.
    Einstellung (pro Profil): „system“ = Mitteilung von Windows, macOS oder Handy, auch wenn StudyOS nur im Hintergrund offen ist;
@@ -548,7 +580,7 @@ async function startInbox() {
     if (gids.length) inbox.on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `group_id=in.(${gids.join(",")})` }, p => incoming(p.new));
     inbox.subscribe();
   }
-  await loadUnread();
+  await loadUnread(); pushSync().catch(() => {});
 }
 const inboxSoon = () => { if (sb && me) startInbox().catch(() => {}); };
 async function incoming(m) {
@@ -573,6 +605,7 @@ async function alertUser(title, body, k, who) {
   const mode = note().mode; if (mode === "off") return;
   const sys = mode === "system" && typeof Notification !== "undefined" && Notification.permission === "granted";
   if (document.visibilityState === "visible" && document.hasFocus()) return inAppNote(title, body, k, who);
+  if (sys && pushOk() && k !== "test") return; /* kommt per Push vom Server, sonst doppelt */
   if (sys) {
     const opts = { body, tag: "so-" + k, renotify: true, icon: "icons/v2/icon-192.png", badge: "icons/v2/icon-192.png", data: { url: "./#chat=" + k, chat: k } };
     try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) return reg.showNotification(title, opts); } catch (e) {}
@@ -620,8 +653,8 @@ const permText = () => typeof Notification === "undefined" ? "Dieser Browser kan
 function noteHTML() {
   const mode = note().mode;
   return `<div class="so-modes" role="radiogroup">${MODES.map(([k, t, d]) => `<label class="so-opt"><input type="radio" name="so-nm" value="${k}" ${mode === k ? "checked" : ""}><span><b>${t}</b><small>${d}</small></span></label>`).join("")}</div>
-    <small class="muted so-perm">${mode === "system" ? permText() : ""}</small>
-    <small class="muted">Gilt für neue Direktnachrichten, Nachrichten in deinen Gruppen und Freundschaftsanfragen. Der offene Live-Chat der Fächer meldet sich nicht. Ist StudyOS ganz geschlossen, gibt es keine Mitteilung; die Zähler zeigen beim nächsten Öffnen, was neu ist.</small>
+    <small class="muted so-perm">${mode === "system" ? permText() : ""}</small><small class="so-push">${pushText()}</small>
+    <small class="muted">Gilt für neue Direktnachrichten, Nachrichten in deinen Gruppen und Freundschaftsanfragen. Der offene Live-Chat der Fächer meldet sich nicht. Mit „Am Gerät“ kommen Mitteilungen auch bei geschlossener App. Am Handy muss der Browser dafür im Hintergrund laufen dürfen (Xiaomi: Autostart und Akku „Keine Einschränkungen“ für Chrome).</small>
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" id="so-ntest">Test</button></div>`;
 }
 function bindNote(box, after) {
@@ -632,7 +665,8 @@ function bindNote(box, after) {
       else if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") { App.toast("Nicht erlaubt", "Ohne Erlaubnis zeigt StudyOS Hinweise nur in der App.", "!"); v = "app"; }
     }
     note().mode = v; App.save(); $$("[name=so-nm]", box).forEach(x => { x.checked = x.value === v; });
-    $(".so-perm", box).textContent = v === "system" ? permText() : ""; paintBadges(); after && after();
+    $(".so-perm", box).textContent = v === "system" ? permText() : ""; $(".so-push", box).textContent = pushText(); paintBadges(); after && after();
+    if (sb && me) pushSync().then(() => { $(".so-push", box).textContent = pushText(); }).catch(() => {});
   });
   $("#so-ntest", box).onclick = () => { const mode = note().mode;
     if (mode === "off") return App.toast("Benachrichtigungen sind aus", "Wähle „Am Gerät“ oder „Nur in der App“.", "!");
