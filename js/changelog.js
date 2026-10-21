@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.27.0", d: "2026-10-21", t: "FH-Stundenplan direkt auswählen", items: [
+    "Unter Kalender → Stundenplan holen gibt es jetzt den Bereich „FH JOANNEUM“: Studiengang (z. B. IMA), Fachsemester und auf Wunsch deine Gruppe wählen, dann „Stundenplan abonnieren“. StudyOS baut den Abo-Link der FH-Stundenplan-Suche selbst, du musst nichts mehr kopieren.",
+    "Wie in der FH-Suche gehen auch weitere Suchbegriffe wie titel:, referent: oder ein Minus zum Ausschließen. Deine Auswahl bleibt gespeichert und lässt sich jederzeit ändern."] },
   { v: "4.26.1", d: "2026-10-21", t: "Zurücksetzen ohne Sprung", items: [
     "Nach dem Zurücksetzen eines Fachs oder des Git-Labors bleiben die Einstellungen an derselben Stelle, statt nach oben zu springen."] },
   { v: "4.26.0", d: "2026-10-21", t: "Neue Einstellungen, klare Fach-Apps", items: [

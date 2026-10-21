@@ -661,3 +661,21 @@ html.less-motion .rv{opacity:1!important;transform:none!important}
 .st-card .switch>div:first-child,.st-accrow .pf-l{flex:1 1 180px;min-width:0}
 .st-accrow .pf-l{font:inherit;color:inherit;letter-spacing:0;text-transform:none}
 .st-accrow .pf-l small{display:block;color:var(--muted);font-weight:400}
+
+/* ===== 4.27 · Stundenplan der FH direkt auswählen ===== */
+.tt-tabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--bg);border:1px solid var(--line2)}
+.tt-tabs button{flex:1;border:0;background:none;color:var(--muted);font:600 14px var(--f-body);padding:8px 10px;border-radius:9px;cursor:pointer;transition:background .15s,color .15s}
+.tt-tabs button.on{background:var(--card3);color:var(--text);box-shadow:var(--shadow)}
+.tt-pane{gap:14px}
+.tt-fh{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 14px}
+.tt-fh .fld small{font-size:12px}
+.tt-fh-wide{grid-column:1/-1}
+.tt-grp{display:flex;gap:8px;align-items:center}
+.tt-grp .lvl{flex:none}
+.tt-fh details summary{cursor:pointer;color:var(--muted);font-size:14px;padding:2px 0}
+.tt-fh details[open] summary{margin-bottom:8px}
+.tt-fh details small{display:block;margin-top:5px;font-size:12px}
+.tt-q{display:flex;flex-direction:column;gap:5px;padding:10px 12px;border-radius:10px;background:var(--acc-soft);border:1px solid var(--acc-line)}
+.tt-q code{font:500 13px var(--f-mono);color:var(--text);overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+@media (max-width:520px){.tt-fh{grid-template-columns:minmax(0,1fr)}}
+.tt-pane[hidden]{display:none}
