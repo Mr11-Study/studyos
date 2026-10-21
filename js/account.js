@@ -179,7 +179,7 @@ async function omniCall(system, messages, maxTokens, only, onChunk) {
 async function aiCall(system, messages, maxTokens = 450, onChunk) {
   if (aiProv() === "studyos") return studyosCall(system, messages, maxTokens, onChunk);
   if (aiProv() === "omni") return omniCall(system, messages, maxTokens, null, onChunk);
-  const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": SEC().aiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: S().ai.model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages }) });
+  const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": SEC().aiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: S().ai.model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages: messages.map(m => Array.isArray(m.content) ? { role: m.role, content: m.content.map(p => p.type === "image_url" ? (([, mt, data]) => ({ type: "image", source: { type: "base64", media_type: mt, data } }))(p.image_url.url.match(/^data:([^;]+);base64,(.*)$/) || []) : p) } : m) }) });
   if (!r.ok) { let m = r.status + ""; try { m = (await r.json()).error.message; } catch (e) {} throw new Error(m); }
   const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return j.content.map(x => x.text || "").join("");
 }
@@ -198,10 +198,10 @@ App.mdLite = text => {
     .replace(/\\\(([\s\S]+?)\\\)/g, (m, x) => tex(x))
     .replace(/\$(?=\S)([^$\n]*?\S)\$(?!\d)/g, (m, x) => tex(x));
   const out = []; let list = null;
-  const flush = () => { if (list) { out.push(`<${list.t}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
+  const flush = () => { if (list) { out.push(`<${list.t}${list.n > 1 ? ` start="${list.n}"` : ""}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
   for (const raw of esc(t).split("\n")) {
     const ln = raw.trim(), ul = ln.match(/^[-*•]\s+(.*)/), ol = ln.match(/^\d+[.)]\s+(.*)/), h = ln.match(/^#{1,4}\s+(.*)/);
-    if (ul || ol) { const tg = ul ? "ul" : "ol"; if (!list || list.t !== tg) { flush(); list = { t: tg, items: [] }; } list.items.push(mdInline((ul || ol)[1])); continue; }
+    if (ul || ol) { const tg = ul ? "ul" : "ol"; if (!list || list.t !== tg) { flush(); list = { t: tg, items: [], n: ol ? parseInt(ln, 10) : 1 }; } list.items.push(mdInline((ul || ol)[1])); continue; }
     flush();
     if (!ln) continue;
     out.push(/^\u0000\d+\u0000$/.test(ln) && /^<(pre|span class="tex tex-b)/.test(keep[+ln.slice(1, -1)]) ? `<div class="md-blk">${ln}</div>` : h ? `<p class="md-h">${mdInline(h[1])}</p>` : `<p>${mdInline(ln)}</p>`);
@@ -224,6 +224,15 @@ App.renderTex = el => {
   loadKatex().then(k => ts.forEach(n => { try { k.render(n.dataset.tex, n, { displayMode: n.classList.contains("tex-b"), throwOnError: false, output: "html" }); n.classList.add("done"); } catch (e) { n.textContent = texPlain(n.dataset.tex); } }))
     .catch(() => ts.forEach(n => { n.textContent = texPlain(n.dataset.tex); n.classList.add("plain"); }));
 };
+/* Fotos für die KI verkleinern (max. 1600 px, JPEG), damit sie schnell hochgeladen sind */
+const shrinkImage = file => new Promise((res, rej) => {
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement("canvas"); cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(cv.toDataURL("image/jpeg", .85)); };
+  img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Das Bild konnte nicht gelesen werden.")); }; img.src = url;
+});
+/* nur das neueste Bild mitschicken, ältere werden durch einen Hinweis ersetzt */
+const lastImageOnly = msgs => { let seen = false; return msgs.slice().reverse().map(m => { if (!Array.isArray(m.content)) return m; const has = m.content.some(p => p.type === "image_url"); if (!has) return m; if (!seen) { seen = true; return m; } return { role: m.role, content: m.content.map(p => p.type === "image_url" ? { type: "text", text: "[Bild von vorhin]" } : p) }; }).reverse(); };
 /* Text beim Streamen höchstens einmal pro Frame neu formatieren */
 const livePaint = (el, after) => { let raf = 0, last = "", off = false; const f = t => { last = t; if (raf || off) return; raf = requestAnimationFrame(() => { raf = 0; if (off) return; el.innerHTML = App.mdLite(last) + `<span class="assist-caret"></span>`; after && after(); }); }; f.stop = () => { off = true; cancelAnimationFrame(raf); }; return f; };
 App.renderAssistant = (box, l) => {
@@ -234,7 +243,8 @@ App.renderAssistant = (box, l) => {
   box.innerHTML = `<div class="spread assist-head"><div class="assist-ti"><span class="assist-ico">✦</span><div><h3>Frag zur Lektion</h3><small class="muted">${aiProv() === "studyos" ? "KI · StudyOS" : aiProv() === "omni" ? "KI · OmniRoute" : "KI · Anthropic"}</small></div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn ghost sm assist-x" id="abig" title="Größer anzeigen" aria-label="Größer anzeigen">⤢</button></div></div>
     <div class="assist-log" id="alog"><div class="a a-hi">Frag mich alles zu <b>„${esc(l.title)}“</b>. Ich erkläre kurz und verständlich.</div></div>
     <div class="assist-sug" id="asug">${["Erklär das einfacher", "Gib mir ein Beispiel", "Was ist prüfungsrelevant?", "Stell mir eine Übungsfrage"].map(t => `<button type="button" class="chip">${t}</button>`).join("")}</div>
-    <form class="assist-form" id="aform"><textarea id="aq" rows="1" placeholder="Deine Frage …" autocomplete="off"></textarea><button class="btn pri" type="submit" aria-label="Fragen">Fragen</button></form>`;
+    <div class="assist-imgs" id="aimgs" hidden></div>
+    <form class="assist-form" id="aform"><label class="btn ghost assist-att" title="Foto oder Bild hinzufügen (auch Strg+V)" aria-label="Bild hinzufügen"><input type="file" id="afile" accept="image/*" multiple hidden>📷</label><textarea id="aq" rows="1" placeholder="Deine Frage …" autocomplete="off"></textarea><button class="btn pri" type="submit" aria-label="Fragen">Fragen</button></form>`;
   const ctx = l.blocks.map(b => b.t === "text" ? b.h + ": " + App.strip(b.levels.normal) : b.html ? App.strip(b.html) : b.items ? b.items.map(App.strip).join("; ") : b.q ? "Q: " + App.strip(b.q) : "").filter(Boolean).join("\n").slice(0, 3500);
   const L = $("#alog", box), q = $("#aq", box), form = $("#aform", box);
   /* großer Modus: die Karte schwebt als breites Fenster über der Lektion */
@@ -246,7 +256,7 @@ App.renderAssistant = (box, l) => {
     box.classList.toggle("big", on); $("#abig", box).textContent = on ? "✕" : "⤢"; $("#abig", box).title = on ? "Schließen" : "Größer anzeigen";
     if (on && !shade) { shade = document.createElement("div"); shade.className = "assist-shade"; shade.onclick = () => big(false); document.body.appendChild(shade); }
     if (!on && shade) { shade.remove(); shade = null; }
-    document.body.classList.toggle("assist-open", on); L.scrollTop = L.scrollHeight; if (on) q.focus();
+    document.body.classList.toggle("assist-open", on); L.scrollTop = L.scrollHeight; requestAnimationFrame(grow); if (on) q.focus();
   };
   $("#abig", box).onclick = () => big(!box.classList.contains("big"));
   const onKey = e => { if (e.key === "Escape" && box.classList.contains("big")) big(false); if (!box.isConnected || (spot && !spot.isConnected)) { document.removeEventListener("keydown", onKey); if (spot) big(false); } };
@@ -255,11 +265,24 @@ App.renderAssistant = (box, l) => {
   q.oninput = grow;
   q.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } };
   $("#asug", box).onclick = e => { const b = e.target.closest("button"); if (!b) return; q.value = b.textContent; form.requestSubmit(); };
-  form.onsubmit = async e => { e.preventDefault(); const text = q.value.trim(); if (!text) return; if (!(await confirmAI("Frage: „" + text.slice(0, 120) + "“"))) return; q.value = ""; grow();
-    const u = document.createElement("div"); u.className = "u"; u.textContent = text; L.appendChild(u);
-    const a = document.createElement("div"); a.className = "a"; a.innerHTML = `<span class="assist-dots"><i></i><i></i><i></i></span>`; L.appendChild(a); L.scrollTop = L.scrollHeight; log.push({ role: "user", content: text });
+  /* Bilder: Knopf (am Handy auch Kamera), Einfügen mit Strg+V, Hineinziehen */
+  let imgs = [];
+  const tray = $("#aimgs", box);
+  const drawTray = () => { tray.hidden = !imgs.length; tray.innerHTML = imgs.map((u, i) => `<div class="assist-thumb"><img src="${u}" alt="Bild ${i + 1}"><button type="button" data-i="${i}" aria-label="Bild entfernen">✕</button></div>`).join("") + (imgs.length ? `<small class="muted">Die KI liest das Bild und löst die Aufgabe mit Lösungsweg.</small>` : ""); };
+  tray.onclick = e => { const b = e.target.closest("button[data-i]"); if (b) { imgs.splice(+b.dataset.i, 1); drawTray(); } };
+  const addFiles = async files => { for (const f of [...files].filter(f => /^image\//.test(f.type)).slice(0, 3 - imgs.length)) { try { imgs.push(await shrinkImage(f)); } catch (err) { App.toast && App.toast(err.message); } } drawTray(); q.focus(); };
+  $("#afile", box).onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+  q.addEventListener("paste", e => { const fs = [...(e.clipboardData && e.clipboardData.files || [])]; if (fs.length) { e.preventDefault(); addFiles(fs); } });
+  box.addEventListener("dragover", e => { if ([...e.dataTransfer.items].some(i => i.kind === "file")) { e.preventDefault(); box.classList.add("drop"); } });
+  box.addEventListener("dragleave", e => { if (!box.contains(e.relatedTarget)) box.classList.remove("drop"); });
+  box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("drop"); addFiles(e.dataTransfer.files); });
+  form.onsubmit = async e => { e.preventDefault(); const pics = imgs.slice(); let text = q.value.trim(); if (!text && !pics.length) return; if (!text) text = "Löse die Aufgabe auf dem Bild."; if (!(await confirmAI((pics.length ? pics.length + " Bild(er) und " : "") + "Frage: „" + text.slice(0, 120) + "“"))) return; q.value = ""; grow(); imgs = []; drawTray();
+    const u = document.createElement("div"); u.className = "u"; u.innerHTML = (pics.length ? `<div class="assist-uimgs">${pics.map(p => `<img src="${p}" alt="">`).join("")}</div>` : "") + `<div>${esc(text)}</div>`; L.appendChild(u);
+    const a = document.createElement("div"); a.className = "a"; a.innerHTML = `<span class="assist-dots"><i></i><i></i><i></i></span>`; L.appendChild(a); L.scrollTop = L.scrollHeight;
+    log.push({ role: "user", content: pics.length ? [{ type: "text", text }].concat(pics.map(url => ({ type: "image_url", image_url: { url } }))) : text });
+    const solve = log.some(m => Array.isArray(m.content));
     const paint = livePaint(a, () => { if (L.scrollHeight - L.scrollTop - L.clientHeight < 140) L.scrollTop = L.scrollHeight; });
-    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Formeln immer in LaTeX zwischen $…$ (eigene Zeile: $$…$$). Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6), 450, paint); paint.stop();
+    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Formeln immer in LaTeX zwischen $…$ (eigene Zeile: $$…$$). Bleib beim Thema.${solve ? " Wenn ein Bild eine Aufgabe zeigt: Schreib zuerst kurz ab, was gegeben und gesucht ist, löse sie dann Schritt für Schritt mit nummeriertem Lösungsweg (dafür darfst du länger als 150 Wörter schreiben) und nenne am Ende das **Ergebnis**. Ist etwas im Bild unleserlich, sag es." : ""}`, lastImageOnly(log.slice(-6)), solve ? 1400 : 450, paint); paint.stop();
       a.innerHTML = App.mdLite(t) + `<div class="assist-tools"><button type="button" class="assist-copy" title="Kopieren">Kopieren</button></div>`; App.renderTex(a);
       $(".assist-copy", a).onclick = ev => { navigator.clipboard && navigator.clipboard.writeText(t).then(() => { ev.target.textContent = "Kopiert ✓"; setTimeout(() => { ev.target.textContent = "Kopieren"; }, 1500); }).catch(() => {}); };
       log.push({ role: "assistant", content: t });

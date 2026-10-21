@@ -5,7 +5,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const LIMIT = 60;          /* Fragen pro Konto und Tag */
-const MAX_TOKENS = 700;
+const MAX_TOKENS = 1500;   /* Lösungswege zu Foto-Aufgaben brauchen Platz */
+const MAX_IMAGE = 3_000_000; /* Zeichen pro Bild (data-URL, ca. 2,2 MB) */
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
@@ -39,9 +40,14 @@ Deno.serve(async req => {
     const used = (await db.from("ki_usage").select("n").eq("user_id", u.id).eq("day", day).maybeSingle()).data;
     if (used && used.n >= LIMIT) return json(429, { error: "limit", limit: LIMIT });
     const d = await req.json().catch(() => ({}));
+    /* Text oder (nur Nutzer) Text + Bilder im OpenAI-Format; höchstens 3 Bilder pro Anfrage */
+    let pics = 0;
+    const part = p => p && p.type === "text" && typeof p.text === "string" ? { type: "text", text: p.text.slice(0, 8000) }
+      : p && p.type === "image_url" && p.image_url && typeof p.image_url.url === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,/.test(p.image_url.url) && p.image_url.url.length <= MAX_IMAGE && ++pics <= 3 ? { type: "image_url", image_url: { url: p.image_url.url } } : null;
     const messages = (Array.isArray(d.messages) ? d.messages : []).slice(-12)
-      .filter(m => m && ["system", "user", "assistant"].includes(m.role) && typeof m.content === "string")
-      .map(m => ({ role: m.role, content: m.content.slice(0, 8000) }));
+      .filter(m => m && ["system", "user", "assistant"].includes(m.role) && (typeof m.content === "string" || (m.role === "user" && Array.isArray(m.content))))
+      .map(m => typeof m.content === "string" ? { role: m.role, content: m.content.slice(0, 8000) } : { role: m.role, content: m.content.map(part).filter(Boolean) })
+      .filter(m => m.content.length);
     if (!messages.length) return json(400, { error: "Keine Frage" });
     /* stream: die Antwort wird Stück für Stück durchgereicht, so erscheinen die ersten Wörter sofort */
     const stream = d.stream === true;
