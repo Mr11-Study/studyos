@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.34.0", d: "2026-10-21", t: "Schönerer KI-Assistent", items: [
+    "„Frag zur Lektion“ ist größer und übersichtlicher. Antworten zeigen Fettdruck, Aufzählungen und Code sauber formatiert statt Sternchen und Backticks.",
+    "Mit ⤢ öffnest du den Assistenten als großes Fenster über der Lektion. Lange Antworten öffnen es am PC automatisch, Esc schließt es.",
+    "Vorschläge wie „Gib mir ein Beispiel“ oder „Stell mir eine Übungsfrage“ fragen mit einem Klick, jede Antwort lässt sich kopieren."] },
   { v: "4.33.0", d: "2026-10-21", t: "KI-Hilfe für alle", items: [
     "Der KI-Assistent ist jetzt für alle mit StudyOS-Konto automatisch eingeschaltet, ohne eigenen Schlüssel und ohne Einrichtung.",
     "Die Fragen laufen über den KI-Server von StudyOS (OmniRoute). In den Einstellungen siehst du, ob er gerade online ist. Pro Tag sind 60 Fragen frei.",

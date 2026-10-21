@@ -168,16 +168,65 @@ async function aiCall(system, messages, maxTokens = 450) {
   const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return j.content.map(x => x.text || "").join("");
 }
 function confirmAI(what) { return new Promise(res => { if (!S().ai.confirm) return res(true); App.modal(`<h2>KI-Anfrage senden?</h2><p>${esc(what)}</p><p class="muted" style="font-size:13px">${aiProv() === "studyos" ? "Die Anfrage geht an den KI-Server von StudyOS" : aiProv() === "omni" ? "Die Anfrage geht an dein OmniRoute" : "Die Anfrage geht mit deinem eigenen API-Schlüssel an Anthropic"} und verbraucht Tokens (bisher ca. ${(S().ai.used || 0).toLocaleString("de-AT")}). Ohne Bestätigung passiert nichts.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="ai-n">Abbrechen</button><button class="btn pri" id="ai-y">Senden</button></div>`, (m, close) => { $("#ai-y", m).onclick = () => { close(); res(true); }; $("#ai-n", m).onclick = () => { close(); res(false); }; }); }); }
-App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; try { out.textContent = await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }]); } catch (e) { out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
+App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; try { out.innerHTML = App.mdLite(await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }])); } catch (e) { out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
+/* KI-Antworten lesbar machen: kleines, sicheres Markdown (erst escapen, dann formatieren) */
+const mdInline = t => t.replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>").replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>");
+App.mdLite = text => {
+  const out = [], parts = esc(String(text || "").trim()).split(/```[\w+-]*\n?([\s\S]*?)```/g);
+  parts.forEach((p, i) => {
+    if (i % 2) { out.push(`<pre class="md-pre"><code>${p.replace(/\n$/, "")}</code></pre>`); return; }
+    let list = null;
+    const flush = () => { if (list) { out.push(`<${list.t}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
+    for (const raw of p.split("\n")) {
+      const ln = raw.trim(), ul = ln.match(/^[-*•]\s+(.*)/), ol = ln.match(/^\d+[.)]\s+(.*)/), h = ln.match(/^#{1,4}\s+(.*)/);
+      if (ul || ol) { const t = ul ? "ul" : "ol"; if (!list || list.t !== t) { flush(); list = { t, items: [] }; } list.items.push(mdInline((ul || ol)[1])); continue; }
+      flush();
+      if (!ln) continue;
+      out.push(h ? `<p class="md-h">${mdInline(h[1])}</p>` : `<p>${mdInline(ln)}</p>`);
+    }
+    flush();
+  });
+  return out.join("");
+};
 App.renderAssistant = (box, l) => {
   const c = CBY[l.course];
   if (!App.aiReady(l.course)) { box.innerHTML = `<h3>KI-Assistent (optional)</h3><p class="muted" style="font-size:14px">Aus. StudyOS funktioniert komplett ohne KI. In den Einstellungen unter App kannst du sie einschalten.</p><button class="btn ghost sm" data-go="settings">Einstellungen</button>`; return; }
   const log = [];
-  box.innerHTML = `<div class="spread"><h3>Frag zur Lektion</h3><span class="chip">${aiProv() === "studyos" ? "KI · StudyOS" : "KI · bestätigt"}</span></div><div class="assist-log" id="alog"><div class="a muted">Frage zu „${esc(l.title)}“. Antworten bleiben kurz.</div></div><form class="row" id="aform" style="flex-wrap:nowrap"><input type="text" id="aq" placeholder="Deine Frage …" autocomplete="off"><button class="btn pri sm" type="submit">Fragen</button></form>`;
+  box.classList.add("assist");
+  box.innerHTML = `<div class="spread assist-head"><div class="assist-ti"><span class="assist-ico">✦</span><div><h3>Frag zur Lektion</h3><small class="muted">${aiProv() === "studyos" ? "KI · StudyOS" : aiProv() === "omni" ? "KI · OmniRoute" : "KI · Anthropic"}</small></div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn ghost sm assist-x" id="abig" title="Größer anzeigen" aria-label="Größer anzeigen">⤢</button></div></div>
+    <div class="assist-log" id="alog"><div class="a a-hi">Frag mich alles zu <b>„${esc(l.title)}“</b>. Ich erkläre kurz und verständlich.</div></div>
+    <div class="assist-sug" id="asug">${["Erklär das einfacher", "Gib mir ein Beispiel", "Was ist prüfungsrelevant?", "Stell mir eine Übungsfrage"].map(t => `<button type="button" class="chip">${t}</button>`).join("")}</div>
+    <form class="assist-form" id="aform"><textarea id="aq" rows="1" placeholder="Deine Frage …" autocomplete="off"></textarea><button class="btn pri" type="submit" aria-label="Fragen">Fragen</button></form>`;
   const ctx = l.blocks.map(b => b.t === "text" ? b.h + ": " + App.strip(b.levels.normal) : b.html ? App.strip(b.html) : b.items ? b.items.map(App.strip).join("; ") : b.q ? "Q: " + App.strip(b.q) : "").filter(Boolean).join("\n").slice(0, 3500);
-  $("#aform", box).onsubmit = async e => { e.preventDefault(); const q = $("#aq", box).value.trim(); if (!q) return; if (!(await confirmAI("Frage: „" + q.slice(0, 120) + "“"))) return; $("#aq", box).value = "";
-    const L = $("#alog", box), u = document.createElement("div"); u.className = "u"; u.textContent = q; L.appendChild(u); const a = document.createElement("div"); a.className = "a"; a.textContent = "Denkt nach …"; L.appendChild(a); L.scrollTop = L.scrollHeight; log.push({ role: "user", content: q });
-    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 120 Wörtern in der Sprache der Frage, ohne Überschriften. Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6)); a.textContent = t; log.push({ role: "assistant", content: t }); } catch (err) { if (err.message === "login") a.innerHTML = `Für die KI-Hilfe brauchst du ein kostenloses StudyOS-Konto. <button class="btn sm pri" data-go="together">Konto erstellen oder anmelden</button>`; else a.textContent = err.message; log.pop(); } L.scrollTop = L.scrollHeight; };
+  const L = $("#alog", box), q = $("#aq", box), form = $("#aform", box);
+  /* großer Modus: die Karte schwebt als breites Fenster über der Lektion */
+  let shade = null, spot = null, watch = 0;
+  const big = on => {
+    /* in den body verschieben, sonst sperren Seiten-Animation und sticky Spalte das Fenster ein */
+    if (on && !spot) { spot = document.createComment("assist"); box.before(spot); document.body.appendChild(box); watch = setInterval(() => { if (!spot || !spot.isConnected) big(false); }, 800); }
+    if (!on && spot) { clearInterval(watch); if (spot.isConnected) spot.replaceWith(box); else box.remove(); spot = null; }
+    box.classList.toggle("big", on); $("#abig", box).textContent = on ? "✕" : "⤢"; $("#abig", box).title = on ? "Schließen" : "Größer anzeigen";
+    if (on && !shade) { shade = document.createElement("div"); shade.className = "assist-shade"; shade.onclick = () => big(false); document.body.appendChild(shade); }
+    if (!on && shade) { shade.remove(); shade = null; }
+    document.body.classList.toggle("assist-open", on); L.scrollTop = L.scrollHeight; if (on) q.focus();
+  };
+  $("#abig", box).onclick = () => big(!box.classList.contains("big"));
+  const onKey = e => { if (e.key === "Escape" && box.classList.contains("big")) big(false); if (!box.isConnected || (spot && !spot.isConnected)) { document.removeEventListener("keydown", onKey); if (spot) big(false); } };
+  document.addEventListener("keydown", onKey);
+  const grow = () => { q.style.height = "auto"; q.style.height = Math.min(q.scrollHeight, 160) + "px"; };
+  q.oninput = grow;
+  q.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } };
+  $("#asug", box).onclick = e => { const b = e.target.closest("button"); if (!b) return; q.value = b.textContent; form.requestSubmit(); };
+  form.onsubmit = async e => { e.preventDefault(); const text = q.value.trim(); if (!text) return; if (!(await confirmAI("Frage: „" + text.slice(0, 120) + "“"))) return; q.value = ""; grow();
+    const u = document.createElement("div"); u.className = "u"; u.textContent = text; L.appendChild(u);
+    const a = document.createElement("div"); a.className = "a"; a.innerHTML = `<span class="assist-dots"><i></i><i></i><i></i></span>`; L.appendChild(a); L.scrollTop = L.scrollHeight; log.push({ role: "user", content: text });
+    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6));
+      a.innerHTML = App.mdLite(t) + `<div class="assist-tools"><button type="button" class="assist-copy" title="Kopieren">Kopieren</button></div>`;
+      $(".assist-copy", a).onclick = ev => { navigator.clipboard && navigator.clipboard.writeText(t).then(() => { ev.target.textContent = "Kopiert ✓"; setTimeout(() => { ev.target.textContent = "Kopieren"; }, 1500); }).catch(() => {}); };
+      log.push({ role: "assistant", content: t });
+      if (!box.classList.contains("big") && t.length > 450 && innerWidth > 900) big(true);
+    } catch (err) { a.classList.add("err"); if (err.message === "login") a.innerHTML = `Für die KI-Hilfe brauchst du ein kostenloses StudyOS-Konto. <button class="btn sm pri" data-go="together">Konto erstellen oder anmelden</button>`; else a.textContent = err.message; log.pop(); }
+    L.scrollTop = L.scrollHeight; };
 };
 
 /* ---------------- install / service worker ---------------- */
