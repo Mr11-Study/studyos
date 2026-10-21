@@ -224,7 +224,7 @@ function renderSide() {
       <div class="me-top"><div class="avatar">${esc((S.name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S.name)}</div><div class="me-lvl tab">Level ${L} · ${S.xp.toLocaleString("de-AT")} XP</div></div></div>
       <div class="bar thin"><i style="width:${pct}%"></i></div>
       <div class="spread"><span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st} ${st === 1 ? "Tag" : "Tage"}</span><small class="tab">${hi - S.xp} XP bis L${L + 1}</small></div>
-      ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profil wechseln">⇄ Profil wechseln${StudyProfiles.list().length > 1 ? ` <small>(${StudyProfiles.list().length})</small>` : ""}</button>` : ""}
+      ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profile">${StudyProfiles.list().length > 1 ? `⇄ Profil wechseln <small>(${StudyProfiles.list().length})</small>` : "＋ Profil hinzufügen"}</button>` : ""}
     </div>`;
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   $("#cswitch").onchange = e => { S.course = e.target.value; save(); if (["path", "quiz", "flash", "practice", "exam", "resources", "stats"].includes(R.v)) { R.p = null; render(); } else if (R.v === "course") go("course", S.course); renderSide(); };

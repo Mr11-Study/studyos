@@ -761,3 +761,17 @@ html.less-motion .rv{opacity:1!important;transform:none!important}
   .cg.cg-week .cg-ev .t-long{display:none}
   .cg.cg-week .cg-ev .t-short{display:-webkit-box;word-break:normal;overflow-wrap:anywhere;-webkit-hyphens:auto;hyphens:auto}
 }
+
+/* ===== 4.28.1 · Profil-Menü ===== */
+.pm-me,.pm-p{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--card2);text-align:left;width:100%;color:inherit;font:inherit}
+.pm-me{border-color:var(--acc-line);background:var(--acc-soft)}
+.pm-me>div,.pm-p>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.pm-me small,.pm-p small{color:var(--muted);font-size:12.5px}
+.pm-me .pp-av,.pm-p .pp-av{width:42px;height:42px;font-size:18px;flex:none}
+.pm-ok{color:var(--acc);font-weight:700}
+.pm-list{display:flex;flex-direction:column;gap:8px}
+.pm-p{cursor:pointer;transition:border-color .15s,transform .15s}
+.pm-p:hover{border-color:var(--line2);transform:translateX(2px)}
+.pm-p>span:last-child{color:var(--muted);font-size:20px}
+.pm-solo{font-size:14px}
+.pm-act{justify-content:space-between}

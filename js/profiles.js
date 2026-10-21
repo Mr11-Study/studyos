@@ -81,7 +81,20 @@
     list: () => list.slice(), active: () => P || null, TRACKS, picker, SEMS,
     sem: () => (P && P.sem) || 3,
     setSem(n) { if (!P || !SEMS.some(x => x.n === n)) return; P.sem = n; save(); location.hash = ""; location.reload(); },
-    switchTo() { SS("studyos.session", null); LS("studyos.active", null); location.hash = ""; location.reload(); },
+    /* Profil-Menü statt blindem Neuladen: zeigt das aktive Profil, wechselt direkt zu einem anderen oder legt ein neues an */
+    switchTo() {
+      if (!window.App || !App.modal) { SS("studyos.session", null); LS("studyos.active", null); location.hash = ""; location.reload(); return; }
+      const others = list.filter(p => !P || p.id !== P.id), av = p => esc((p.name || "?")[0].toUpperCase());
+      App.modal(`<div class="spread"><h2>Profile</h2><button class="btn ghost sm" data-close>✕</button></div>
+        ${P ? `<div class="pm-me"><span class="pp-av">${av(P)}</span><div><b>${esc(P.name)}</b><small>${P.sem || 3}. Semester · aktiv</small></div><span class="pm-ok" aria-hidden="true">✓</span></div>` : ""}
+        ${others.length ? `<div class="pm-list"><span class="eyebrow">Wechseln zu</span>${others.map(p => `<button class="pm-p" data-pid="${esc(p.id)}"><span class="pp-av">${av(p)}</span><div><b>${esc(p.name)}</b><small>${p.sem || 3}. Semester</small></div><span aria-hidden="true">›</span></button>`).join("")}</div>`
+          : `<p class="muted pm-solo">Auf diesem Gerät gibt es nur dein Profil. Lernt hier noch jemand, legst du für diese Person ein eigenes Profil mit eigenem Fortschritt an.</p>`}
+        <div class="row pm-act"><button class="btn sm" id="pm-new">＋ Neues Profil</button><button class="btn ghost sm" id="pm-set" data-close>Profile verwalten</button></div>`, (m, close) => {
+        m.addEventListener("click", e => { const b = e.target.closest("[data-pid]"); if (b) choose(b.dataset.pid, !!(P && LS("studyos.active") === P.id)); });
+        m.querySelector("#pm-new").onclick = () => { close(); picker(true); };
+        m.querySelector("#pm-set").onclick = () => App.go("settings");
+      });
+    },
     rename(id, name) { const p = byId(id); if (p && name) { p.name = name; save(); } },
     remove(id) { if (!byId(id) || (P && P.id === id)) return false; list = list.filter(p => p.id !== id); save(); try { localStorage.removeItem(keyOf(id)); localStorage.removeItem(secretOf(id)); } catch (e) {} return true; },
     remember(on) { if (!P) return; if (on) LS("studyos.active", P.id); else LS("studyos.active", null); },

@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.28.1", d: "2026-10-21", t: "Profil-Menü", items: [
+    "Der Knopf unten im Menü öffnet jetzt ein Profil-Menü, statt die App neu zu laden. Mit nur einem Profil heißt er „Profil hinzufügen“, mit mehreren „Profil wechseln“ und wechselt direkt zum gewählten Profil."] },
   { v: "4.28.0", d: "2026-10-21", t: "Neuer Kalender", items: [
     "Der Kalender ist jetzt ein echtes Stundenplan-Raster: Wochentage nebeneinander, Uhrzeiten links, jede Lehrveranstaltung als Block in der Farbe ihres Fachs mit Zeit und Raum. Überschneidungen stehen nebeneinander, eine rote Linie zeigt die aktuelle Uhrzeit.",
     "Umschalten zwischen Woche und Tag. Am Handy startet die Tagesansicht, die Wahl wird gemerkt.",
