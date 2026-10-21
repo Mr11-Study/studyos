@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.35.1", d: "2026-10-21", t: "Zuverlässigere KI-Antworten", items: [
+    "Bricht eine KI-Antwort wegen ihrer Länge ab, schreibt die KI jetzt automatisch an derselben Stelle weiter.",
+    "Ist der KI-Server kurz ausgelastet, versucht StudyOS es nach ein paar Sekunden selbst nochmal.",
+    "Fotos werden kleiner verschickt und gehen zuerst an KI-Modelle, die Bilder lesen können. Das geht schneller und ist seltener überlastet.",
+    "Formeln, die mittendrin enden, werden trotzdem als Formel angezeigt."] },
   { v: "4.35.0", d: "2026-10-21", t: "Fotos an den KI-Assistenten", items: [
     "Im KI-Assistenten kannst du jetzt mit 📷 ein Foto oder Bild einer Aufgabe anhängen. Am Handy geht auch direkt die Kamera, am PC Strg+V oder Hineinziehen.",
     "Die KI liest die Aufgabe aus dem Bild und löst sie Schritt für Schritt mit Lösungsweg, Formeln und Ergebnis, z. B. in Mathematik 2.",

@@ -133,31 +133,32 @@ let kiState = null; /* null | "online" | "offline" */
 App.kiStatus = async () => { try { const sb = App.SB, r = await fetch(sb.url + "/functions/v1/ki", { headers: { Authorization: "Bearer " + sb.key, apikey: sb.key } }); kiState = r.ok && (await r.json()).online ? "online" : "offline"; } catch (e) { kiState = "offline"; } return kiState; };
 /* OpenAI-Stream (Server-Sent Events) lesen: ruft onChunk mit dem bisherigen Text auf, liefert am Ende den ganzen Text */
 async function readStream(r, onChunk) {
-  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", text = "", tokens = 0;
+  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", text = "", tokens = 0, finish = "";
   for (;;) {
     const { done, value } = await rd.read(); if (done) break;
     buf += dec.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop();
     for (const ln of lines) {
       const m = ln.match(/^data:\s*(.*)$/); if (!m || m[1] === "[DONE]") continue;
-      try { const j = JSON.parse(m[1]); if (j.error) throw new Error(j.error.message || j.error); const d = j.choices && j.choices[0] && (j.choices[0].delta || j.choices[0].message); if (d && d.content) { text += d.content; onChunk && onChunk(text); } if (j.usage) tokens = j.usage.total_tokens || tokens; } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+      try { const j = JSON.parse(m[1]); if (j.error) { const em = String(j.error.message || j.error); throw Object.assign(new Error(em), { busy: /429|rate|overload|exhaust|quota|busy/i.test(em) }); } const d = j.choices && j.choices[0] && (j.choices[0].delta || j.choices[0].message); if (d && d.content) { text += d.content; onChunk && onChunk(text); } if (j.usage) tokens = j.usage.total_tokens || tokens; const fr = j.choices && j.choices[0] && j.choices[0].finish_reason; if (fr) finish = fr; } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
     }
   }
-  return { text: text.trim() || "(keine Antwort)", tokens };
+  return { text, tokens, finish };
 }
 const isStream = r => (r.headers.get("content-type") || "").includes("text/event-stream") && r.body;
 async function studyosCall(system, messages, maxTokens, onChunk) {
   if (!App.social) throw new Error("Online-Funktionen fehlen");
   try { await App.social.connect(); } catch (e) { throw new Error(e && e.auth ? "login" : "Keine Verbindung. Prüf dein Internet."); }
   const sb = App.social.client(), tok = ((await sb.auth.getSession()).data.session || {}).access_token;
-  const r = await fetch(App.SB.url + "/functions/v1/ki", { method: "POST", headers: { "content-type": "application/json", apikey: App.SB.key, Authorization: "Bearer " + tok }, body: JSON.stringify({ max_tokens: maxTokens, stream: !!onChunk, messages: [{ role: "system", content: system }].concat(messages) }) });
-  if (r.ok && isStream(r)) { kiState = "online"; const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + 1; App.save(); return o.text; }
+  const r = await fetch(App.SB.url + "/functions/v1/ki", { method: "POST", headers: { "content-type": "application/json", apikey: App.SB.key, Authorization: "Bearer " + tok }, body: JSON.stringify({ max_tokens: maxTokens, stream: !!onChunk, vision: hasImage(messages), messages: [{ role: "system", content: system }].concat(messages) }) });
+  if (r.ok && isStream(r)) { kiState = "online"; const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + 1; App.save(); return o; }
   let j = {}; try { j = await r.json(); } catch (e) {}
-  if (r.ok) { kiState = "online"; S().ai.used = (S().ai.used || 0) + 1; App.save(); return j.text; }
+  if (r.ok) { kiState = "online"; S().ai.used = (S().ai.used || 0) + 1; App.save(); return { text: j.text || "", finish: j.finish || "" }; }
+  if (j.error === "busy" || r.status === 429) throw Object.assign(new Error("Die KI ist gerade ausgelastet. Versuch es gleich nochmal."), { busy: true });
   if (j.error === "login" || r.status === 401) throw new Error("login");
   if (j.error === "offline" || r.status === 503) { kiState = "offline"; throw new Error("Der KI-Server ist gerade aus. Versuch es später nochmal."); }
   if (j.error === "limit") throw new Error("Für heute sind deine " + (j.limit || "") + " Fragen aufgebraucht. Morgen geht es weiter.");
   if (r.status === 404) throw new Error("Die KI-Hilfe ist in Supabase noch nicht eingerichtet (Funktion „ki“).");
-  throw new Error(j.error || "HTTP " + r.status);
+  throw Object.assign(new Error(j.error || "HTTP " + r.status), { busy: /429|rate|overload|exhaust|quota|unavailable/i.test(j.error || "") });
 }
 const omniBases = () => [S().ai.local === "" ? "" : (S().ai.local || OMNI_LOCAL), S().ai.online || ""].map(x => x.trim().replace(/\/+$/, "")).filter(Boolean);
 App.aiReady = cid => { if (!S().ai.enabled) return false; const p = aiProv(); return p === "studyos" ? true : p === "omni" ? omniBases().length > 0 : !!SEC().aiKey; };
@@ -167,21 +168,43 @@ async function omniCall(system, messages, maxTokens, only, onChunk) {
     try {
       const r = await fetch(base + "/chat/completions", { method: "POST", headers: Object.assign({ "content-type": "application/json" }, SEC().omniKey ? { authorization: "Bearer " + SEC().omniKey } : {}),
         body: JSON.stringify({ model: S().ai.omniModel || "auto", max_tokens: maxTokens, stream: !!onChunk, messages: [{ role: "system", content: system }].concat(messages) }) });
-      if (!r.ok) { let m = "HTTP " + r.status; try { const j = await r.json(); m = (j.error && (j.error.message || j.error)) || m; } catch (e) {} throw new Error(m); }
-      if (isStream(r)) { const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + o.tokens; App.save(); return o.text; }
+      if (!r.ok) { let m = "HTTP " + r.status; try { const j = await r.json(); m = (j.error && (j.error.message || j.error)) || m; } catch (e) {} throw Object.assign(new Error(m), { busy: r.status === 429 || /rate|overload|exhaust|quota/i.test(m) }); }
+      if (isStream(r)) { const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + o.tokens; App.save(); return o; }
       const j = await r.json(); S().ai.used = (S().ai.used || 0) + ((j.usage && j.usage.total_tokens) || 0); App.save();
-      return ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "").trim() || "(keine Antwort)";
+      const ch = (j.choices && j.choices[0]) || {}; return { text: (ch.message && ch.message.content) || "", finish: ch.finish_reason || "" };
     } catch (e) { last = e; }
   }
   const m = String((last && last.message) || last || "");
+  if (last && last.busy) throw last;
   throw new Error(/fetch|network|load failed/i.test(m) ? (bases.length > 1 ? "OmniRoute ist weder am PC noch online erreichbar." : "OmniRoute ist nicht erreichbar. Läuft es auf diesem Gerät (omniroute im Terminal starten)?") : m);
 }
-async function aiCall(system, messages, maxTokens = 450, onChunk) {
+const hasImage = msgs => msgs.some(m => Array.isArray(m.content) && m.content.some(p => p.type === "image_url"));
+/* ein Aufruf beim gewählten Anbieter; liefert { text, finish } */
+async function aiOnce(system, messages, maxTokens, onChunk) {
   if (aiProv() === "studyos") return studyosCall(system, messages, maxTokens, onChunk);
   if (aiProv() === "omni") return omniCall(system, messages, maxTokens, null, onChunk);
+  return anthropicCall(system, messages, maxTokens);
+}
+/* Ganze Antwort holen: bei Überlastung einmal kurz warten und neu versuchen,
+   bei abgeschnittenen Antworten (Token-Limit) bis zu zweimal automatisch weiterschreiben lassen */
+async function aiCall(system, messages, maxTokens = 450, onChunk) {
+  let acc = "", msgs = messages;
+  for (let round = 0; round < 3; round++) {
+    const pre = acc, chunk = onChunk && (t => onChunk(pre + t));
+    let o;
+    try { o = await aiOnce(system, msgs, maxTokens, chunk); }
+    catch (e) { if (!e.busy) throw e; await new Promise(r => setTimeout(r, 2500)); o = await aiOnce(system, msgs, maxTokens, chunk); }
+    acc = pre + (o.text || "");
+    if (o.finish !== "length" || !o.text) break;
+    msgs = messages.concat([{ role: "assistant", content: acc }, { role: "user", content: "Deine Antwort wurde abgeschnitten. Schreib genau an der Stelle weiter, an der sie aufhört, ohne Wiederholung und ohne Einleitung." }]);
+    if (onChunk) onChunk(acc);
+  }
+  return acc.trim() || "(keine Antwort)";
+}
+async function anthropicCall(system, messages, maxTokens) {
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": SEC().aiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: S().ai.model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages: messages.map(m => Array.isArray(m.content) ? { role: m.role, content: m.content.map(p => p.type === "image_url" ? (([, mt, data]) => ({ type: "image", source: { type: "base64", media_type: mt, data } }))(p.image_url.url.match(/^data:([^;]+);base64,(.*)$/) || []) : p) } : m) }) });
   if (!r.ok) { let m = r.status + ""; try { m = (await r.json()).error.message; } catch (e) {} throw new Error(m); }
-  const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return j.content.map(x => x.text || "").join("");
+  const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return { text: j.content.map(x => x.text || "").join(""), finish: j.stop_reason === "max_tokens" ? "length" : "" };
 }
 function confirmAI(what) { return new Promise(res => { if (!S().ai.confirm) return res(true); App.modal(`<h2>KI-Anfrage senden?</h2><p>${esc(what)}</p><p class="muted" style="font-size:13px">${aiProv() === "studyos" ? "Die Anfrage geht an den KI-Server von StudyOS" : aiProv() === "omni" ? "Die Anfrage geht an dein OmniRoute" : "Die Anfrage geht mit deinem eigenen API-Schlüssel an Anthropic"} und verbraucht Tokens (bisher ca. ${(S().ai.used || 0).toLocaleString("de-AT")}). Ohne Bestätigung passiert nichts.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="ai-n">Abbrechen</button><button class="btn pri" id="ai-y">Senden</button></div>`, (m, close) => { $("#ai-y", m).onclick = () => { close(); res(true); }; $("#ai-n", m).onclick = () => { close(); res(false); }; }); }); }
 App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; const paint = livePaint(out); try { const t = await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften. Formeln in LaTeX zwischen $…$.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }], 450, paint); paint.stop(); out.innerHTML = App.mdLite(t); App.renderTex(out); } catch (e) { paint.stop(); out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
@@ -196,7 +219,8 @@ App.mdLite = text => {
     .replace(/`([^`\n]+)`/g, (m, c) => put(`<code>${esc(c)}</code>`))
     .replace(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g, (m, x, y) => "\n" + tex(x || y, true) + "\n")
     .replace(/\\\(([\s\S]+?)\\\)/g, (m, x) => tex(x))
-    .replace(/\$(?=\S)([^$\n]*?\S)\$(?!\d)/g, (m, x) => tex(x));
+    .replace(/\$(?=\S)([^$\n]*?\S)\$(?!\d)/g, (m, x) => tex(x))
+    .replace(/\$\$?([^$]*\\[a-zA-Z][^$]*)$/, (m, x) => tex(x));
   const out = []; let list = null;
   const flush = () => { if (list) { out.push(`<${list.t}${list.n > 1 ? ` start="${list.n}"` : ""}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
   for (const raw of esc(t).split("\n")) {
@@ -224,11 +248,11 @@ App.renderTex = el => {
   loadKatex().then(k => ts.forEach(n => { try { k.render(n.dataset.tex, n, { displayMode: n.classList.contains("tex-b"), throwOnError: false, output: "html" }); n.classList.add("done"); } catch (e) { n.textContent = texPlain(n.dataset.tex); } }))
     .catch(() => ts.forEach(n => { n.textContent = texPlain(n.dataset.tex); n.classList.add("plain"); }));
 };
-/* Fotos für die KI verkleinern (max. 1600 px, JPEG), damit sie schnell hochgeladen sind */
+/* Fotos für die KI verkleinern (max. 1280 px, JPEG), damit sie schnell hochgeladen sind */
 const shrinkImage = file => new Promise((res, rej) => {
   const url = URL.createObjectURL(file), img = new Image();
-  img.onload = () => { const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement("canvas"); cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
-    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(cv.toDataURL("image/jpeg", .85)); };
+  img.onload = () => { const k = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight)), cv = document.createElement("canvas"); cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+    const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(cv.toDataURL("image/jpeg", .8)); };
   img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Das Bild konnte nicht gelesen werden.")); }; img.src = url;
 });
 /* nur das neueste Bild mitschicken, ältere werden durch einen Hinweis ersetzt */
@@ -282,7 +306,7 @@ App.renderAssistant = (box, l) => {
     log.push({ role: "user", content: pics.length ? [{ type: "text", text }].concat(pics.map(url => ({ type: "image_url", image_url: { url } }))) : text });
     const solve = log.some(m => Array.isArray(m.content));
     const paint = livePaint(a, () => { if (L.scrollHeight - L.scrollTop - L.clientHeight < 140) L.scrollTop = L.scrollHeight; });
-    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Formeln immer in LaTeX zwischen $…$ (eigene Zeile: $$…$$). Bleib beim Thema.${solve ? " Wenn ein Bild eine Aufgabe zeigt: Schreib zuerst kurz ab, was gegeben und gesucht ist, löse sie dann Schritt für Schritt mit nummeriertem Lösungsweg (dafür darfst du länger als 150 Wörter schreiben) und nenne am Ende das **Ergebnis**. Ist etwas im Bild unleserlich, sag es." : ""}`, lastImageOnly(log.slice(-6)), solve ? 1400 : 450, paint); paint.stop();
+    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Formeln immer in LaTeX zwischen $…$ (eigene Zeile: $$…$$). Bleib beim Thema.${solve ? " Wenn ein Bild eine Aufgabe zeigt: Schreib zuerst kurz ab, was gegeben und gesucht ist, löse sie dann Schritt für Schritt mit nummeriertem Lösungsweg (dafür darfst du länger als 150 Wörter schreiben) und nenne am Ende das **Ergebnis**. Ist etwas im Bild unleserlich, sag es." : ""}`, lastImageOnly(log.slice(-6)), solve ? 1400 : 700, paint); paint.stop();
       a.innerHTML = App.mdLite(t) + `<div class="assist-tools"><button type="button" class="assist-copy" title="Kopieren">Kopieren</button></div>`; App.renderTex(a);
       $(".assist-copy", a).onclick = ev => { navigator.clipboard && navigator.clipboard.writeText(t).then(() => { ev.target.textContent = "Kopiert ✓"; setTimeout(() => { ev.target.textContent = "Kopieren"; }, 1500); }).catch(() => {}); };
       log.push({ role: "assistant", content: t });
@@ -373,7 +397,7 @@ PAGES.settings = el => {
       $("#st-otest", el).onclick = async () => { const msg = $("#st-omsg", el), res = [];
         for (const [name, base] of [["Am PC", (s.ai.local === "" ? "" : (s.ai.local || OMNI_LOCAL))], ["Online", s.ai.online || ""]]) {
           if (!base.trim()) continue; msg.textContent = name + ": teste …";
-          try { const t = await omniCall("Antworte nur mit: OK", [{ role: "user", content: "Test" }], 10, base.trim().replace(/\/+$/, "")); res.push(name + " ✓ (" + t.slice(0, 20) + ")"); }
+          try { const t = (await omniCall("Antworte nur mit: OK", [{ role: "user", content: "Test" }], 10, base.trim().replace(/\/+$/, ""))).text || ""; res.push(name + " ✓ (" + t.slice(0, 20) + ")"); }
           catch (er) { res.push(name + " ✕ " + er.message); } }
         msg.textContent = res.join(" · ") || "Trag zuerst eine Adresse ein."; };
     }
