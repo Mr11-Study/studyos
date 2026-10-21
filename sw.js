@@ -1,5 +1,5 @@
 /* StudyOS service worker: offline shell, runtime cache, background reminders */
-const VERSION = "studyos-v4.31.0";
+const VERSION = "studyos-v4.32.0";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "css/app.css", "css/study.css", "css/welcome.css", "css/kotlin.css", "css/apps.css", "css/figs.css", "css/maple.css", "css/polish.css", "js/calendar.js", "js/maple.js", "js/maple-ui.js", "js/mathexam.js", "courses/math2.js", "courses/math2/k1-diff.js", "courses/math2/k2-num.js", "courses/math2/k3-int.js", "courses/math2/k4-cg.js", "courses/math2/k5-markov.js", "courses/math2/figs.js", "courses/math2/eigene.js", "courses/math2/sheets.js", "courses/math2/prep.js", "js/figs.js", "js/calc.js", "js/extras.js", "js/social.js", "js/vendor/supabase.js", "js/vendor/jsqr.js", "icons/logo.svg", "icons/v2/favicon-32.png", "courses/plus/bwl2.js", "courses/plus/dasc.js", "courses/plus/kommu.js", "courses/plus/eng3.js", "courses/plus/mappdev.js", "courses/plus/dbaent.js", "courses/plus/itinf.js", "courses/plus/pmgt.js", "courses/plus/ufo.js", "courses/plus/mmprov.js", "courses/plus/sunw2.js", "courses/itinf/figs-v1.js", "courses/itinf/figs-v2v3.js",
   "courses/dasc.js", "courses/kommu.js", "courses/eng3.js", "courses/bwl2.js", "courses/mappdev.js", "courses/dbaent.js", "courses/itinf.js", "courses/pmgt.js", "courses/ufo.js", "courses/mmprov.js", "courses/sunw2.js", "courses/prep-bwl2.js", "courses/prep-mappdev.js", "courses/prep-dbaent.js", "courses/prep-itinf.js", "courses/prep-pmgt.js", "courses/prep-ufo.js", "courses/prep-mmprov.js", "courses/prep-sunw2.js", "courses/prep-dasc.js", "courses/prep-kommu.js", "courses/prep-eng3.js", "courses/clean-uni.js", "courses/deep-dasc.js", "courses/deep-kommu.js", "courses/deep-eng3.js", "courses/deep-bwl2.js", "courses/deep-mappdev.js", "courses/deep-dbaent.js", "courses/deep-itinf.js", "courses/deep-pmgt.js", "courses/deep-ufo.js", "courses/deep-mmprov.js", "courses/deep-sunw2.js", "courses/mappdev/k02-grundlagen.js", "courses/mappdev/k05-oop.js", "courses/itinf/v1-cloud-concepts.js", "courses/itinf/v2-azure-architektur.js", "courses/itinf/v3-governance-identitaet.js", "courses/itinf/mc-v1.js", "courses/itinf/mc-v2.js", "courses/itinf/mc-v3.js", "courses/itinf/mc-mix.js", "courses/ext-apply.js", "courses/deep-apply.js",
   "js/core.js", "js/w-generic.js", "js/w-dasc1.js", "js/w-dasc2.js", "js/w-dasc3.js", "js/pages.js", "js/planner.js", "js/gitlab.js", "js/vendor/qrcode.js", "js/account.js", "js/reset.js", "js/study.js", "js/kotlin.js", "js/profiles.js", "js/quicktest.js", "js/changelog.js", "js/i18n.js", "js/apps.js", "js/settings-ui.js",
@@ -22,6 +22,15 @@ async function checkReminders() {
 }
 self.addEventListener("periodicsync", e => { if (e.tag === "studyos-reminders") e.waitUntil(checkReminders()); });
 self.addEventListener("message", e => { if (e.data === "check-reminders") e.waitUntil(checkReminders()); });
+/* Web Push vom Server (Edge Function „push“): neue Chat-Nachricht, auch wenn StudyOS geschlossen ist.
+   Ist StudyOS gerade sichtbar im Vordergrund, zeigt die App selbst den Hinweis. */
+self.addEventListener("push", e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (er) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    if (list.some(c => c.visibilityState === "visible" && c.focused)) return;
+    return self.registration.showNotification(d.title || "StudyOS", { body: d.body || "Neue Nachricht", tag: d.tag || "so", renotify: true, icon: "icons/v2/icon-192.png", badge: "icons/v2/icon-192.png", data: d.chat ? { chat: d.chat, url: "./#chat=" + d.chat } : { url: "./#together" } });
+  }));
+});
 self.addEventListener("notificationclick", e => { e.notification.close(); const chat = e.notification.data && e.notification.data.chat;
   if (chat) { e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => { const w = list.find(x => "focus" in x); if (w) { w.postMessage({ type: "open-chat", chat }); return w.focus(); } return self.clients.openWindow("./#chat=" + chat); })); return; }
   const url = (e.notification.data && e.notification.data.url) || "./"; e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => { for (const w of list) { if ("focus" in w) { w.navigate && w.navigate(url); return w.focus(); } } return self.clients.openWindow(url); })); });
