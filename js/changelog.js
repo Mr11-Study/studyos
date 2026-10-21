@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.23.1", d: "2026-10-21", t: "Klarere Anleitung zum Stundenplan", items: [
+    "„Stundenplan holen“ erklärt jetzt, was eine .ics-Datei ist und wo du sie bekommst: im Stundenplan-System der FH, nicht in Studo, da Studo Kalender nur importieren kann."] },
   { v: "4.23.0", d: "2026-10-21", t: "Schönere Fächer-Kacheln", items: [
     "„Deine Fächer“ auf der Startseite zeigt jedes Fach als eigene Kachel in seiner Farbe, mit Symbol, Fachkürzel und Fortschrittsring.",
     "Jede Kachel nennt die nächste Lektion und zeigt deinen Wissensstand als Balken."] },
