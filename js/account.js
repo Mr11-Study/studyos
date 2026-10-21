@@ -5,14 +5,20 @@ const S = () => App.S(), SEC = () => App.secrets();
 
 /* ---------------- PIN lock ---------------- */
 async function hash(pin) { const data = new TextEncoder().encode("studyos:" + pin); try { const h = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { let x = 5381; for (const c of data) x = ((x << 5) + x + c) >>> 0; return "djb" + x; } }
+/* Zuletzt entsperrt benutzt (nur dieses Gerät): Innerhalb der gewählten Zeit fragt StudyOS nach einem Neustart nicht erneut */
+const SEEN = () => "studyos.seen." + (window.STUDYOS_PID || "x");
+const graceMs = () => { const m = S().profile.lockAfterMin; return (m == null ? 5 : +m) * 60000; };
+const markSeen = () => { if (App.locked || !S().profile.pinHash) return; try { localStorage.setItem(SEEN(), String(Date.now())); } catch (e) {} };
+const recentlySeen = () => { let t = 0; try { t = +localStorage.getItem(SEEN()) || 0; } catch (e) {} return graceMs() > 0 && t && Date.now() - t < graceMs(); };
 function lockScreen() {
   if (!S().profile.pinHash || $(".lockscreen")) return; App.locked = true; let pin = "", err = "";
+  try { localStorage.removeItem(SEEN()); } catch (e) {}
   const box = document.createElement("div"); box.className = "lockscreen";
   const draw = () => { box.innerHTML = `<div class="lock-box"><div class="logo" style="width:56px;height:56px;font-size:24px;border-radius:14px">${window.STUDYOS_LOGO || "S"}</div><div><h2>StudyOS</h2><p class="muted">Hallo ${esc(S().name)}, PIN eingeben</p></div>
     <div class="pin-dots">${[0, 1, 2, 3].map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("")}${S().profile.pinLen > 4 ? [4, 5].slice(0, S().profile.pinLen - 4).map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("") : ""}</div><div class="pin-err">${esc(err)}</div>
     <div class="pin-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "⌫"].map(k => k === "" ? "<span></span>" : `<button data-k="${k}" aria-label="${k === "⌫" ? "Löschen" : k}">${k}</button>`).join("")}</div>
     <button class="btn ghost sm" id="pin-forgot">PIN vergessen?</button></div>`; };
-  const tryPin = async () => { if ((await hash(pin)) === S().profile.pinHash) { box.remove(); App.locked = false; App.lastActive = Date.now(); } else { err = "Falscher PIN"; pin = ""; draw(); } };
+  const tryPin = async () => { if ((await hash(pin)) === S().profile.pinHash) { box.remove(); App.locked = false; App.lastActive = Date.now(); markSeen(); } else { err = "Falscher PIN"; pin = ""; draw(); } };
   box.addEventListener("click", async e => { const k = e.target.closest("[data-k]"); if (k) { if (k.dataset.k === "⌫") pin = pin.slice(0, -1); else if (pin.length < 6) pin += k.dataset.k; err = ""; draw(); if (pin.length === (S().profile.pinLen || 4)) tryPin(); }
     if (e.target.id === "pin-forgot") App.modal(`<h2>PIN vergessen</h2><p>Der PIN schützt StudyOS auf diesem Gerät. Ohne PIN kannst du nur alle lokalen Daten löschen. Wenn du Sync (GitHub Gist) eingerichtet hast, holst du deinen Stand danach von dort zurück.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="wipe">Alles auf diesem Gerät löschen</button></div>`, m => { $("#wipe", m).onclick = () => { try { localStorage.clear(); } catch (e2) {} location.reload(); }; }); });
   const key = e => { if (!document.body.contains(box)) { window.removeEventListener("keydown", key); return; } if (/^\d$/.test(e.key) && pin.length < 6) { pin += e.key; draw(); if (pin.length === (S().profile.pinLen || 4)) tryPin(); } if (e.key === "Backspace") { pin = pin.slice(0, -1); draw(); } };
@@ -20,7 +26,12 @@ function lockScreen() {
 }
 App.lockScreen = lockScreen;
 let hiddenAt = 0;
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") hiddenAt = Date.now(); else if (hiddenAt && S().profile.pinHash && Date.now() - hiddenAt > (S().profile.lockAfterMin || 5) * 60000) lockScreen(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { hiddenAt = Date.now(); markSeen(); } else if (hiddenAt && S().profile.pinHash && Date.now() - hiddenAt >= graceMs()) lockScreen(); });
+window.addEventListener("pagehide", markSeen); setInterval(() => { if (document.visibilityState === "visible") markSeen(); }, 30e3);
+
+const LOCKS = [[0, "Sofort"], [5, "5 Min"], [15, "15 Min"], [60, "1 Std"], [240, "4 Std"], [1440, "1 Tag"]];
+const lockMin = m => { m = m == null ? 5 : +m; return LOCKS.reduce((a, [x]) => Math.abs(x - m) < Math.abs(a - m) ? x : a, 5); };
+const lockLabel = m => (LOCKS.find(([x]) => x === lockMin(m)) || [0, "5 Min"])[1].replace("Min", "Minuten").replace("Std", "Stunde" + (lockMin(m) > 60 ? "n" : "")).replace("1 Tag", "einem Tag");
 
 /* ---------------- first-run onboarding ---------------- */
 /* Name und Semester kommen schon vom Willkommensbildschirm; PIN und Installation stehen in den Einstellungen. */
@@ -160,8 +171,11 @@ PAGES.settings = el => {
       ${App.CALM ? "" : `<label class="switch"><div><div>Alle Lektionen freischalten</div><small>Für die Wiederholung vor Prüfungen.</small></div><input type="checkbox" class="tgl" id="st-unlock" ${s.settings.unlockAll ? "checked" : ""}></label>`}
       <div class="switch"><div><div>Standard-Erklärstufe</div></div><div class="lvl">${[["simple", "Einfach"], ["normal", "Normal"], ["technical", "Fachlich"]].map(([k, t]) => `<button data-lv="${k}" class="${s.settings.level === k ? "on" : ""}">${t}</button>`).join("")}</div></div>
       <div class="switch"><div><div>Erinnerungen & Benachrichtigungen</div><small>${s.notify.enabled ? "An · täglich " + s.notify.daily + " · " + s.notify.before.join("/") + " Tage vor Terminen" : "Aus"}</small></div><button class="btn sm" id="st-notif">Einstellen</button></div></div>
-     <div class="card col"><h3>Sperre (Anmeldung)</h3><p class="muted" style="font-size:14px">${s.profile.pinHash ? "PIN ist aktiv. StudyOS sperrt sich nach " + (s.profile.lockAfterMin || 5) + " min im Hintergrund." : "Kein PIN gesetzt."} Der PIN ist eine Bildschirmsperre für dieses Gerät, keine Verschlüsselung.</p>
-      <div class="row"><input type="password" inputmode="numeric" maxlength="6" id="st-pin" placeholder="Neuer PIN (4–6 Ziffern)" style="max-width:200px"><button class="btn sm" id="st-pinset">${s.profile.pinHash ? "PIN ändern" : "PIN setzen"}</button>${s.profile.pinHash ? `<button class="btn ghost sm" id="st-pinrm">PIN entfernen</button><button class="btn ghost sm" id="st-lock">Jetzt sperren</button>` : ""}<label class="row" style="gap:6px">Sperren nach <input type="number" id="st-lockmin" min="1" max="120" value="${s.profile.lockAfterMin || 5}" style="width:70px"> min</label></div></div>
+     <div class="card col lock-card"><h3>Sperre (PIN)</h3>
+      <div class="lock-st ${s.profile.pinHash ? "on" : ""}"><span class="lock-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></span>
+        <div><b>${s.profile.pinHash ? "PIN ist aktiv" : "Kein PIN gesetzt"}</b><small>${s.profile.pinHash ? (lockMin(s.profile.lockAfterMin) === 0 ? "StudyOS fragt bei jedem Öffnen nach dem PIN." : "Nach " + lockLabel(s.profile.lockAfterMin) + " ohne Nutzung fragt StudyOS wieder nach dem PIN.") : "Mit PIN ist StudyOS auf diesem Gerät gesperrt, wenn du es länger nicht benutzt."} Eine Bildschirmsperre, keine Verschlüsselung.</small></div></div>
+      ${s.profile.pinHash ? `<div class="switch lock-grace"><div><div>PIN erneut abfragen nach</div><small>Gilt fürs Schließen und Neustarten der App und wenn sie im Hintergrund war.</small></div><div class="lvl" role="radiogroup" aria-label="PIN erneut abfragen nach">${LOCKS.map(([m, t]) => `<button data-lock="${m}" role="radio" aria-checked="${lockMin(s.profile.lockAfterMin) === m}" class="${lockMin(s.profile.lockAfterMin) === m ? "on" : ""}">${t}</button>`).join("")}</div></div>` : ""}
+      <div class="row lock-act"><input type="password" inputmode="numeric" maxlength="6" id="st-pin" placeholder="${s.profile.pinHash ? "Neuer PIN" : "PIN"} (4–6 Ziffern)" autocomplete="new-password"><button class="btn ${s.profile.pinHash ? "" : "pri"} sm" id="st-pinset">${s.profile.pinHash ? "PIN ändern" : "PIN setzen"}</button>${s.profile.pinHash ? `<span class="so-sp"></span><button class="btn ghost sm" id="st-lock">Jetzt sperren</button><button class="btn ghost sm" id="st-pinrm">PIN entfernen</button>` : ""}</div></div>
      <div class="card col"><h3>Sync zwischen Handy und Laptop</h3>
       <p class="muted" style="font-size:14px">Dein Fortschritt liegt lokal auf jedem Gerät. Zum Abgleichen nutzt StudyOS ein <b>privates GitHub Gist</b> in deinem eigenen GitHub-Konto. Einmal am Laptop verbinden, dann das Handy per QR-Code dazuholen. Danach gleicht die App automatisch ab und führt den Fortschritt beider Geräte zusammen, es geht nichts verloren.</p>
       <ol class="install-steps muted" style="font-size:13px"><li>github.com → Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b> → Generate new token</li><li>Nur den Scope <b>gist</b> anhaken, Ablaufdatum z. B. 1 Jahr</li><li>Token hier einfügen → „Verbinden“.</li><li>Auf diesem Gerät „Weiteres Gerät verbinden“ antippen und den QR-Code mit der Kamera des Handys scannen. Fertig.</li></ol>
@@ -184,7 +198,7 @@ PAGES.settings = el => {
     $("#st-pinset", el).onclick = async () => { const p = $("#st-pin", el).value.trim(); if (!/^\d{4,6}$/.test(p)) { App.toast("PIN", "4 bis 6 Ziffern.", "!"); return; } s.profile.pinHash = await hash(p); s.profile.pinLen = p.length; App.save(); App.toast("PIN gesetzt", "StudyOS ist jetzt gesperrt, wenn du es länger verlässt.", "🔒"); draw(); };
     const rm = $("#st-pinrm", el); if (rm) rm.onclick = () => { s.profile.pinHash = null; App.save(); draw(); };
     const lk = $("#st-lock", el); if (lk) lk.onclick = () => lockScreen();
-    $("#st-lockmin", el).onchange = e => { s.profile.lockAfterMin = +e.target.value || 5; App.save(); };
+    $$("[data-lock]", el).forEach(b => b.onclick = () => { s.profile.lockAfterMin = +b.dataset.lock; App.save(); markSeen(); draw(); });
     $("#st-sync", el).onclick = async () => { const t = $("#st-tok", el).value.trim(); if (t && !t.startsWith("•")) SEC().ghToken = t; const gid = $("#st-gist", el).value.trim(); if (gid !== (s.sync.gistId || "")) { s.sync.gistId = gid || null; s.sync.last = 0; } App.saveSecrets(); if (!SEC().ghToken) { App.toast("Token fehlt", "Bitte GitHub-Token eintragen.", "!"); return; } await syncNow(true); draw(); };
     const pr = $("#st-pair", el); if (pr) pr.onclick = pairDialog;
     const us = $("#st-unsync", el); if (us) us.onclick = () => { delete SEC().ghToken; App.saveSecrets(); draw(); };
@@ -211,7 +225,7 @@ function installHTML() {
 App.VERSION = "4.5.0";
 App.afterBoot.push(() => {
   registerSW();
-  if (S().profile.pinHash) lockScreen(); else onboarding();
+  if (S().profile.pinHash) { if (recentlySeen()) markSeen(); else lockScreen(); } else onboarding();
   setTimeout(loadPython, 2500);
   takePairing();
   if (SEC().ghToken) setTimeout(() => syncNow(false), 1500);

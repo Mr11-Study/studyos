@@ -534,3 +534,21 @@ a.so-file:hover{background:rgba(0,0,0,.09)}
   .dh-cbg{font-size:72px}
 }
 @media (prefers-reduced-motion:reduce){.dh-cbar i{animation:none}.dh-c:hover .dh-cbg{transform:none}}
+
+/* Einstellungen: Sperre (4.25) */
+.lock-card{gap:14px}
+.lock-st{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--card3);border:1px solid var(--line)}
+.lock-st.on{background:color-mix(in srgb,var(--acc) 9%,var(--card));border-color:color-mix(in srgb,var(--acc) 28%,var(--line))}
+.lock-ic{width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--card);color:var(--muted);border:1px solid var(--line)}
+.lock-st.on .lock-ic{background:var(--acc);color:#fff;border-color:transparent;box-shadow:0 6px 16px -10px var(--acc)}
+.lock-st div{display:flex;flex-direction:column;gap:3px}
+.lock-st small{color:var(--muted);font-size:13px;line-height:1.45}
+.lock-grace{flex-wrap:wrap;gap:10px}
+.lock-grace .lvl{flex-wrap:wrap;gap:2px}
+.lock-grace .lvl button{padding:6px 12px;font-weight:500;transition:background .15s,color .15s}
+.lock-grace .lvl button.on{background:var(--acc);color:#fff;box-shadow:0 2px 8px -4px var(--acc)}
+.lock-act{gap:8px;flex-wrap:wrap;align-items:center}
+.lock-act input{max-width:220px;letter-spacing:.2em}
+.lock-act input::placeholder{letter-spacing:normal}
+@media (max-width:560px){.lock-grace{flex-direction:column;align-items:stretch}.lock-grace .lvl{display:grid;grid-template-columns:repeat(3,1fr)}.lock-act input{max-width:none;flex:1 1 100%}}
+@media (max-width:560px){.lock-act .so-sp{display:none}.lock-act .btn{flex:1 1 0;justify-content:center;white-space:nowrap}}
