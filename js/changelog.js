@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.33.0", d: "2026-10-21", t: "KI-Hilfe für alle", items: [
+    "Der KI-Assistent ist jetzt für alle mit StudyOS-Konto automatisch eingeschaltet, ohne eigenen Schlüssel und ohne Einrichtung.",
+    "Die Fragen laufen über den KI-Server von StudyOS (OmniRoute). In den Einstellungen siehst du, ob er gerade online ist. Pro Tag sind 60 Fragen frei.",
+    "Wer lieber ein eigenes OmniRoute oder einen Anthropic-Schlüssel nutzt, kann das weiterhin unter Einstellungen → App wählen."] },
   { v: "4.32.0", d: "2026-10-21", t: "Mitteilungen auch bei geschlossener App", items: [
     "Mit „Am Gerät“ kommen neue Nachrichten von Freunden und Gruppen jetzt auch dann als Mitteilung, wenn StudyOS geschlossen ist (Web Push über den Server).",
     "In den Einstellungen siehst du, ob dein Gerät dafür angemeldet ist. Am Xiaomi-Handy braucht Chrome dafür Autostart und Akku „Keine Einschränkungen“.",

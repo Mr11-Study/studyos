@@ -125,9 +125,27 @@ let syncTimer; App.onSaved = () => { if (SEC().ghToken && S().sync.auto !== fals
 /* Zwei Wege: „omni“ = OmniRoute oder ein anderer OpenAI-kompatibler Dienst (lokal am PC und/oder online, ohne eigenen Anthropic-Schlüssel),
    „anthropic“ = eigener Anthropic-API-Schlüssel. Bei OmniRoute wird zuerst die lokale Adresse versucht, dann die Online-Adresse. */
 const OMNI_LOCAL = "http://localhost:20128/v1";
-const aiProv = () => S().ai.provider || (SEC().aiKey ? "anthropic" : "omni");
+const aiProv = () => S().ai.provider || (SEC().aiKey ? "anthropic" : "studyos");
+/* „studyos“ (Standard für alle): KI-Hilfe über den OmniRoute-Server des Betreibers, über die Edge Function „ki“ (Update 7).
+   Braucht nur ein StudyOS-Konto (Gemeinsam), keine Einrichtung. Einmalig für bestehende Profile einschalten. */
+if (!S().ai.v2) { S().ai.v2 = 1; if (!S().ai.provider && !SEC().aiKey) { S().ai.enabled = true; S().ai.confirm = false; } }
+let kiState = null; /* null | "online" | "offline" */
+App.kiStatus = async () => { try { const sb = App.SB, r = await fetch(sb.url + "/functions/v1/ki", { headers: { Authorization: "Bearer " + sb.key, apikey: sb.key } }); kiState = r.ok && (await r.json()).online ? "online" : "offline"; } catch (e) { kiState = "offline"; } return kiState; };
+async function studyosCall(system, messages, maxTokens) {
+  if (!App.social) throw new Error("Online-Funktionen fehlen");
+  try { await App.social.connect(); } catch (e) { throw new Error(e && e.auth ? "login" : "Keine Verbindung. Prüf dein Internet."); }
+  const sb = App.social.client(), tok = ((await sb.auth.getSession()).data.session || {}).access_token;
+  const r = await fetch(App.SB.url + "/functions/v1/ki", { method: "POST", headers: { "content-type": "application/json", apikey: App.SB.key, Authorization: "Bearer " + tok }, body: JSON.stringify({ max_tokens: maxTokens, messages: [{ role: "system", content: system }].concat(messages) }) });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (r.ok) { kiState = "online"; S().ai.used = (S().ai.used || 0) + 1; App.save(); return j.text; }
+  if (j.error === "login" || r.status === 401) throw new Error("login");
+  if (j.error === "offline" || r.status === 503) { kiState = "offline"; throw new Error("Der KI-Server ist gerade aus. Versuch es später nochmal."); }
+  if (j.error === "limit") throw new Error("Für heute sind deine " + (j.limit || "") + " Fragen aufgebraucht. Morgen geht es weiter.");
+  if (r.status === 404) throw new Error("Die KI-Hilfe ist in Supabase noch nicht eingerichtet (Funktion „ki“).");
+  throw new Error(j.error || "HTTP " + r.status);
+}
 const omniBases = () => [S().ai.local === "" ? "" : (S().ai.local || OMNI_LOCAL), S().ai.online || ""].map(x => x.trim().replace(/\/+$/, "")).filter(Boolean);
-App.aiReady = cid => { const c = CBY[cid]; if (!S().ai.enabled) return false; return aiProv() === "omni" ? omniBases().length > 0 : !!SEC().aiKey; };
+App.aiReady = cid => { if (!S().ai.enabled) return false; const p = aiProv(); return p === "studyos" ? true : p === "omni" ? omniBases().length > 0 : !!SEC().aiKey; };
 async function omniCall(system, messages, maxTokens, only) {
   const bases = only ? [only] : omniBases(); let last = null;
   for (const base of bases) {
@@ -143,22 +161,23 @@ async function omniCall(system, messages, maxTokens, only) {
   throw new Error(/fetch|network|load failed/i.test(m) ? (bases.length > 1 ? "OmniRoute ist weder am PC noch online erreichbar." : "OmniRoute ist nicht erreichbar. Läuft es auf diesem Gerät (omniroute im Terminal starten)?") : m);
 }
 async function aiCall(system, messages, maxTokens = 450) {
+  if (aiProv() === "studyos") return studyosCall(system, messages, maxTokens);
   if (aiProv() === "omni") return omniCall(system, messages, maxTokens);
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": SEC().aiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: S().ai.model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages }) });
   if (!r.ok) { let m = r.status + ""; try { m = (await r.json()).error.message; } catch (e) {} throw new Error(m); }
   const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return j.content.map(x => x.text || "").join("");
 }
-function confirmAI(what) { return new Promise(res => { if (!S().ai.confirm) return res(true); App.modal(`<h2>KI-Anfrage senden?</h2><p>${esc(what)}</p><p class="muted" style="font-size:13px">${aiProv() === "omni" ? "Die Anfrage geht an dein OmniRoute" : "Die Anfrage geht mit deinem eigenen API-Schlüssel an Anthropic"} und verbraucht Tokens (bisher ca. ${(S().ai.used || 0).toLocaleString("de-AT")}). Ohne Bestätigung passiert nichts.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="ai-n">Abbrechen</button><button class="btn pri" id="ai-y">Senden</button></div>`, (m, close) => { $("#ai-y", m).onclick = () => { close(); res(true); }; $("#ai-n", m).onclick = () => { close(); res(false); }; }); }); }
-App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; try { out.textContent = await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }]); } catch (e) { out.textContent = "Fehler: " + e.message; } };
+function confirmAI(what) { return new Promise(res => { if (!S().ai.confirm) return res(true); App.modal(`<h2>KI-Anfrage senden?</h2><p>${esc(what)}</p><p class="muted" style="font-size:13px">${aiProv() === "studyos" ? "Die Anfrage geht an den KI-Server von StudyOS" : aiProv() === "omni" ? "Die Anfrage geht an dein OmniRoute" : "Die Anfrage geht mit deinem eigenen API-Schlüssel an Anthropic"} und verbraucht Tokens (bisher ca. ${(S().ai.used || 0).toLocaleString("de-AT")}). Ohne Bestätigung passiert nichts.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="ai-n">Abbrechen</button><button class="btn pri" id="ai-y">Senden</button></div>`, (m, close) => { $("#ai-y", m).onclick = () => { close(); res(true); }; $("#ai-n", m).onclick = () => { close(); res(false); }; }); }); }
+App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; try { out.textContent = await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }]); } catch (e) { out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
 App.renderAssistant = (box, l) => {
   const c = CBY[l.course];
-  if (!App.aiReady(l.course)) { box.innerHTML = `<h3>KI-Assistent (optional)</h3><p class="muted" style="font-size:14px">Aus. StudyOS funktioniert komplett ohne KI. Wenn du willst, verbindest du in den Einstellungen OmniRoute oder einen eigenen API-Schlüssel; jede Anfrage musst du dann bestätigen.</p><button class="btn ghost sm" data-go="settings">Einstellungen</button>`; return; }
+  if (!App.aiReady(l.course)) { box.innerHTML = `<h3>KI-Assistent (optional)</h3><p class="muted" style="font-size:14px">Aus. StudyOS funktioniert komplett ohne KI. In den Einstellungen unter App kannst du sie einschalten.</p><button class="btn ghost sm" data-go="settings">Einstellungen</button>`; return; }
   const log = [];
-  box.innerHTML = `<div class="spread"><h3>Frag zur Lektion</h3><span class="chip">KI · bestätigt</span></div><div class="assist-log" id="alog"><div class="a muted">Frage zu „${esc(l.title)}“. Antworten bleiben kurz.</div></div><form class="row" id="aform" style="flex-wrap:nowrap"><input type="text" id="aq" placeholder="Deine Frage …" autocomplete="off"><button class="btn pri sm" type="submit">Fragen</button></form>`;
+  box.innerHTML = `<div class="spread"><h3>Frag zur Lektion</h3><span class="chip">${aiProv() === "studyos" ? "KI · StudyOS" : "KI · bestätigt"}</span></div><div class="assist-log" id="alog"><div class="a muted">Frage zu „${esc(l.title)}“. Antworten bleiben kurz.</div></div><form class="row" id="aform" style="flex-wrap:nowrap"><input type="text" id="aq" placeholder="Deine Frage …" autocomplete="off"><button class="btn pri sm" type="submit">Fragen</button></form>`;
   const ctx = l.blocks.map(b => b.t === "text" ? b.h + ": " + App.strip(b.levels.normal) : b.html ? App.strip(b.html) : b.items ? b.items.map(App.strip).join("; ") : b.q ? "Q: " + App.strip(b.q) : "").filter(Boolean).join("\n").slice(0, 3500);
   $("#aform", box).onsubmit = async e => { e.preventDefault(); const q = $("#aq", box).value.trim(); if (!q) return; if (!(await confirmAI("Frage: „" + q.slice(0, 120) + "“"))) return; $("#aq", box).value = "";
     const L = $("#alog", box), u = document.createElement("div"); u.className = "u"; u.textContent = q; L.appendChild(u); const a = document.createElement("div"); a.className = "a"; a.textContent = "Denkt nach …"; L.appendChild(a); L.scrollTop = L.scrollHeight; log.push({ role: "user", content: q });
-    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 120 Wörtern in der Sprache der Frage, ohne Überschriften. Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6)); a.textContent = t; log.push({ role: "assistant", content: t }); } catch (err) { a.textContent = "Fehler: " + err.message; log.pop(); } L.scrollTop = L.scrollHeight; };
+    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 120 Wörtern in der Sprache der Frage, ohne Überschriften. Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6)); a.textContent = t; log.push({ role: "assistant", content: t }); } catch (err) { if (err.message === "login") a.innerHTML = `Für die KI-Hilfe brauchst du ein kostenloses StudyOS-Konto. <button class="btn sm pri" data-go="together">Konto erstellen oder anmelden</button>`; else a.textContent = err.message; log.pop(); } L.scrollTop = L.scrollHeight; };
 };
 
 /* ---------------- install / service worker ---------------- */
@@ -207,8 +226,8 @@ PAGES.settings = el => {
      <div class="card col"><h3>KI-Assistent (optional)</h3>
       <p class="muted" style="font-size:14px">Standardmäßig aus, StudyOS braucht keine KI. Jede Anfrage wird vorher abgefragt.</p>
       <label class="switch"><div><div>KI-Assistent aktivieren</div><small>Verbraucht: ca. ${(s.ai.used || 0).toLocaleString("de-AT")} Tokens</small></div><input type="checkbox" class="tgl" id="st-ai" ${s.ai.enabled ? "checked" : ""}></label>
-      <div class="switch"><div><div>Verbindung</div><small>OmniRoute verteilt die Fragen auf freie KI-Anbieter, ohne eigenen Anthropic-Schlüssel.</small></div><div class="lvl st-seg" role="radiogroup" id="st-prov">${[["omni", "OmniRoute"], ["anthropic", "Anthropic-Schlüssel"]].map(([k, t]) => `<button role="radio" data-prov="${k}" class="${aiProv() === k ? "on" : ""}" aria-checked="${aiProv() === k}">${t}</button>`).join("")}</div></div>
-      ${aiProv() === "omni" ? `<div class="grid g2"><label class="fld">Am PC (lokal)<input type="url" id="st-olocal" value="${esc(s.ai.local === "" ? "" : (s.ai.local || OMNI_LOCAL))}" placeholder="${OMNI_LOCAL}" spellcheck="false"></label>
+      <div class="switch"><div><div>Verbindung</div><small>${aiProv() === "studyos" ? "Läuft über den KI-Server von StudyOS, ohne Einrichtung. Du brauchst nur ein Konto unter Gemeinsam." : "OmniRoute verteilt die Fragen auf freie KI-Anbieter, ohne eigenen Anthropic-Schlüssel."}</small></div><div class="lvl st-seg" role="radiogroup" id="st-prov">${[["studyos", "StudyOS (Standard)"], ["omni", "Eigenes OmniRoute"], ["anthropic", "Anthropic-Schlüssel"]].map(([k, t]) => `<button role="radio" data-prov="${k}" class="${aiProv() === k ? "on" : ""}" aria-checked="${aiProv() === k}">${t}</button>`).join("")}</div></div>
+      ${aiProv() === "studyos" ? `<div class="row"><span class="chip" id="st-kist">KI-Server: prüfe …</span></div>` : aiProv() === "omni" ? `<div class="grid g2"><label class="fld">Am PC (lokal)<input type="url" id="st-olocal" value="${esc(s.ai.local === "" ? "" : (s.ai.local || OMNI_LOCAL))}" placeholder="${OMNI_LOCAL}" spellcheck="false"></label>
         <label class="fld">Online (optional, z. B. für das Handy)<input type="url" id="st-oonline" value="${esc(s.ai.online || "")}" placeholder="https://dein-server/v1" spellcheck="false"></label>
         <label class="fld">Modell<input type="text" id="st-omodel" value="${esc(s.ai.omniModel || "auto")}" spellcheck="false"></label>
         <label class="fld">Schlüssel (nur falls dein OmniRoute einen verlangt)<input type="password" id="st-okey" value="${SEC().omniKey ? "••••••••" : ""}" autocomplete="off"></label></div>
@@ -234,6 +253,7 @@ PAGES.settings = el => {
     $("#st-exp", el).onclick = exportBackup; $("#st-imp", el).onchange = e => e.target.files[0] && importBackup(e.target.files[0]);
     $("#st-ai", el).onchange = e => { s.ai.enabled = e.target.checked; App.save(); };
     $$("[data-prov]", el).forEach(b => b.onclick = () => { s.ai.provider = b.dataset.prov; App.save(); redraw(); });
+    const ks = $("#st-kist", el); if (ks) App.kiStatus().then(v => { ks.textContent = v === "online" ? "● KI-Server online" : "○ KI-Server gerade aus"; ks.classList.toggle("acc", v === "online"); });
     const ol = $("#st-olocal", el); if (ol) {
       ol.onchange = e => { s.ai.local = e.target.value.trim(); App.save(); };
       $("#st-oonline", el).onchange = e => { s.ai.online = e.target.value.trim(); App.save(); };
