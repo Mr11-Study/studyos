@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.24.0", d: "2026-10-21", t: "Stundenplan-Link der FH direkt laden", items: [
+    "Erlaubt ein Kalender-Server keinen Abruf aus dem Browser (wie der FH-Stundenplan), lädt StudyOS den Link jetzt über den eigenen Kalender-Dienst. Den Abo-Link einfach einfügen, ohne Datei herunterzuladen.",
+    "Die Anleitung erklärt Schritt für Schritt, wo du den Abo-Link in der Stundenplan-Suche der FH JOANNEUM findest."] },
   { v: "4.23.2", d: "2026-10-21", t: "Stundenplan alle 30 Minuten aktuell", items: [
     "Ein abonnierter Kalender-Link wird jetzt alle 30 Minuten neu geladen statt einmal am Tag, auch wenn die App länger offen bleibt. Änderungen erscheinen direkt im Kalender und auf der Startseite."] },
   { v: "4.23.1", d: "2026-10-21", t: "Klarere Anleitung zum Stundenplan", items: [

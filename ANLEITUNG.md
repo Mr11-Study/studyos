@@ -238,3 +238,7 @@ Einstellungen → **Sprache**: Sprache wählen → „Übersetzen“. Der eingeb
 - **Pflicht-Konto und Freundescodes (4.22, Update 5):**
   - `supabase-update-5.sql` verschiebt die Freundescodes in die Tabelle `friend_codes` (nur der eigene ist lesbar, Funktion `my_code`) und lässt `add_friend` sofort befreunden. Offene Anfragen werden dabei angenommen.
   - Danach in Supabase „Allow anonymous sign-ins“ ausschalten. „Confirm email“ muss aus bleiben.
+- **Kalender-Dienst (4.24, Edge Function `kalender`):**
+  - Viele Kalender-Server (z. B. almaty.fh-joanneum.at) erlauben keinen Abruf aus dem Browser (CORS). Dann lädt die App den Link über `supabase/functions/kalender` (Kopie: `kalender.ts`).
+  - Die Funktion holt nur https-Links von freigegebenen Servern (fh-joanneum.at, Google, Outlook, iCloud), höchstens 3 MB und nur echte Kalenderdateien. Sie ist also kein offener Proxy.
+  - Einrichtung: In Supabase → Edge Functions → Deploy a new function → Name `kalender` → Code einfügen → Deploy. „Verify JWT“ darf an bleiben, die App schickt den anon key mit.

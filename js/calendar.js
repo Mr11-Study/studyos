@@ -65,10 +65,22 @@ async function importText(txt, source) {
   S().timetable = list; S().ttSource = Object.assign({ at: Date.now() }, source); App.save();
   App.toast("Stundenplan importiert", list.length + " Einträge übernommen.", "▦"); return true;
 }
+/* Erst direkt laden. Erlaubt der Server das nicht (CORS), über die Supabase Edge Function „kalender“ holen. */
 async function fetchURL(url) {
   const u = url.trim().replace(/^webcal:/i, "https:");
-  const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text();
+  try { const r = await fetch(u, { cache: "no-store" }); if (r.ok) return r.text(); } catch (e) {}
+  const sb = App.SB; if (!sb) throw new Error("direct");
+  let r;
+  try { r = await fetch(sb.url + "/functions/v1/kalender?url=" + encodeURIComponent(u), { cache: "no-store", headers: { Authorization: "Bearer " + sb.key, apikey: sb.key } }); }
+  catch (e) { throw new Error(navigator.onLine ? "proxy-missing" : "offline"); }
+  if (r.ok) return r.text();
+  let m = ""; try { m = (await r.json()).error || ""; } catch (e) {}
+  throw new Error(r.status === 404 ? "proxy-missing" : m || "HTTP " + r.status);
 }
+const fetchErr = e => { const m = String((e && e.message) || e);
+  return m === "offline" ? "Du bist offline. Versuch es mit Internet nochmal."
+    : m === "proxy-missing" || m === "direct" ? "Der Server erlaubt keinen direkten Abruf aus dem Browser, und der Kalender-Dienst von StudyOS ist noch nicht eingerichtet. Bis dahin: Link einmal öffnen, die .ics-Datei speichern und hier mit „Datei wählen“ auswählen."
+    : "Der Kalender ließ sich nicht laden: " + m + ". Alternativ den Link öffnen, die .ics-Datei speichern und mit „Datei wählen“ auswählen."; };
 /* abonnierten Link alle 30 Minuten still aktualisieren: beim Start, beim Zurückkehren in die App und solange sie offen ist */
 const TT_EVERY = 30 * 60e3;
 let ttBusy = false;
@@ -88,7 +100,7 @@ App.afterBoot.push(() => { refreshTT(); setInterval(refreshTT, 60e3); document.a
 function importDialog(onDone) {
   App.modal(`<div class="spread"><h2>Stundenplan holen</h2><button class="btn ghost sm" data-close>✕</button></div>
     <p class="muted" style="font-size:14px"><b>.ics</b> (auch iCal) ist das Standardformat für Kalender. Eine .ics-Datei oder ein Kalender-Link enthält alle Termine mit Uhrzeit, Raum und Wiederholung. StudyOS liest sie ein und zeigt jede Vorlesung im Fach an.</p>
-    <ol class="tt-steps"><li><b>Woher?</b> Such im Stundenplan-System deiner FH nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“. Dort gibt es einen Link oder eine Datei zum Herunterladen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn alle 30 Minuten neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen oder die Datei wählen. Klappt der Link nicht, weil der Server das blockiert, lade die Datei herunter und wähle sie hier.</li></ol>
+    <ol class="tt-steps"><li><b>FH JOANNEUM:</b> In der <a href="https://almaty.fh-joanneum.at/stundenplan/" target="_blank" rel="noopener">Stundenplan-Suche</a> deinen Studiengang, dein Semester und deine Gruppe suchen, dann „Resultate als iCalendar abonnieren“ und den <b>Abonnement-Link</b> (webcal://…) kopieren.</li><li><b>Andere FH oder Kalender:</b> Nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“ suchen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn alle 30 Minuten neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen (am besten den Abo-Link, beginnt oft mit webcal://) oder die Datei wählen.</li></ol>
     <p class="muted" style="font-size:13px">Hinweis: Studo kann Kalender nur importieren, nicht exportieren. Den Link bekommst du daher direkt vom Stundenplan der FH, nicht aus Studo.</p>
     <label class="fld">Kalender-Link (https:// oder webcal://)<input type="url" id="tt-url" placeholder="https://…/calendar.ics" value="${esc((S().ttSource || {}).url || "")}"></label>
     <div class="row" style="justify-content:space-between"><label class="btn">Datei wählen (.ics)<input type="file" id="tt-file" accept=".ics,text/calendar" hidden></label><button class="btn pri" id="tt-load">Link laden</button></div>
@@ -99,7 +111,7 @@ function importDialog(onDone) {
     $("#tt-file", m).onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => importText(t, { name: f.name })).then(ok => { if (ok) { close(); onDone(); } }); };
     $("#tt-load", m).onclick = async () => { const url = $("#tt-url", m).value.trim(); if (!url) return $("#tt-url", m).focus(); msg.textContent = "Lade …";
       try { const t = await fetchURL(url); if (await importText(t, { url, name: new URL(url.replace(/^webcal:/i, "https:")).hostname })) { close(); onDone(); } else msg.textContent = ""; }
-      catch (e) { msg.textContent = "Der Link lässt sich vom Browser aus nicht direkt laden (der Server erlaubt das nicht). Öffne den Link einmal, speichere die .ics-Datei und wähle sie hier mit „Datei wählen“."; } };
+      catch (e) { msg.textContent = fetchErr(e); } };
     $("#tt-exp", m).onclick = () => { close(); App.exportICS(); };
     const cl = $("#tt-clear", m); if (cl) cl.onclick = () => { S().timetable = []; S().ttSource = null; App.save(); close(); onDone(); };
   });
