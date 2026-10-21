@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.26.0", d: "2026-10-21", t: "Neue Einstellungen, klare Fach-Apps", items: [
+    "Die Einstellungen sind neu geordnet: Bereiche mit eigener Navigation, ein Suchfeld (Taste /) und oben dein Profil mit Version, Sync, PIN und Installation auf einen Blick.",
+    "Neu unter Darstellung: Farbschema Hell, Dunkel oder wie das System, Schriftgröße, weniger Bewegung und die Farbe der App. Unter Start wählst du, welche Seite beim Öffnen kommt, auch „Wo ich aufgehört habe“.",
+    "Neu unter Speicher & Daten: wie viel Platz StudyOS belegt, Daten dauerhaft sichern, nach Updates suchen und die App frisch laden.",
+    "Fach-Apps haben oben eine farbige Leiste mit „Alle Fächer“ und einen Farbrand, die Übersicht zeigt die Fächer als neutrale Kacheln. So verwechselt man Übersicht und Fach nicht mehr.",
+    "Kein blinkender Schreibcursor mehr, wenn man normalen Text anklickt; Knöpfe und Menüs lassen sich nicht mehr versehentlich markieren."] },
   { v: "4.25.0", d: "2026-10-21", t: "PIN seltener eingeben", items: [
     "Unter Einstellungen → Sperre wählst du, nach welcher Zeit ohne Nutzung StudyOS wieder nach dem PIN fragt: sofort, nach 5 oder 15 Minuten, 1 oder 4 Stunden oder einem Tag.",
     "Das gilt jetzt auch nach einem Neustart der App: Öffnest du sie innerhalb dieser Zeit wieder, bleibt sie entsperrt. „Jetzt sperren“ sperrt sofort, egal was eingestellt ist."] },

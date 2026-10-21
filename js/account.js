@@ -162,8 +162,11 @@ let pyLoading = false;
 function loadPython() { if (window.Sk || pyLoading || !navigator.onLine && !("caches" in window)) return; pyLoading = true; const s1 = document.createElement("script"); s1.src = "https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"; s1.onload = () => { const s2 = document.createElement("script"); s2.src = "https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"; document.head.appendChild(s2); }; s1.onerror = () => { pyLoading = false; }; document.head.appendChild(s1); }
 
 /* ---------------- settings page ---------------- */
+let resetAsk = false;
 PAGES.settings = el => {
-  const s = S(); let confirmReset = false;
+  const s = S(); const confirmReset = resetAsk; resetAsk = false;
+  /* nach Änderungen die ganze Seite neu aufbauen, damit auch die Karten der anderen Module erhalten bleiben */
+  const redraw = () => { const y = scrollY; App.render(); requestAnimationFrame(() => scrollTo(0, y)); };
   const draw = () => {
     el.innerHTML = `<div class="page" style="max-width:820px"><h1>Einstellungen</h1>
      <div class="card col"><h3>Profil</h3><div class="grid g2"><label class="fld">Name<input type="text" id="st-name" value="${esc(s.name)}"></label>${App.CALM ? "" : `<label class="fld">Tagesziel (XP)<input type="number" id="st-goal" min="10" step="10" value="${s.dailyGoal}"></label>`}</div></div>
@@ -193,23 +196,23 @@ PAGES.settings = el => {
     $("#st-name", el).oninput = e => { s.name = e.target.value.slice(0, 40) || "Student"; App.save(); App.renderSide(); };
     if ($("#st-goal", el)) $("#st-goal", el).onchange = e => { s.dailyGoal = App.clamp(+e.target.value || 50, 10, 1000); App.save(); };
     if ($("#st-unlock", el)) $("#st-unlock", el).onchange = e => { s.settings.unlockAll = e.target.checked; App.save(); };
-    $$("[data-lv]", el).forEach(b => b.onclick = () => { s.settings.level = b.dataset.lv; App.save(); draw(); });
+    $$("[data-lv]", el).forEach(b => b.onclick = () => { s.settings.level = b.dataset.lv; App.save(); redraw(); });
     $("#st-notif", el).onclick = () => App.notifySettings();
-    $("#st-pinset", el).onclick = async () => { const p = $("#st-pin", el).value.trim(); if (!/^\d{4,6}$/.test(p)) { App.toast("PIN", "4 bis 6 Ziffern.", "!"); return; } s.profile.pinHash = await hash(p); s.profile.pinLen = p.length; App.save(); App.toast("PIN gesetzt", "StudyOS ist jetzt gesperrt, wenn du es länger verlässt.", "🔒"); draw(); };
-    const rm = $("#st-pinrm", el); if (rm) rm.onclick = () => { s.profile.pinHash = null; App.save(); draw(); };
+    $("#st-pinset", el).onclick = async () => { const p = $("#st-pin", el).value.trim(); if (!/^\d{4,6}$/.test(p)) { App.toast("PIN", "4 bis 6 Ziffern.", "!"); return; } s.profile.pinHash = await hash(p); s.profile.pinLen = p.length; App.save(); App.toast("PIN gesetzt", "StudyOS ist jetzt gesperrt, wenn du es länger verlässt.", "🔒"); redraw(); };
+    const rm = $("#st-pinrm", el); if (rm) rm.onclick = () => { s.profile.pinHash = null; App.save(); redraw(); };
     const lk = $("#st-lock", el); if (lk) lk.onclick = () => lockScreen();
-    $$("[data-lock]", el).forEach(b => b.onclick = () => { s.profile.lockAfterMin = +b.dataset.lock; App.save(); markSeen(); draw(); });
-    $("#st-sync", el).onclick = async () => { const t = $("#st-tok", el).value.trim(); if (t && !t.startsWith("•")) SEC().ghToken = t; const gid = $("#st-gist", el).value.trim(); if (gid !== (s.sync.gistId || "")) { s.sync.gistId = gid || null; s.sync.last = 0; } App.saveSecrets(); if (!SEC().ghToken) { App.toast("Token fehlt", "Bitte GitHub-Token eintragen.", "!"); return; } await syncNow(true); draw(); };
+    $$("[data-lock]", el).forEach(b => b.onclick = () => { s.profile.lockAfterMin = +b.dataset.lock; App.save(); markSeen(); redraw(); });
+    $("#st-sync", el).onclick = async () => { const t = $("#st-tok", el).value.trim(); if (t && !t.startsWith("•")) SEC().ghToken = t; const gid = $("#st-gist", el).value.trim(); if (gid !== (s.sync.gistId || "")) { s.sync.gistId = gid || null; s.sync.last = 0; } App.saveSecrets(); if (!SEC().ghToken) { App.toast("Token fehlt", "Bitte GitHub-Token eintragen.", "!"); return; } await syncNow(true); redraw(); };
     const pr = $("#st-pair", el); if (pr) pr.onclick = pairDialog;
-    const us = $("#st-unsync", el); if (us) us.onclick = () => { delete SEC().ghToken; App.saveSecrets(); draw(); };
+    const us = $("#st-unsync", el); if (us) us.onclick = () => { delete SEC().ghToken; App.saveSecrets(); redraw(); };
     $("#st-exp", el).onclick = exportBackup; $("#st-imp", el).onchange = e => e.target.files[0] && importBackup(e.target.files[0]);
     $("#st-ai", el).onchange = e => { s.ai.enabled = e.target.checked; App.save(); };
     $("#st-key", el).onchange = e => { const v = e.target.value.trim(); if (v && !v.startsWith("•")) { SEC().aiKey = v; App.saveSecrets(); } if (!v) { delete SEC().aiKey; App.saveSecrets(); } };
     $("#st-model", el).onchange = e => { s.ai.model = e.target.value.trim() || "claude-haiku-4-5-20251001"; App.save(); };
     $("#st-aiconf", el).onchange = e => { s.ai.confirm = e.target.checked; App.save(); };
-    const ib = $("#st-install", el); if (ib) ib.onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; draw(); };
-    const r = $("#st-reset", el); if (r) r.onclick = () => { confirmReset = true; draw(); };
-    const n = $("#st-no", el); if (n) n.onclick = () => { confirmReset = false; draw(); };
+    const ib = $("#st-install", el); if (ib) ib.onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; redraw(); };
+    const r = $("#st-reset", el); if (r) r.onclick = () => { resetAsk = true; redraw(); };
+    const n = $("#st-no", el); if (n) n.onclick = () => redraw();
     const y = $("#st-yes", el); if (y) y.onclick = () => { const keep = { name: s.name, sync: s.sync, profile: s.profile, epoch: Date.now() }; App.replaceState(Object.assign({ v: 2 }, keep)); App.go("dash"); };
   };
   draw();
