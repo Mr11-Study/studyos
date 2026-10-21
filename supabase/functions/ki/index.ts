@@ -51,12 +51,16 @@ Deno.serve(async req => {
     if (!messages.length) return json(400, { error: "Keine Frage" });
     /* stream: die Antwort wird Stück für Stück durchgereicht, so erscheinen die ersten Wörter sofort */
     const stream = d.stream === true;
+    /* Fragen mit Bild gehen zuerst an die Combo „vision“ (falls in OmniRoute angelegt), sonst an „auto“ */
+    const ask = model => fetch(c.url.replace(/\/+$/, "") + "/v1/chat/completions", { method: "POST", signal: AbortSignal.timeout(stream ? 120000 : 60000),
+      headers: { "content-type": "application/json", ...(c.key ? { authorization: "Bearer " + c.key } : {}) },
+      body: JSON.stringify({ model, max_tokens: Math.min(+d.max_tokens || 450, MAX_TOKENS), messages, stream }) });
     let r;
     try {
-      r = await fetch(c.url.replace(/\/+$/, "") + "/v1/chat/completions", { method: "POST", signal: AbortSignal.timeout(stream ? 120000 : 60000),
-        headers: { "content-type": "application/json", ...(c.key ? { authorization: "Bearer " + c.key } : {}) },
-        body: JSON.stringify({ model: "auto", max_tokens: Math.min(+d.max_tokens || 450, MAX_TOKENS), messages, stream }) });
+      r = await ask(d.vision ? "vision" : "auto");
+      if (d.vision && [400, 404, 422].includes(r.status)) r = await ask("auto");
     } catch { return json(503, { error: "offline" }); }
+    if (r.status === 429) return json(429, { error: "busy" });
     if (r.ok && stream && (r.headers.get("content-type") || "").includes("text/event-stream") && r.body) {
       await db.from("ki_usage").upsert({ user_id: u.id, day, n: ((used && used.n) || 0) + 1 });
       return new Response(r.body, { status: 200, headers: { ...cors, "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", "x-ki-left": String(LIMIT - ((used && used.n) || 0) - 1) } });
@@ -65,6 +69,6 @@ Deno.serve(async req => {
     const j = await r.json();
     await db.from("ki_usage").upsert({ user_id: u.id, day, n: ((used && used.n) || 0) + 1 });
     const text = ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "").trim();
-    return json(200, { text: text || "(keine Antwort)", left: LIMIT - ((used && used.n) || 0) - 1 });
+    return json(200, { text: text || "(keine Antwort)", finish: (j.choices && j.choices[0] && j.choices[0].finish_reason) || "", left: LIMIT - ((used && used.n) || 0) - 1 });
   } catch (e) { return json(500, { error: String((e && e.message) || e) }); }
 });
