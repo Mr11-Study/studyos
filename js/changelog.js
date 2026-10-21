@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.26.1", d: "2026-10-21", t: "Zurücksetzen ohne Sprung", items: [
+    "Nach dem Zurücksetzen eines Fachs oder des Git-Labors bleiben die Einstellungen an derselben Stelle, statt nach oben zu springen."] },
   { v: "4.26.0", d: "2026-10-21", t: "Neue Einstellungen, klare Fach-Apps", items: [
     "Die Einstellungen sind neu geordnet: Bereiche mit eigener Navigation, ein Suchfeld (Taste /) und oben dein Profil mit Version, Sync, PIN und Installation auf einen Blick.",
     "Neu unter Darstellung: Farbschema Hell, Dunkel oder wie das System, Schriftgröße, weniger Bewegung und die Farbe der App. Unter Start wählst du, welche Seite beim Öffnen kommt, auch „Wo ich aufgehört habe“.",

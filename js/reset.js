@@ -89,7 +89,9 @@ PAGES.settings = (el, p) => {
     $("#pf-ren", pc).onclick = () => { const n = prompt("Neuer Name:", me.name); if (n && n.trim()) { P.rename(me.id, n.trim()); App.S().name = n.trim(); App.save(); App.renderSide(); App.go("settings"); } };
     pc.onclick = e => { const d = e.target.closest("[data-pdel]"); if (!d) return; App.modal(`<h2>Profil entfernen?</h2><p class="muted">Alle Daten dieses Profils auf diesem Gerät werden gelöscht.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="pd-y">Entfernen</button></div>`, (m, close) => { $("#pd-y", m).onclick = () => { P.remove(d.dataset.pdel); close(); App.go("settings"); }; }); };
   }
-  box.onclick = e => { const x = e.target.closest("[data-rs]"); if (x) App.resetDialog(x.dataset.rs, () => App.go("settings")); };
-  const rg = $("#rs-git", box); if (rg) rg.onclick = () => { if (App.resetGitLab) { App.resetGitLab(); App.toast("Git-Labor zurückgesetzt", "Alle Missionen sind wieder offen.", "↺"); App.go("settings"); } };
+  /* nach dem Zurücksetzen an derselben Stelle bleiben, nicht nach oben springen */
+  const stay = () => { const y = scrollY; App.render(); requestAnimationFrame(() => scrollTo(0, y)); };
+  box.onclick = e => { const x = e.target.closest("[data-rs]"); if (x) App.resetDialog(x.dataset.rs, stay); };
+  const rg = $("#rs-git", box); if (rg) rg.onclick = () => { if (App.resetGitLab) { App.resetGitLab(); App.toast("Git-Labor zurückgesetzt", "Alle Missionen sind wieder offen.", "↺"); stay(); } };
 };
 })();
