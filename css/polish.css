@@ -775,3 +775,5 @@ html.less-motion .rv{opacity:1!important;transform:none!important}
 .pm-p>span:last-child{color:var(--muted);font-size:20px}
 .pm-solo{font-size:14px}
 .pm-act{justify-content:space-between}
+.st-av.pop{animation:avpop .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes avpop{0%{transform:scale(.8)}100%{transform:scale(1)}}

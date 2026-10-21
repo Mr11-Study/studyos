@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.28.2", d: "2026-10-21", t: "Profilbild oben aktualisiert sich", items: [
+    "Wer in den Einstellungen einen Avatar wählt oder den Namen ändert, sieht das jetzt sofort auch im großen Profil oben."] },
   { v: "4.28.1", d: "2026-10-21", t: "Profil-Menü", items: [
     "Der Knopf unten im Menü öffnet jetzt ein Profil-Menü, statt die App neu zu laden. Mit nur einem Profil heißt er „Profil hinzufügen“, mit mehreren „Profil wechseln“ und wechselt direkt zum gewählten Profil."] },
   { v: "4.28.0", d: "2026-10-21", t: "Neuer Kalender", items: [
