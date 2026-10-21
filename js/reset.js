@@ -81,10 +81,10 @@ PAGES.settings = (el, p) => {
     pc.innerHTML = `<h3>Profile auf diesem Gerät</h3><p class="muted" style="font-size:14px">Jedes Profil hat eigene Kurse, eigenen Fortschritt und eigenes Design. Aktiv: <b>${esc(me ? me.name : "–")}</b> (${me ? esc((P.TRACKS[me.track] || P.TRACKS.uni).label) : ""}).</p>
       <label class="switch"><div><div>Dieses Profil automatisch öffnen</div><small>Sonst fragt StudyOS beim Start, wer lernt.</small></div><input type="checkbox" class="tgl" id="pf-rem" ${P.remembered() ? "checked" : ""}></label>
       ${others.map(o => `<div class="spread" style="padding:6px 0;border-top:1px solid var(--line)"><div>${esc(o.name)} <small class="muted">${esc((P.TRACKS[o.track] || P.TRACKS.uni).label)}</small></div><button class="btn ghost sm" data-pdel="${esc(o.id)}">Entfernen</button></div>`).join("")}
-      <div class="row"><button class="btn sm" id="pf-sw">⇄ Profil wechseln</button><button class="btn sm" id="pf-new">＋ Neues Profil</button><button class="btn ghost sm" id="pf-ren">Umbenennen</button></div>`;
+      <div class="row">${others.length ? `<button class="btn sm" id="pf-sw">⇄ Profil wechseln</button>` : ""}<button class="btn sm" id="pf-new">＋ Neues Profil</button><button class="btn ghost sm" id="pf-ren">Umbenennen</button></div>`;
     const first = el.querySelector(".page > .card, .page .card"); (first ? first : danger.closest(".card")).insertAdjacentElement("beforebegin", pc);
     $("#pf-rem", pc).onchange = e => P.remember(e.target.checked);
-    $("#pf-sw", pc).onclick = () => P.switchTo();
+    const sw = $("#pf-sw", pc); if (sw) sw.onclick = () => P.switchTo();
     $("#pf-new", pc).onclick = () => P.picker(true);
     $("#pf-ren", pc).onclick = () => { const n = prompt("Neuer Name:", me.name); if (n && n.trim()) { P.rename(me.id, n.trim()); App.S().name = n.trim(); App.save(); App.renderSide(); App.go("settings"); } };
     pc.onclick = e => { const d = e.target.closest("[data-pdel]"); if (!d) return; App.modal(`<h2>Profil entfernen?</h2><p class="muted">Alle Daten dieses Profils auf diesem Gerät werden gelöscht.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="pd-y">Entfernen</button></div>`, (m, close) => { $("#pd-y", m).onclick = () => { P.remove(d.dataset.pdel); close(); App.go("settings"); }; }); };
