@@ -1,5 +1,5 @@
 /* StudyOS · Kalender
-   Eine ruhige Wochenansicht: Stundenplan (importiert als .ics, z. B. aus Studo oder dem FH-System), Abgaben und eigene Termine.
+   Eine ruhige Wochenansicht: Stundenplan (importiert als .ics aus dem Stundenplan-System der FH), Abgaben und eigene Termine.
    Ersetzt den Monats-Kalender aus planner.js. Muss nach planner.js und vor apps.js geladen werden. */
 (function () {
 const { $, $$, esc, PAGES, CBY, COURSES, dkey, today, fmtDate, daysUntil } = App;
@@ -75,8 +75,9 @@ App.afterBoot.push(() => { const src = S().ttSource; if (!src || !src.url || Dat
 
 function importDialog(onDone) {
   App.modal(`<div class="spread"><h2>Stundenplan holen</h2><button class="btn ghost sm" data-close>✕</button></div>
-    <p class="muted" style="font-size:14px">StudyOS liest Kalender im Standardformat <b>.ics</b> (iCal). So kommst du dazu:</p>
-    <ol class="tt-steps"><li><b>Studo:</b> Kalender → Teilen/Exportieren → Kalender-Link (iCal) kopieren oder als .ics speichern.</li><li><b>FH-System / Moodle:</b> Stundenplan → „Kalender abonnieren“ oder „iCal-Export“.</li><li>Link unten einfügen oder die Datei wählen.</li></ol>
+    <p class="muted" style="font-size:14px"><b>.ics</b> (auch iCal) ist das Standardformat für Kalender. Eine .ics-Datei oder ein Kalender-Link enthält alle Termine mit Uhrzeit, Raum und Wiederholung. StudyOS liest sie ein und zeigt jede Vorlesung im Fach an.</p>
+    <ol class="tt-steps"><li><b>Woher?</b> Such im Stundenplan-System deiner FH nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“. Dort gibt es einen Link oder eine Datei zum Herunterladen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn einmal am Tag neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen oder die Datei wählen. Klappt der Link nicht, weil der Server das blockiert, lade die Datei herunter und wähle sie hier.</li></ol>
+    <p class="muted" style="font-size:13px">Hinweis: Studo kann Kalender nur importieren, nicht exportieren. Den Link bekommst du daher direkt vom Stundenplan der FH, nicht aus Studo.</p>
     <label class="fld">Kalender-Link (https:// oder webcal://)<input type="url" id="tt-url" placeholder="https://…/calendar.ics" value="${esc((S().ttSource || {}).url || "")}"></label>
     <div class="row" style="justify-content:space-between"><label class="btn">Datei wählen (.ics)<input type="file" id="tt-file" accept=".ics,text/calendar" hidden></label><button class="btn pri" id="tt-load">Link laden</button></div>
     <small class="muted" id="tt-msg"></small>
@@ -112,7 +113,7 @@ PAGES.calendar = el => {
     el.innerHTML = `<div class="page cal2">
       <header class="spread"><div><h1>Kalender</h1><p class="muted">Deine Woche auf einen Blick.</p></div>
         <div class="row"><button class="btn" id="c-tt">${hasTT ? "Stundenplan" : "Stundenplan holen"}</button><button class="btn pri" id="c-add">+ Termin</button></div></header>
-      ${hasTT ? "" : `<section class="card tt-empty"><div class="tt-ill" aria-hidden="true"><i></i><i></i><i></i></div><div><h3>Hol dir deinen Stundenplan</h3><p class="muted">Importiere deinen Kalender aus Studo oder dem FH-System. Dann siehst du hier jede Vorlesung, mit Raum und Uhrzeit.</p><button class="btn pri" id="c-tt2">Stundenplan holen</button></div></section>`}
+      ${hasTT ? "" : `<section class="card tt-empty"><div class="tt-ill" aria-hidden="true"><i></i><i></i><i></i></div><div><h3>Hol dir deinen Stundenplan</h3><p class="muted">Importiere deinen Stundenplan als .ics-Datei oder Kalender-Link aus dem Stundenplan-System der FH. Dann siehst du hier jede Vorlesung, mit Raum und Uhrzeit.</p><button class="btn pri" id="c-tt2">Stundenplan holen</button></div></section>`}
       <section class="card wkv">
         <div class="spread"><button class="btn ghost sm" id="c-prev" aria-label="Vorige Woche">←</button><b>${d0.toLocaleDateString("de-AT", { day: "numeric", month: "short" })} – ${d6.toLocaleDateString("de-AT", { day: "numeric", month: "short", year: "numeric" })}</b><div class="row" style="gap:6px">${wk !== monday(today()) ? `<button class="btn ghost sm" id="c-now">Heute</button>` : ""}<button class="btn ghost sm" id="c-next" aria-label="Nächste Woche">→</button></div></div>
         <div class="wk-days">${days.map((k, i) => { const d = new Date(k + "T12:00:00"), n = (by[k] || []).length; return `<button class="wk-day ${k === sel ? "on" : ""} ${k === today() ? "today" : ""}" data-sel="${k}"><small>${WD[i]}</small><b>${d.getDate()}</b><span class="wk-dots">${(by[k] || []).slice(0, 4).map(e => `<i style="--c:${colorOf(e)}"></i>`).join("")}${n > 4 ? "<em>+</em>" : ""}</span></button>`; }).join("")}</div>
