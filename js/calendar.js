@@ -69,14 +69,26 @@ async function fetchURL(url) {
   const u = url.trim().replace(/^webcal:/i, "https:");
   const r = await fetch(u, { cache: "no-store" }); if (!r.ok) throw new Error("HTTP " + r.status); return r.text();
 }
-/* abonnierten Link einmal am Tag still aktualisieren */
-App.afterBoot.push(() => { const src = S().ttSource; if (!src || !src.url || Date.now() - (src.at || 0) < 864e5 || !navigator.onLine) return;
-  fetchURL(src.url).then(t => { const l = App.parseICS(t); if (l.length) { S().timetable = l; src.at = Date.now(); App.save(); } }).catch(() => {}); });
+/* abonnierten Link alle 30 Minuten still aktualisieren: beim Start, beim Zurückkehren in die App und solange sie offen ist */
+const TT_EVERY = 30 * 60e3;
+let ttBusy = false;
+function refreshTT() {
+  const src = S().ttSource; if (ttBusy || !src || !src.url || !navigator.onLine || document.hidden) return;
+  if (Date.now() - Math.max(src.at || 0, src.tried || 0) < TT_EVERY) return;
+  ttBusy = true; src.tried = Date.now();
+  fetchURL(src.url).then(t => {
+    const l = App.parseICS(t); if (!l.length) return;
+    const changed = JSON.stringify(l) !== JSON.stringify(S().timetable || []);
+    S().timetable = l; src.at = Date.now(); App.save();
+    if (changed && ["calendar", "dash"].includes(App.route().v) && !document.querySelector(".modal-back")) App.render();
+  }).catch(() => {}).finally(() => { ttBusy = false; });
+}
+App.afterBoot.push(() => { refreshTT(); setInterval(refreshTT, 60e3); document.addEventListener("visibilitychange", refreshTT); window.addEventListener("online", refreshTT); });
 
 function importDialog(onDone) {
   App.modal(`<div class="spread"><h2>Stundenplan holen</h2><button class="btn ghost sm" data-close>✕</button></div>
     <p class="muted" style="font-size:14px"><b>.ics</b> (auch iCal) ist das Standardformat für Kalender. Eine .ics-Datei oder ein Kalender-Link enthält alle Termine mit Uhrzeit, Raum und Wiederholung. StudyOS liest sie ein und zeigt jede Vorlesung im Fach an.</p>
-    <ol class="tt-steps"><li><b>Woher?</b> Such im Stundenplan-System deiner FH nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“. Dort gibt es einen Link oder eine Datei zum Herunterladen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn einmal am Tag neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen oder die Datei wählen. Klappt der Link nicht, weil der Server das blockiert, lade die Datei herunter und wähle sie hier.</li></ol>
+    <ol class="tt-steps"><li><b>Woher?</b> Such im Stundenplan-System deiner FH nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“. Dort gibt es einen Link oder eine Datei zum Herunterladen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn alle 30 Minuten neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen oder die Datei wählen. Klappt der Link nicht, weil der Server das blockiert, lade die Datei herunter und wähle sie hier.</li></ol>
     <p class="muted" style="font-size:13px">Hinweis: Studo kann Kalender nur importieren, nicht exportieren. Den Link bekommst du daher direkt vom Stundenplan der FH, nicht aus Studo.</p>
     <label class="fld">Kalender-Link (https:// oder webcal://)<input type="url" id="tt-url" placeholder="https://…/calendar.ics" value="${esc((S().ttSource || {}).url || "")}"></label>
     <div class="row" style="justify-content:space-between"><label class="btn">Datei wählen (.ics)<input type="file" id="tt-file" accept=".ics,text/calendar" hidden></label><button class="btn pri" id="tt-load">Link laden</button></div>

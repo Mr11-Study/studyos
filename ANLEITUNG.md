@@ -91,7 +91,7 @@ Seit 4.0 gibt es im Lernprofil **keine XP, Level, Bosse oder Erfolge mehr**. For
 
 1. **Heute**: fällige Wiederholungen, „Weiter lernen“ (nächste Lektion je Kurs, nach nächster Abgabe/Prüfung sortiert), Lernzeit der Woche, Termine, Semesterüberblick.
 2. **Kurse → Kurs**: KI-Regel der LV, Kapitel mit Lektionen (○ ungelesen, ◐ gelesen, ✓ verstanden), **Kapiteltests** (10 Fragen, ab 70 % bestanden), Notenrechner, Termine mit Datum, Zurücksetzen.
-3. **Kalender**: Wochenansicht mit Stundenplan, Abgaben und eigenen Terminen. Den Stundenplan holst du über „Stundenplan holen“ als iCal-Link oder .ics-Datei (z. B. aus Studo oder dem FH-System). Ein Link wird einmal am Tag aktualisiert; lässt der Server den Abruf aus dem Browser nicht zu, die .ics-Datei speichern und auswählen.
+3. **Kalender**: Wochenansicht mit Stundenplan, Abgaben und eigenen Terminen. Den Stundenplan holst du über „Stundenplan holen“ als iCal-Link oder .ics-Datei aus dem Stundenplan-System der FH (Studo kann nur importieren). Ein Link wird alle 30 Minuten aktualisiert, solange die App offen ist; lässt der Server den Abruf aus dem Browser nicht zu, die .ics-Datei speichern und auswählen.
 4. **Prüfung üben**: Prüfungssimulation pro Kurs. **Übungen**: alle interaktiven Aufgaben eines Kurses an einem Ort. **Git-Labor**: simuliertes Terminal + GitLab.
 6. **Lerntage in Folge** zählen Tage mit ≥ 5 Minuten Lernzeit, einer Wiederholung oder einer Lektion.
 

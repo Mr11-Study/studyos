@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.23.2", d: "2026-10-21", t: "Stundenplan alle 30 Minuten aktuell", items: [
+    "Ein abonnierter Kalender-Link wird jetzt alle 30 Minuten neu geladen statt einmal am Tag, auch wenn die App länger offen bleibt. Änderungen erscheinen direkt im Kalender und auf der Startseite."] },
   { v: "4.23.1", d: "2026-10-21", t: "Klarere Anleitung zum Stundenplan", items: [
     "„Stundenplan holen“ erklärt jetzt, was eine .ics-Datei ist und wo du sie bekommst: im Stundenplan-System der FH, nicht in Studo, da Studo Kalender nur importieren kann."] },
   { v: "4.23.0", d: "2026-10-21", t: "Schönere Fächer-Kacheln", items: [
