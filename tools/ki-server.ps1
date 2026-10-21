@@ -15,7 +15,11 @@ $ErrorActionPreference = "Stop"
 if ($Token -like "HIER-*") { Write-Host "Bitte zuerst oben in ki-server.ps1 dein Token eintragen (aus supabase-update-7.sql)." -ForegroundColor Red; Read-Host "Enter zum Beenden"; exit 1 }
 
 function Refresh-Path { $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User") }
-function Test-Omni { try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 "http://localhost:$Port/v1/models" | Out-Null; $true } catch { $false } }
+# Läuft OmniRoute? Jede HTTP-Antwort zählt (auch 401/404), nur „keine Verbindung“ heißt aus.
+function Test-Omni {
+  try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 "http://localhost:$Port/" | Out-Null; $true }
+  catch { [bool]($_.Exception.Response) }
+}
 function Send-Url($u) {
   $body = @{ t = $Token; u = $u; k = $(if ($Key) { $Key } else { $null }) } | ConvertTo-Json
   Invoke-RestMethod -Method Post -Uri "$Supabase/rest/v1/rpc/set_ki_url" -Headers @{ apikey = $Anon; Authorization = "Bearer $Anon" } -ContentType "application/json; charset=utf-8" -Body $body
@@ -34,7 +38,8 @@ if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
 if (-not (Test-Omni)) {
   Write-Host "Starte OmniRoute ..."
   Start-Process -WindowStyle Minimized -FilePath "cmd.exe" -ArgumentList "/c omniroute" | Out-Null
-  for ($i = 0; $i -lt 60 -and -not (Test-Omni); $i++) { Start-Sleep 1 }
+  Write-Host "Beim ersten Mal kann das ein paar Minuten dauern ..."
+  for ($i = 0; $i -lt 300 -and -not (Test-Omni); $i++) { Start-Sleep 1 }
   if (-not (Test-Omni)) { Write-Host "OmniRoute antwortet nicht auf Port $Port." -ForegroundColor Red; Read-Host "Enter zum Beenden"; exit 1 }
 }
 Write-Host "OmniRoute läuft. Freie KI-Anbieter trägst du im OmniRoute-Dashboard ein: http://localhost:$Port" -ForegroundColor Green
