@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.31.0", d: "2026-10-21", t: "KI-Hilfe über OmniRoute", items: [
+    "Der KI-Assistent kann jetzt über OmniRoute laufen. OmniRoute verteilt die Fragen auf freie KI-Anbieter, ein eigener Anthropic-Schlüssel ist nicht mehr nötig.",
+    "Zwei Adressen: OmniRoute am PC (lokal) und optional eine Online-Adresse, etwa für das Handy. StudyOS fragt zuerst am PC und weicht sonst auf online aus.",
+    "In den Einstellungen gibt es dafür „Verbindung testen“. Der Weg mit eigenem Anthropic-Schlüssel bleibt wählbar."] },
   { v: "4.30.0", d: "2026-10-21", t: "Benachrichtigungen für Chats", items: [
     "Schreibt dir ein Freund oder jemand aus deiner Gruppe, gibt StudyOS sofort Bescheid, auch wenn du gerade woanders in der App bist. Antippen öffnet den Chat.",
     "Du wählst unter Einstellungen → Profil & Konto oder mit der Glocke unter Gemeinsam: „Am Gerät“ (Mitteilung von Windows, macOS oder Handy, auch wenn StudyOS im Hintergrund ist), „Nur in der App“ oder „Aus“.",
