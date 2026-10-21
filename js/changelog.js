@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.34.1", d: "2026-10-21", t: "Formeln und schnellere KI-Antworten", items: [
+    "KI-Antworten erscheinen jetzt Wort für Wort, sobald die KI losschreibt, statt erst nach der ganzen Antwort.",
+    "Mathe-Formeln in allen KI-Antworten (z. B. in Mathematik 2) werden jetzt als echte Formeln mit Brüchen und Matrizen angezeigt statt als LaTeX-Code.",
+    "Ohne Internet zeigt StudyOS eine vereinfachte, lesbare Schreibweise."] },
   { v: "4.34.0", d: "2026-10-21", t: "Schönerer KI-Assistent", items: [
     "„Frag zur Lektion“ ist größer und übersichtlicher. Antworten zeigen Fettdruck, Aufzählungen und Code sauber formatiert statt Sternchen und Backticks.",
     "Mit ⤢ öffnest du den Assistenten als großes Fenster über der Lektion. Lange Antworten öffnen es am PC automatisch, Esc schließt es.",

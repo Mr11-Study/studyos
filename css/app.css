@@ -211,6 +211,15 @@ label.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--
 .assist-log .a code{font:13px var(--f-mono)}
 .md-pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0 8px;overflow-x:auto;font:13px/1.5 var(--f-mono);white-space:pre}
 .md-pre code{background:none;padding:0}
+.assist-log .md-blk{margin:6px 0 8px}
+.tex-b{display:block;overflow-x:auto;overflow-y:hidden;padding:4px 0;text-align:center}
+.tex .katex{font-size:1.06em}
+.tex-b .katex-display{margin:0}
+.tex:not(.done){font-family:var(--f-mono);font-size:.9em;color:var(--muted)}
+.tex.plain{color:inherit}
+.assist-caret{display:inline-block;width:7px;height:1.05em;margin-left:2px;vertical-align:-2px;background:var(--acc);border-radius:2px;animation:assist-blink 1s steps(2) infinite}
+.assist-log .a p:has(+ .assist-caret),.assist-log .a ul:has(+ .assist-caret),.assist-log .a ol:has(+ .assist-caret){display:inline}
+@keyframes assist-blink{50%{opacity:0}}
 .assist-tools{display:flex;justify-content:flex-end;margin-top:6px}
 .assist-copy{background:none;border:0;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 4px;opacity:.75}
 .assist-copy:hover{opacity:1;color:var(--acc)}
