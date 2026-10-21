@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.29.0", d: "2026-10-21", t: "FH-Gruppen einfach antippen", items: [
+    "StudyOS liest die Gruppen jetzt aus dem echten Stundenplan deines Studiengangs aus. Jeder Studiengang bekommt genau die Gruppen, die es dort gibt.",
+    "Du tippst nur deine Gruppen an, zum Beispiel 1 und A. Alle anderen werden ausgeblendet, Vorlesungen für alle (Standardgruppe) bleiben immer drin.",
+    "Eine Live-Vorschau zeigt mit echten Lehrveranstaltungen, was du sehen wirst und was ausgeblendet wird."] },
   { v: "4.28.2", d: "2026-10-21", t: "Profilbild oben aktualisiert sich", items: [
     "Wer in den Einstellungen einen Avatar wählt oder den Namen ändert, sieht das jetzt sofort auch im großen Profil oben."] },
   { v: "4.28.1", d: "2026-10-21", t: "Profil-Menü", items: [

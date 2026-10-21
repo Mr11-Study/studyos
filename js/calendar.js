@@ -23,6 +23,8 @@ function guessCourse(text) {
   for (const c of COURSES) { const w = (c.title || "").toLowerCase().split(/[\s&,-]+/).filter(x => x.length > 5); if (w.some(x => t.includes(x))) return c.id; }
   return null;
 }
+/* Gruppen-Bezeichnungen wie „Standardgruppe“, „Gruppe 1“, „Gruppe A“ aus dem Text eines Termins */
+function groupsIn(t) { const out = []; (t.match(/\b(?:[Ss]tandardgruppe|[Gg]ruppe[ \t]+[A-Z0-9][A-Za-z0-9.-]{0,5})\b/g) || []).forEach(g => { g = g.replace(/\s+/g, " ").replace(/^gruppe/i, "Gruppe").replace(/^standardgruppe$/i, "Standardgruppe"); if (!out.includes(g)) out.push(g); }); return out; }
 App.parseICS = function (txt) {
   const out = [];
   unfold(txt).split("BEGIN:VEVENT").slice(1).forEach((blk, i) => {
@@ -32,6 +34,7 @@ App.parseICS = function (txt) {
     const en = props.DTEND && icsDate(props.DTEND);
     const title = unesc(props.SUMMARY || "Termin"), loc = unesc(props.LOCATION || "");
     const ev = { id: "tt" + i + "-" + st.date + (st.time || ""), title, loc, date: st.date, time: st.time, min: en && en.ts && st.ts ? Math.round((en.ts - st.ts) / 60000) : 0, course: guessCourse(title + " " + unesc(props.DESCRIPTION || "")) };
+    const grp = groupsIn([props.SUMMARY, props.DESCRIPTION, props.CATEGORIES, props.COMMENT].filter(Boolean).map(unesc).join(" ")); if (grp.length) ev.grp = grp;
     const rr = props.RRULE || "";
     if (/FREQ=WEEKLY/i.test(rr)) {
       ev.repeat = "weekly"; const iv = /INTERVAL=(\d+)/i.exec(rr); if (iv && +iv[1] > 1) ev.every = +iv[1];
@@ -106,11 +109,27 @@ App.afterBoot.push(() => { const tick = () => refreshTT(); tick(); setInterval(t
 /* FH JOANNEUM: Abo-Link der Stundenplan-Suche (almaty) aus Studiengang, Semester und Gruppe bauen */
 const FH_BASE = "almaty.fh-joanneum.at/stundenplan/search.php?q=";
 const fhTerm = (op, v, neg) => { v = String(v || "").trim(); if (!v) return ""; const t = (neg ? "-" : "") + op + ":" + v; return /\s/.test(v) ? '"' + t + '"' : t; };
+/* Gruppen der FH: „Standardgruppe“ (für alle) plus Gruppen wie „Gruppe 1“ oder „Gruppe A“. Jeder Studiengang benennt sie anders,
+   deshalb liest StudyOS die vorhandenen Gruppen aus dem Stundenplan selbst aus (f.groups). Die FH verknüpft Suchbegriffe mit UND,
+   daher werden nicht die eigenen Gruppen gesucht, sondern alle anderen ausgeblendet. */
+const STD = "Standardgruppe", GDEF = ["Gruppe 1", "Gruppe 2", "Gruppe A", "Gruppe B"];
+const isStd = g => /^standardgruppe$/i.test(g);
+const gLabel = g => /^\w{1,3}$/.test(g) ? "Gruppe " + g.toUpperCase() : g;
+const gShort = g => isStd(g) ? "Standard" : g.replace(/^gruppe\s+/i, "");
+const gSort = (x, y) => isStd(x) ? -1 : isStd(y) ? 1 : x.localeCompare(y, "de", { numeric: true });
+function fhExcl(f) { const mine = f.mine || []; return mine.length ? (f.groups || []).filter(g => !isStd(g) && !mine.includes(g)) : []; }
 function fhQuery(f) {
-  const g = String(f.gruppe || "").split(",").map(x => fhTerm("gruppe", x, f.gmode === "ohne")).filter(Boolean);
+  const g = fhExcl(f).map(x => fhTerm("gruppe", x, true));
   return [fhTerm("studiengang", f.sg), fhTerm("fachsemester", f.sem), ...g, String(f.extra || "").trim()].filter(Boolean).join(" ");
 }
-/* Anführungszeichen so wie in den Abo-Links der FH-Seite selbst (&quot;) */
+/* gespeicherte Auswahl vereinheitlichen: { groups, mine } mit vollen Bezeichnungen; ältere Freitext-Auswahl (nur/ohne) wird umgerechnet */
+function fhGroups(saved) {
+  if (Array.isArray(saved.groups)) return { groups: saved.groups.slice(), mine: (saved.mine || []).map(gLabel) };
+  const list = String(saved.gruppe || "").split(",").map(x => gLabel(x.trim())).filter(Boolean);
+  const groups = [...new Set(GDEF.concat(list))].sort(gSort);
+  if (!list.length) return { groups, mine: [] };
+  return saved.gmode === "nur" ? { groups, mine: list.filter(g => !isStd(g)) } : { groups, mine: groups.filter(g => !isStd(g) && !list.includes(g)) };
+}
 const fhURL = f => "webcal://" + FH_BASE + encodeURIComponent(fhQuery(f).replace(/"/g, "&quot;")).replace(/%20/g, "+");
 /* aus einem bestehenden FH-Link die Felder zurückgewinnen, damit man ihn später anpassen kann */
 function fhParse(url) {
@@ -120,14 +139,14 @@ function fhParse(url) {
     (q.match(/"[^"]*"|\S+/g) || []).forEach(t => { const x = t.replace(/^"|"$/g, ""), m = x.match(/^(-?)(studiengang|fachsemester|gruppe):(.+)$/i);
       if (!m) return rest.push(t); const k = m[2].toLowerCase();
       if (k === "studiengang" && !m[1]) f.sg = m[3]; else if (k === "fachsemester" && !m[1]) f.sem = m[3]; else if (k === "gruppe") { gs.push(m[3]); f.gmode = m[1] ? "ohne" : "nur"; } else rest.push(t); });
-    f.gruppe = gs.join(", "); f.extra = rest.join(" "); return f;
+    f.gruppe = gs.join(", "); Object.assign(f, fhGroups(f)); delete f.gruppe; delete f.gmode; f.extra = rest.join(" "); return f;
   } catch (e) { return null; }
 }
 App.fhTimetable = { query: fhQuery, url: fhURL, parse: fhParse };
 
 function importDialog(onDone) {
   const src = S().ttSource || {}, saved = S().ttFH || fhParse(src.url) || {};
-  const f = { sg: saved.sg || "IMA", sem: saved.sem || String(App.SEM || 1), gruppe: saved.gruppe || "", gmode: saved.gmode || "ohne", extra: saved.extra || "" };
+  const f = Object.assign({ sg: saved.sg || "IMA", sem: saved.sem || String(App.SEM || 1), extra: saved.extra || "" }, fhGroups(saved)), ex = {};
   const fhOn = !src.url || /fh-joanneum\.at/i.test(src.url) || !!S().ttFH;
   App.modal(`<div class="spread"><h2>Stundenplan holen</h2><button class="btn ghost sm" data-close>✕</button></div>
     <div class="tt-tabs" role="tablist"><button role="tab" data-tab="fh" class="${fhOn ? "on" : ""}">FH JOANNEUM</button><button role="tab" data-tab="link" class="${fhOn ? "" : "on"}">Link oder Datei</button></div>
@@ -136,7 +155,10 @@ function importDialog(onDone) {
       <div class="tt-fh">
         <label class="fld">Studiengang<input type="text" id="fh-sg" value="${esc(f.sg)}" placeholder="z. B. IMA" autocapitalize="characters" spellcheck="false"><small class="muted">Kürzel, Wirtschaftsinformatik = IMA</small></label>
         <label class="fld">Fachsemester<select id="fh-sem">${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${String(n) === String(f.sem) ? "selected" : ""}>${n}. Semester</option>`).join("")}<option value="" ${f.sem ? "" : "selected"}>alle</option></select></label>
-        <label class="fld tt-fh-wide">Gruppe (optional)<span class="tt-grp"><span class="lvl" role="radiogroup" aria-label="Gruppe"><button type="button" data-gm="nur" class="${f.gmode === "nur" ? "on" : ""}">nur</button><button type="button" data-gm="ohne" class="${f.gmode === "ohne" ? "on" : ""}">ohne</button></span><input type="text" id="fh-gr" value="${esc(f.gruppe)}" placeholder="z. B. Gruppe 1" spellcheck="false"></span><small class="muted">Tipp: Die <b>anderen</b> Gruppen mit „ohne“ ausblenden, dann bleiben gemeinsame Vorlesungen drin. Mehrere mit Komma trennen.</small></label>
+        <div class="fld tt-fh-wide"><span>Deine Gruppen <small class="muted">(optional)</small></span>
+          <div class="tt-gsel" id="fh-gs"></div>
+          <small class="muted" id="fh-gst">Tippe die Gruppen an, in denen du bist. Die anderen werden ausgeblendet, Vorlesungen für alle (Standardgruppe) bleiben immer drin.</small>
+          <div class="tt-gprev" id="fh-prev" aria-live="polite"></div></div>
         <details class="tt-fh-wide" ${f.extra ? "open" : ""}><summary>Weitere Suchbegriffe</summary><input type="text" id="fh-ex" value="${esc(f.extra)}" placeholder="z. B. -titel:Sport referent:Radeke" spellcheck="false"><small class="muted">Wie in der FH-Suche: titel:, referent:, ort:, notiz:, ein Minus schließt aus.</small></details>
       </div>
       <div class="tt-q"><span class="eyebrow">Suche bei der FH</span><code id="fh-q"></code></div>
@@ -153,11 +175,34 @@ function importDialog(onDone) {
     ${(S().timetable || []).length ? `<div class="divider"></div><div class="spread"><small class="muted">${S().timetable.length} Einträge geladen${src.name ? " aus " + esc(src.name) : ""}.</small><button class="btn ghost sm" id="tt-clear">Stundenplan entfernen</button></div>` : ""}`, (m, close) => {
     const msg = $("#tt-msg", m);
     $$("[data-tab]", m).forEach(t => t.onclick = () => { $$("[data-tab]", m).forEach(x => { x.classList.toggle("on", x === t); x.setAttribute("aria-selected", x === t); }); $$("[data-pane]", m).forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab); msg.textContent = ""; });
-    const read = () => ({ sg: $("#fh-sg", m).value.trim().toUpperCase(), sem: $("#fh-sem", m).value, gruppe: $("#fh-gr", m).value.trim(), gmode: f.gmode, extra: $("#fh-ex", m).value.trim() });
-    const show = () => { $("#fh-q", m).textContent = fhQuery(read()) || "–"; };
-    ["#fh-sg", "#fh-sem", "#fh-gr", "#fh-ex"].forEach(id => $(id, m).addEventListener("input", show));
-    $$("[data-gm]", m).forEach(b => b.onclick = () => { f.gmode = b.dataset.gm; $$("[data-gm]", m).forEach(x => x.classList.toggle("on", x === b)); show(); });
-    show();
+    const read = () => ({ sg: $("#fh-sg", m).value.trim().toUpperCase(), sem: $("#fh-sem", m).value, groups: f.groups.slice(), mine: f.mine.slice(), extra: $("#fh-ex", m).value.trim() });
+    const gst = $("#fh-gst", m), hint = gst.textContent;
+    /* Gruppen-Knöpfe: genau die Gruppen, die es in diesem Studiengang gibt, plus Feld für eine eigene */
+    const chips = () => { $("#fh-gs", m).innerHTML = f.groups.filter(g => !isStd(g)).map(g => `<button type="button" class="tt-g ${f.mine.includes(g) ? "on" : ""}" data-g="${esc(g)}" aria-pressed="${f.mine.includes(g)}" title="${esc(g)}">${esc(gShort(g))}</button>`).join("")
+        + `<input type="text" class="tt-gadd" id="fh-gadd" placeholder="+ andere" aria-label="Andere Gruppe hinzufügen, z. B. Gruppe C" spellcheck="false">`;
+      $$("[data-g]", m).forEach(b => b.onclick = () => { const g = b.dataset.g; f.mine = f.mine.includes(g) ? f.mine.filter(x => x !== g) : f.mine.concat(g); chips(); show(); });
+      $("#fh-gadd", m).onkeydown = e => { if (e.key !== "Enter") return; e.preventDefault(); const g = gLabel(e.target.value.trim()); if (!g || isStd(g)) return;
+        if (!f.groups.includes(g)) f.groups = f.groups.concat(g).sort(gSort); if (!f.mine.includes(g)) f.mine.push(g); chips(); show(); $("#fh-gadd", m).focus(); }; };
+    /* Live-Beispiel: welche Gruppen bleiben, welche fallen weg, mit echten Lehrveranstaltungen als Beispiel */
+    const preview = () => { const out = fhExcl(f), sample = g => ex[g] ? [...ex[g]].slice(0, 2).join(", ") : "";
+      const rows = [[STD, sample(STD) || "Vorlesungen für alle", true]].concat(f.groups.filter(g => !isStd(g)).map(g => [g, sample(g), !out.includes(g)]));
+      $("#fh-prev", m).innerHTML = `<span class="eyebrow">So filtert StudyOS</span>${rows.map(([n, d, on]) => `<div class="tt-gr ${on ? "in" : "out"}"><i aria-hidden="true">${on ? "✓" : "✕"}</i><b>${esc(n)}</b><small>${on ? esc(d || "wird angezeigt") : "ausgeblendet"}</small></div>`).join("")}${f.mine.length ? "" : `<small class="muted">Noch keine Gruppe gewählt: Du siehst alle Gruppen.</small>`}`; };
+    const show = () => { $("#fh-q", m).textContent = fhQuery(read()) || "–"; preview(); };
+    /* die echten Gruppen des Studiengangs aus dem ungefilterten Stundenplan lesen */
+    let seen = "", timer = 0;
+    const discover = async () => { const sg = $("#fh-sg", m).value.trim().toUpperCase(), sem = $("#fh-sem", m).value, key = sg + "|" + sem;
+      if (!sg || key === seen) return; seen = key; gst.textContent = `Suche die Gruppen von ${sg}${sem ? " im " + sem + ". Semester" : ""} …`;
+      try { const list = App.parseICS(await fetchURL(fhURL({ sg, sem }))); if (seen !== key) return;
+        Object.keys(ex).forEach(k => delete ex[k]);
+        list.forEach(e => (e.grp || []).forEach(g => (ex[g] = ex[g] || new Set()).add(e.title.replace(/\s*[-,(]?\s*(Standardgruppe|Gruppe\s+\S+)\)?/gi, "").trim() || e.title)));
+        const found = Object.keys(ex).filter(g => !isStd(g)).sort(gSort);
+        if (found.length) { f.groups = [STD].concat(found); f.mine = f.mine.filter(g => found.includes(g)); gst.textContent = `${found.length} Gruppen im Stundenplan von ${sg} gefunden. Tippe die an, in denen du bist. Vorlesungen für alle bleiben immer drin.`; }
+        else if (list.length) { f.groups = [STD]; f.mine = []; gst.textContent = `Im Stundenplan von ${sg} stehen keine Gruppen, du siehst einfach alles. Falls doch, trag deine Gruppe bei „+ andere“ ein.`; }
+        else gst.textContent = `Für ${sg}${sem ? " im " + sem + ". Semester" : ""} hat die FH gerade keine Termine. Stimmt das Kürzel?`;
+      } catch (e) { if (seen === key) { seen = ""; gst.textContent = "Die Gruppen ließen sich gerade nicht abrufen. " + hint; } }
+      chips(); show(); };
+    ["#fh-sg", "#fh-sem", "#fh-ex"].forEach(id => $(id, m).addEventListener("input", () => { show(); clearTimeout(timer); timer = setTimeout(discover, 700); }));
+    chips(); show(); discover();
     const load = async (url, name, after) => { msg.textContent = "Lade …";
       try { const t = await fetchURL(url); if (await importText(t, { url, name })) { after && after(); close(); onDone(); } else msg.textContent = ""; }
       catch (e) { msg.textContent = fetchErr(e); } };
