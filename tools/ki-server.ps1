@@ -46,7 +46,7 @@ Write-Host "OmniRoute läuft. Freie KI-Anbieter trägst du im OmniRoute-Dashboar
 
 # 3. Tunnel öffnen und Adresse auslesen
 $log = Join-Path $env:TEMP "studyos-tunnel.log"; Remove-Item $log -ErrorAction SilentlyContinue
-$tun = Start-Process -PassThru -WindowStyle Hidden -FilePath "cloudflared" -ArgumentList "tunnel --no-autoupdate --url http://localhost:$Port" -RedirectStandardError $log
+$tun = Start-Process -PassThru -WindowStyle Hidden -FilePath "cloudflared" -ArgumentList "tunnel --no-autoupdate --url http://127.0.0.1:$Port" -RedirectStandardError $log
 $url = $null
 for ($i = 0; $i -lt 60 -and -not $url; $i++) { Start-Sleep 1; if (Test-Path $log) { $m = Select-String -Path $log -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' | Select-Object -First 1; if ($m) { $url = $m.Matches[0].Value } } }
 if (-not $url) { Write-Host "Der Tunnel hat keine Adresse geliefert. Log: $log" -ForegroundColor Red; Stop-Process -Id $tun.Id -ErrorAction SilentlyContinue; Read-Host "Enter zum Beenden"; exit 1 }

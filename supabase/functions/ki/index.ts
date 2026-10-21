@@ -19,7 +19,8 @@ async function server() {
   return c && c.url ? c : null;
 }
 async function alive(c) {
-  try { const r = await fetch(c.url.replace(/\/+$/, "") + "/v1/models", { headers: c.key ? { authorization: "Bearer " + c.key } : {}, signal: AbortSignal.timeout(4000) }); return r.status < 500; }
+  /* jede Antwort von OmniRoute zählt; 502–504/530 kommen vom Tunnel, wenn der PC nicht antwortet */
+  try { const r = await fetch(c.url.replace(/\/+$/, "") + "/v1/models", { headers: c.key ? { authorization: "Bearer " + c.key } : {}, signal: AbortSignal.timeout(12000) }); return ![502, 503, 504, 530].includes(r.status); }
   catch { return false; }
 }
 
