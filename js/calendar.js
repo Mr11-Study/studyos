@@ -32,9 +32,9 @@ App.parseICS = function (txt) {
     blk.split("END:VEVENT")[0].split("\n").forEach(line => { const k = line.indexOf(":"); if (k < 0) return; const head = line.slice(0, k), val = line.slice(k + 1); const name = head.split(";")[0].toUpperCase(); if (name === "EXDATE") (props.EXDATE = props.EXDATE || []).push(...val.split(",")); else if (!(name in props)) props[name] = val; });
     const st = props.DTSTART && icsDate(props.DTSTART); if (!st) return;
     const en = props.DTEND && icsDate(props.DTEND);
-    const title = unesc(props.SUMMARY || "Termin"), loc = unesc(props.LOCATION || "");
+    const title = unesc(props.SUMMARY || "Termin"), loc = unesc(props.LOCATION || "").replace(/^[\s.,;·-]+/, "");
     const ev = { id: "tt" + i + "-" + st.date + (st.time || ""), title, loc, date: st.date, time: st.time, min: en && en.ts && st.ts ? Math.round((en.ts - st.ts) / 60000) : 0, course: guessCourse(title + " " + unesc(props.DESCRIPTION || "")) };
-    const grp = groupsIn([props.SUMMARY, props.DESCRIPTION, props.CATEGORIES, props.COMMENT].filter(Boolean).map(unesc).join(" ")); if (grp.length) ev.grp = grp;
+    const grp = groupsIn([props.SUMMARY, props.DESCRIPTION, props.CATEGORIES, props.COMMENT, props.LOCATION].filter(Boolean).map(unesc).join(" ")); if (grp.length) ev.grp = grp;
     const rr = props.RRULE || "";
     if (/FREQ=WEEKLY/i.test(rr)) {
       ev.repeat = "weekly"; const iv = /INTERVAL=(\d+)/i.exec(rr); if (iv && +iv[1] > 1) ev.every = +iv[1];
@@ -104,7 +104,8 @@ function refreshTT(force) {
   return force === true ? ttBusy : ttBusy.catch(() => null);
 }
 App.refreshTimetable = refreshTT;
-App.afterBoot.push(() => { const tick = () => refreshTT(); tick(); setInterval(tick, 60e3); document.addEventListener("visibilitychange", tick); window.addEventListener("online", tick); });
+App.afterBoot.push(() => { const tick = () => refreshTT();
+  const st = S(); if (st.ttSource && st.ttSource.url && !st.ttGrp) refreshTT(true).then(() => { st.ttGrp = 1; App.save(); if (App.route().v === "calendar" && !document.querySelector(".modal-back")) App.render(); }, () => {}); tick(); setInterval(tick, 60e3); document.addEventListener("visibilitychange", tick); window.addEventListener("online", tick); });
 
 /* FH JOANNEUM: Abo-Link der Stundenplan-Suche (almaty) aus Studiengang, Semester und Gruppe bauen */
 const FH_BASE = "almaty.fh-joanneum.at/stundenplan/search.php?q=";
@@ -241,8 +242,9 @@ function layout(list) {
 function blockHTML(x, H, h0) {
   const e = x.e, top = (x.s - h0 * 60) / 60 * H, ht = Math.max(22, (x.t - x.s) / 60 * H - 3), c = e.course && CBY[e.course];
   const sub = [e.time + "–" + endTime(e), e.loc].filter(Boolean).map(esc).join(" · ");
-  return `<button class="cg-ev ${ht < 44 ? "tiny" : ht < 80 ? "short" : ""} ${e.done ? "done" : ""}" style="--c:${colorOf(e)};top:${top}px;height:${ht}px;left:calc(${x.col} * 100% / ${x.n} + 2px);width:calc(100% / ${x.n} - 4px)" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}" title="${esc(e.title + (e.loc ? " · " + e.loc : "") + " · " + e.time + "–" + endTime(e))}">
-    ${c ? `<span class="cg-tag">${esc(c.short)}</span>` : e.type !== "class" ? `<span class="cg-tag">${esc(KIND[e.type] || "Termin")}</span>` : ""}<b class="t-long">${esc(e.title)}</b><b class="t-short">${esc(c ? c.title : e.title)}</b><small>${sub}</small></button>`;
+  const grp = (e.grp || []).filter(g => !/^standardgruppe$/i.test(g)).map(g => g.replace(/^gruppe\s+/i, ""));
+  return `<button class="cg-ev ${grp.length ? "has-grp" : ""} ${ht < 44 ? "tiny" : ht < 80 ? "short" : ""} ${e.done ? "done" : ""}" style="--c:${colorOf(e)};top:${top}px;height:${ht}px;left:calc(${x.col} * 100% / ${x.n} + 2px);width:calc(100% / ${x.n} - 4px)" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}" title="${esc(e.title + (grp.length ? " · Gruppe " + grp.join(", ") : "") + (e.loc ? " · " + e.loc : "") + " · " + e.time + "–" + endTime(e))}">
+    ${c ? `<span class="cg-tag">${esc(c.short)}</span>` : e.type !== "class" ? `<span class="cg-tag">${esc(KIND[e.type] || "Termin")}</span>` : ""}<b class="t-long">${esc(e.title)}</b><b class="t-short">${esc(c ? c.title : e.title)}</b><small>${sub}</small>${grp.length ? `<span class="cg-grp" aria-label="Gruppe ${esc(grp.join(", "))}">${esc(grp.join("·"))}</span>` : ""}</button>`;
 }
 
 PAGES.calendar = el => {
@@ -309,7 +311,7 @@ PAGES.calendar = el => {
     const ev = dayItems(date, date).find(x => x.src === src && x.id === id); if (!ev) return;
     if (src === "tt") { const c = ev.course && CBY[ev.course];
       App.modal(`<div class="ev-pop" style="--c:${colorOf(ev)}"><div class="spread"><span class="eyebrow">${c ? esc(c.title) : "Lehrveranstaltung"}</span><button class="btn ghost sm" data-close>✕</button></div><h2>${esc(ev.title)}</h2>
-        <dl><dt>Wann</dt><dd>${fmtDate(ev.date, { weekday: "long", day: "numeric", month: "long" })}${ev.time ? ", " + ev.time + "–" + endTime(ev) : ""}</dd>${ev.loc ? `<dt>Raum</dt><dd>${esc(ev.loc)}</dd>` : ""}${ev.repeat === "weekly" ? `<dt>Wiederholung</dt><dd>wöchentlich${ev.until ? " bis " + fmtDate(ev.until, { day: "numeric", month: "long" }) : ""}</dd>` : ""}</dl>
+        <dl><dt>Wann</dt><dd>${fmtDate(ev.date, { weekday: "long", day: "numeric", month: "long" })}${ev.time ? ", " + ev.time + "–" + endTime(ev) : ""}</dd>${(ev.grp || []).length ? `<dt>Gruppe</dt><dd>${esc(ev.grp.join(", "))}</dd>` : ""}${ev.loc ? `<dt>Raum</dt><dd>${esc(ev.loc)}</dd>` : ""}${ev.repeat === "weekly" ? `<dt>Wiederholung</dt><dd>wöchentlich${ev.until ? " bis " + fmtDate(ev.until, { day: "numeric", month: "long" }) : ""}</dd>` : ""}</dl>
         ${c ? `<button class="btn pri" data-go="course" data-p="${c.id}" data-close>Zur Fach-App</button>` : ""}</div>`); }
     else App.eventForm(ev, draw);
   };

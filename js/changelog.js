@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.29.1", d: "2026-10-21", t: "Gruppe auf jedem Termin", items: [
+    "Im Kalender zeigt ein kleines Abzeichen oben rechts, zu welcher Gruppe ein Termin gehört (1, 2, A, B …). So hältst du parallele Gruppen auseinander.",
+    "Die Gruppe steht auch in den Details eines Termins. Räume werden ohne die vorangestellten Satzzeichen der FH angezeigt."] },
   { v: "4.29.0", d: "2026-10-21", t: "FH-Gruppen einfach antippen", items: [
     "StudyOS liest die Gruppen jetzt aus dem echten Stundenplan deines Studiengangs aus. Jeder Studiengang bekommt genau die Gruppen, die es dort gibt.",
     "Du tippst nur deine Gruppen an, zum Beispiel 1 und A. Alle anderen werden ausgeblendet, Vorlesungen für alle (Standardgruppe) bleiben immer drin.",
