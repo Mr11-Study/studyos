@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.25.0", d: "2026-10-21", t: "PIN seltener eingeben", items: [
+    "Unter Einstellungen → Sperre wählst du, nach welcher Zeit ohne Nutzung StudyOS wieder nach dem PIN fragt: sofort, nach 5 oder 15 Minuten, 1 oder 4 Stunden oder einem Tag.",
+    "Das gilt jetzt auch nach einem Neustart der App: Öffnest du sie innerhalb dieser Zeit wieder, bleibt sie entsperrt. „Jetzt sperren“ sperrt sofort, egal was eingestellt ist."] },
   { v: "4.24.0", d: "2026-10-21", t: "Stundenplan-Link der FH direkt laden", items: [
     "Erlaubt ein Kalender-Server keinen Abruf aus dem Browser (wie der FH-Stundenplan), lädt StudyOS den Link jetzt über den eigenen Kalender-Dienst. Den Abo-Link einfach einfügen, ohne Datei herunterzuladen.",
     "Die Anleitung erklärt Schritt für Schritt, wo du den Abo-Link in der Stundenplan-Suche der FH JOANNEUM findest."] },
