@@ -43,12 +43,18 @@ Deno.serve(async req => {
       .filter(m => m && ["system", "user", "assistant"].includes(m.role) && typeof m.content === "string")
       .map(m => ({ role: m.role, content: m.content.slice(0, 8000) }));
     if (!messages.length) return json(400, { error: "Keine Frage" });
+    /* stream: die Antwort wird Stück für Stück durchgereicht, so erscheinen die ersten Wörter sofort */
+    const stream = d.stream === true;
     let r;
     try {
-      r = await fetch(c.url.replace(/\/+$/, "") + "/v1/chat/completions", { method: "POST", signal: AbortSignal.timeout(60000),
+      r = await fetch(c.url.replace(/\/+$/, "") + "/v1/chat/completions", { method: "POST", signal: AbortSignal.timeout(stream ? 120000 : 60000),
         headers: { "content-type": "application/json", ...(c.key ? { authorization: "Bearer " + c.key } : {}) },
-        body: JSON.stringify({ model: "auto", max_tokens: Math.min(+d.max_tokens || 450, MAX_TOKENS), messages }) });
+        body: JSON.stringify({ model: "auto", max_tokens: Math.min(+d.max_tokens || 450, MAX_TOKENS), messages, stream }) });
     } catch { return json(503, { error: "offline" }); }
+    if (r.ok && stream && (r.headers.get("content-type") || "").includes("text/event-stream") && r.body) {
+      await db.from("ki_usage").upsert({ user_id: u.id, day, n: ((used && used.n) || 0) + 1 });
+      return new Response(r.body, { status: 200, headers: { ...cors, "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", "x-ki-left": String(LIMIT - ((used && used.n) || 0) - 1) } });
+    }
     if (!r.ok) { let m = "HTTP " + r.status; try { const j = await r.json(); m = (j.error && (j.error.message || j.error)) || m; } catch {} return json(502, { error: String(m).slice(0, 200) }); }
     const j = await r.json();
     await db.from("ki_usage").upsert({ user_id: u.id, day, n: ((used && used.n) || 0) + 1 });

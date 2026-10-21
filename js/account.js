@@ -131,11 +131,26 @@ const aiProv = () => S().ai.provider || (SEC().aiKey ? "anthropic" : "studyos");
 if (!S().ai.v2) { S().ai.v2 = 1; if (!S().ai.provider && !SEC().aiKey) { S().ai.enabled = true; S().ai.confirm = false; } }
 let kiState = null; /* null | "online" | "offline" */
 App.kiStatus = async () => { try { const sb = App.SB, r = await fetch(sb.url + "/functions/v1/ki", { headers: { Authorization: "Bearer " + sb.key, apikey: sb.key } }); kiState = r.ok && (await r.json()).online ? "online" : "offline"; } catch (e) { kiState = "offline"; } return kiState; };
-async function studyosCall(system, messages, maxTokens) {
+/* OpenAI-Stream (Server-Sent Events) lesen: ruft onChunk mit dem bisherigen Text auf, liefert am Ende den ganzen Text */
+async function readStream(r, onChunk) {
+  const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", text = "", tokens = 0;
+  for (;;) {
+    const { done, value } = await rd.read(); if (done) break;
+    buf += dec.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop();
+    for (const ln of lines) {
+      const m = ln.match(/^data:\s*(.*)$/); if (!m || m[1] === "[DONE]") continue;
+      try { const j = JSON.parse(m[1]); if (j.error) throw new Error(j.error.message || j.error); const d = j.choices && j.choices[0] && (j.choices[0].delta || j.choices[0].message); if (d && d.content) { text += d.content; onChunk && onChunk(text); } if (j.usage) tokens = j.usage.total_tokens || tokens; } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+    }
+  }
+  return { text: text.trim() || "(keine Antwort)", tokens };
+}
+const isStream = r => (r.headers.get("content-type") || "").includes("text/event-stream") && r.body;
+async function studyosCall(system, messages, maxTokens, onChunk) {
   if (!App.social) throw new Error("Online-Funktionen fehlen");
   try { await App.social.connect(); } catch (e) { throw new Error(e && e.auth ? "login" : "Keine Verbindung. Prüf dein Internet."); }
   const sb = App.social.client(), tok = ((await sb.auth.getSession()).data.session || {}).access_token;
-  const r = await fetch(App.SB.url + "/functions/v1/ki", { method: "POST", headers: { "content-type": "application/json", apikey: App.SB.key, Authorization: "Bearer " + tok }, body: JSON.stringify({ max_tokens: maxTokens, messages: [{ role: "system", content: system }].concat(messages) }) });
+  const r = await fetch(App.SB.url + "/functions/v1/ki", { method: "POST", headers: { "content-type": "application/json", apikey: App.SB.key, Authorization: "Bearer " + tok }, body: JSON.stringify({ max_tokens: maxTokens, stream: !!onChunk, messages: [{ role: "system", content: system }].concat(messages) }) });
+  if (r.ok && isStream(r)) { kiState = "online"; const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + 1; App.save(); return o.text; }
   let j = {}; try { j = await r.json(); } catch (e) {}
   if (r.ok) { kiState = "online"; S().ai.used = (S().ai.used || 0) + 1; App.save(); return j.text; }
   if (j.error === "login" || r.status === 401) throw new Error("login");
@@ -146,13 +161,14 @@ async function studyosCall(system, messages, maxTokens) {
 }
 const omniBases = () => [S().ai.local === "" ? "" : (S().ai.local || OMNI_LOCAL), S().ai.online || ""].map(x => x.trim().replace(/\/+$/, "")).filter(Boolean);
 App.aiReady = cid => { if (!S().ai.enabled) return false; const p = aiProv(); return p === "studyos" ? true : p === "omni" ? omniBases().length > 0 : !!SEC().aiKey; };
-async function omniCall(system, messages, maxTokens, only) {
+async function omniCall(system, messages, maxTokens, only, onChunk) {
   const bases = only ? [only] : omniBases(); let last = null;
   for (const base of bases) {
     try {
       const r = await fetch(base + "/chat/completions", { method: "POST", headers: Object.assign({ "content-type": "application/json" }, SEC().omniKey ? { authorization: "Bearer " + SEC().omniKey } : {}),
-        body: JSON.stringify({ model: S().ai.omniModel || "auto", max_tokens: maxTokens, messages: [{ role: "system", content: system }].concat(messages) }) });
+        body: JSON.stringify({ model: S().ai.omniModel || "auto", max_tokens: maxTokens, stream: !!onChunk, messages: [{ role: "system", content: system }].concat(messages) }) });
       if (!r.ok) { let m = "HTTP " + r.status; try { const j = await r.json(); m = (j.error && (j.error.message || j.error)) || m; } catch (e) {} throw new Error(m); }
+      if (isStream(r)) { const o = await readStream(r, onChunk); S().ai.used = (S().ai.used || 0) + o.tokens; App.save(); return o.text; }
       const j = await r.json(); S().ai.used = (S().ai.used || 0) + ((j.usage && j.usage.total_tokens) || 0); App.save();
       return ((j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "").trim() || "(keine Antwort)";
     } catch (e) { last = e; }
@@ -160,34 +176,56 @@ async function omniCall(system, messages, maxTokens, only) {
   const m = String((last && last.message) || last || "");
   throw new Error(/fetch|network|load failed/i.test(m) ? (bases.length > 1 ? "OmniRoute ist weder am PC noch online erreichbar." : "OmniRoute ist nicht erreichbar. Läuft es auf diesem Gerät (omniroute im Terminal starten)?") : m);
 }
-async function aiCall(system, messages, maxTokens = 450) {
-  if (aiProv() === "studyos") return studyosCall(system, messages, maxTokens);
-  if (aiProv() === "omni") return omniCall(system, messages, maxTokens);
+async function aiCall(system, messages, maxTokens = 450, onChunk) {
+  if (aiProv() === "studyos") return studyosCall(system, messages, maxTokens, onChunk);
+  if (aiProv() === "omni") return omniCall(system, messages, maxTokens, null, onChunk);
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": SEC().aiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: S().ai.model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages }) });
   if (!r.ok) { let m = r.status + ""; try { m = (await r.json()).error.message; } catch (e) {} throw new Error(m); }
   const j = await r.json(); S().ai.used = (S().ai.used || 0) + (j.usage ? j.usage.input_tokens + j.usage.output_tokens : 0); App.save(); return j.content.map(x => x.text || "").join("");
 }
 function confirmAI(what) { return new Promise(res => { if (!S().ai.confirm) return res(true); App.modal(`<h2>KI-Anfrage senden?</h2><p>${esc(what)}</p><p class="muted" style="font-size:13px">${aiProv() === "studyos" ? "Die Anfrage geht an den KI-Server von StudyOS" : aiProv() === "omni" ? "Die Anfrage geht an dein OmniRoute" : "Die Anfrage geht mit deinem eigenen API-Schlüssel an Anthropic"} und verbraucht Tokens (bisher ca. ${(S().ai.used || 0).toLocaleString("de-AT")}). Ohne Bestätigung passiert nichts.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" id="ai-n">Abbrechen</button><button class="btn pri" id="ai-y">Senden</button></div>`, (m, close) => { $("#ai-y", m).onclick = () => { close(); res(true); }; $("#ai-n", m).onclick = () => { close(); res(false); }; }); }); }
-App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; try { out.innerHTML = App.mdLite(await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }])); } catch (e) { out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
-/* KI-Antworten lesbar machen: kleines, sicheres Markdown (erst escapen, dann formatieren) */
-const mdInline = t => t.replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>").replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>");
+App.aiExplain = async (out, l, b) => { if (!(await confirmAI("Andere Erklärung für „" + b.h + "“ anfordern."))) return; out.textContent = "Denkt nach …"; const paint = livePaint(out); try { const t = await aiCall("Du bist Tutor für Wirtschaftsinformatik-Studierende an der FH JOANNEUM. Erkläre knapp (max. 110 Wörter), in der Sprache des Lernstoffs, mit einer Alltagsanalogie oder einem Zahlenbeispiel. Keine Überschriften. Formeln in LaTeX zwischen $…$.", [{ role: "user", content: "Lektion: " + l.title + "\nKonzept: " + b.h + "\nStoff: " + App.strip(b.levels.normal) }], 450, paint); paint.stop(); out.innerHTML = App.mdLite(t); App.renderTex(out); } catch (e) { paint.stop(); out.textContent = e.message === "login" ? "Für die KI-Hilfe brauchst du ein StudyOS-Konto (unter Gemeinsam)." : e.message; } };
+/* KI-Antworten lesbar machen: kleines, sicheres Markdown (erst escapen, dann formatieren) plus Formeln ($…$, $$…$$, \(…\), \[…\]) */
+const mdInline = t => t.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>").replace(/(^|[\s(])_([^_\n]+)_(?=[\s).,:;!?]|$)/g, "$1<i>$2</i>");
 App.mdLite = text => {
-  const out = [], parts = esc(String(text || "").trim()).split(/```[\w+-]*\n?([\s\S]*?)```/g);
-  parts.forEach((p, i) => {
-    if (i % 2) { out.push(`<pre class="md-pre"><code>${p.replace(/\n$/, "")}</code></pre>`); return; }
-    let list = null;
-    const flush = () => { if (list) { out.push(`<${list.t}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
-    for (const raw of p.split("\n")) {
-      const ln = raw.trim(), ul = ln.match(/^[-*•]\s+(.*)/), ol = ln.match(/^\d+[.)]\s+(.*)/), h = ln.match(/^#{1,4}\s+(.*)/);
-      if (ul || ol) { const t = ul ? "ul" : "ol"; if (!list || list.t !== t) { flush(); list = { t, items: [] }; } list.items.push(mdInline((ul || ol)[1])); continue; }
-      flush();
-      if (!ln) continue;
-      out.push(h ? `<p class="md-h">${mdInline(h[1])}</p>` : `<p>${mdInline(ln)}</p>`);
-    }
+  /* Code und Formeln zuerst herausnehmen, damit * _ $ darin nicht als Markdown gelten */
+  const keep = [], put = h => "\u0000" + (keep.push(h) - 1) + "\u0000";
+  const tex = (t, block) => put(`<span class="tex${block ? " tex-b" : ""}" data-tex="${esc(t.trim())}">${esc(t.trim())}</span>`);
+  let t = String(text || "").trim()
+    .replace(/```[\w+-]*\n?([\s\S]*?)```/g, (m, c) => "\n" + put(`<pre class="md-pre"><code>${esc(c.replace(/\n$/, ""))}</code></pre>`) + "\n")
+    .replace(/`([^`\n]+)`/g, (m, c) => put(`<code>${esc(c)}</code>`))
+    .replace(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g, (m, x, y) => "\n" + tex(x || y, true) + "\n")
+    .replace(/\\\(([\s\S]+?)\\\)/g, (m, x) => tex(x))
+    .replace(/\$(?=\S)([^$\n]*?\S)\$(?!\d)/g, (m, x) => tex(x));
+  const out = []; let list = null;
+  const flush = () => { if (list) { out.push(`<${list.t}>${list.items.map(x => `<li>${x}</li>`).join("")}</${list.t}>`); list = null; } };
+  for (const raw of esc(t).split("\n")) {
+    const ln = raw.trim(), ul = ln.match(/^[-*•]\s+(.*)/), ol = ln.match(/^\d+[.)]\s+(.*)/), h = ln.match(/^#{1,4}\s+(.*)/);
+    if (ul || ol) { const tg = ul ? "ul" : "ol"; if (!list || list.t !== tg) { flush(); list = { t: tg, items: [] }; } list.items.push(mdInline((ul || ol)[1])); continue; }
     flush();
-  });
-  return out.join("");
+    if (!ln) continue;
+    out.push(/^\u0000\d+\u0000$/.test(ln) && /^<(pre|span class="tex tex-b)/.test(keep[+ln.slice(1, -1)]) ? `<div class="md-blk">${ln}</div>` : h ? `<p class="md-h">${mdInline(h[1])}</p>` : `<p>${mdInline(ln)}</p>`);
+  }
+  flush();
+  return out.join("").replace(/\u0000(\d+)\u0000/g, (m, i) => keep[+i]);
 };
+/* Formeln mit KaTeX setzen (wird erst bei Bedarf geladen und vom Service Worker zwischengespeichert) */
+let katexP = null;
+const KATEX = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/";
+const loadKatex = () => katexP || (katexP = new Promise((res, rej) => {
+  if (window.katex) return res(window.katex);
+  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = KATEX + "katex.min.css"; document.head.appendChild(css);
+  const js = document.createElement("script"); js.src = KATEX + "katex.min.js"; js.onload = () => res(window.katex); js.onerror = () => { katexP = null; rej(); }; document.head.appendChild(js);
+}));
+/* ohne Netz: wenigstens lesbar statt LaTeX-Code */
+const texPlain = t => t.replace(/\\begin\{[pbv]?matrix\}([\s\S]*?)\\end\{[pbv]?matrix\}/g, (m, x) => "[" + x.split("\\\\").map(r => r.split("&").map(c => c.trim()).join(", ")).join("; ") + "]").replace(/\\(?:d|t)?frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)").replace(/\\sqrt\{([^{}]*)\}/g, "√($1)").replace(/\\cdot/g, "·").replace(/\\times/g, "×").replace(/\\mid/g, "|").replace(/\\pm/g, "±").replace(/\\leq?/g, "≤").replace(/\\geq?/g, "≥").replace(/\\neq/g, "≠").replace(/\\to|\\rightarrow/g, "→").replace(/\\infty/g, "∞").replace(/\\(alpha|beta|gamma|delta|lambda|mu|pi|sigma|varphi|phi|theta|omega)/g, (m, g) => ({ alpha: "α", beta: "β", gamma: "γ", delta: "δ", lambda: "λ", mu: "μ", pi: "π", sigma: "σ", varphi: "φ", phi: "φ", theta: "θ", omega: "ω" })[g]).replace(/\^2(?![\d])/g, "²").replace(/\^3(?![\d])/g, "³").replace(/\\(left|right|,|;|!|quad)/g, " ").replace(/[{}]/g, "").replace(/\\/g, "");
+App.renderTex = el => {
+  const ts = [...el.querySelectorAll(".tex:not(.done)")]; if (!ts.length) return;
+  loadKatex().then(k => ts.forEach(n => { try { k.render(n.dataset.tex, n, { displayMode: n.classList.contains("tex-b"), throwOnError: false, output: "html" }); n.classList.add("done"); } catch (e) { n.textContent = texPlain(n.dataset.tex); } }))
+    .catch(() => ts.forEach(n => { n.textContent = texPlain(n.dataset.tex); n.classList.add("plain"); }));
+};
+/* Text beim Streamen höchstens einmal pro Frame neu formatieren */
+const livePaint = (el, after) => { let raf = 0, last = "", off = false; const f = t => { last = t; if (raf || off) return; raf = requestAnimationFrame(() => { raf = 0; if (off) return; el.innerHTML = App.mdLite(last) + `<span class="assist-caret"></span>`; after && after(); }); }; f.stop = () => { off = true; cancelAnimationFrame(raf); }; return f; };
 App.renderAssistant = (box, l) => {
   const c = CBY[l.course];
   if (!App.aiReady(l.course)) { box.innerHTML = `<h3>KI-Assistent (optional)</h3><p class="muted" style="font-size:14px">Aus. StudyOS funktioniert komplett ohne KI. In den Einstellungen unter App kannst du sie einschalten.</p><button class="btn ghost sm" data-go="settings">Einstellungen</button>`; return; }
@@ -220,12 +258,13 @@ App.renderAssistant = (box, l) => {
   form.onsubmit = async e => { e.preventDefault(); const text = q.value.trim(); if (!text) return; if (!(await confirmAI("Frage: „" + text.slice(0, 120) + "“"))) return; q.value = ""; grow();
     const u = document.createElement("div"); u.className = "u"; u.textContent = text; L.appendChild(u);
     const a = document.createElement("div"); a.className = "a"; a.innerHTML = `<span class="assist-dots"><i></i><i></i><i></i></span>`; L.appendChild(a); L.scrollTop = L.scrollHeight; log.push({ role: "user", content: text });
-    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6));
-      a.innerHTML = App.mdLite(t) + `<div class="assist-tools"><button type="button" class="assist-copy" title="Kopieren">Kopieren</button></div>`;
+    const paint = livePaint(a, () => { if (L.scrollHeight - L.scrollTop - L.clientHeight < 140) L.scrollTop = L.scrollHeight; });
+    try { const t = await aiCall(`Du bist ein knapper Lern-Assistent für den Kurs "${c.name}" (FH JOANNEUM). Lektion: "${l.title}". Inhalt:\n${ctx}\n\nAntworte in max. 150 Wörtern in der Sprache der Frage, ohne Überschriften. Nutze bei Bedarf kurze Aufzählungen, **fett** für Schlüsselbegriffe und \`code\` für Code. Formeln immer in LaTeX zwischen $…$ (eigene Zeile: $$…$$). Bleib beim Thema. Bei bewerteten Aufgaben keine fertigen Lösungen, nur Hinweise.`, log.slice(-6), 450, paint); paint.stop();
+      a.innerHTML = App.mdLite(t) + `<div class="assist-tools"><button type="button" class="assist-copy" title="Kopieren">Kopieren</button></div>`; App.renderTex(a);
       $(".assist-copy", a).onclick = ev => { navigator.clipboard && navigator.clipboard.writeText(t).then(() => { ev.target.textContent = "Kopiert ✓"; setTimeout(() => { ev.target.textContent = "Kopieren"; }, 1500); }).catch(() => {}); };
       log.push({ role: "assistant", content: t });
       if (!box.classList.contains("big") && t.length > 450 && innerWidth > 900) big(true);
-    } catch (err) { a.classList.add("err"); if (err.message === "login") a.innerHTML = `Für die KI-Hilfe brauchst du ein kostenloses StudyOS-Konto. <button class="btn sm pri" data-go="together">Konto erstellen oder anmelden</button>`; else a.textContent = err.message; log.pop(); }
+    } catch (err) { paint.stop(); a.classList.add("err"); if (err.message === "login") a.innerHTML = `Für die KI-Hilfe brauchst du ein kostenloses StudyOS-Konto. <button class="btn sm pri" data-go="together">Konto erstellen oder anmelden</button>`; else a.textContent = err.message; log.pop(); }
     L.scrollTop = L.scrollHeight; };
 };
 
