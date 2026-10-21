@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.35.0", d: "2026-10-21", t: "Fotos an den KI-Assistenten", items: [
+    "Im KI-Assistenten kannst du jetzt mit 📷 ein Foto oder Bild einer Aufgabe anhängen. Am Handy geht auch direkt die Kamera, am PC Strg+V oder Hineinziehen.",
+    "Die KI liest die Aufgabe aus dem Bild und löst sie Schritt für Schritt mit Lösungsweg, Formeln und Ergebnis, z. B. in Mathematik 2.",
+    "Bis zu 3 Bilder pro Frage. Sie werden vor dem Senden verkleinert und nicht gespeichert."] },
   { v: "4.34.1", d: "2026-10-21", t: "Formeln und schnellere KI-Antworten", items: [
     "KI-Antworten erscheinen jetzt Wort für Wort, sobald die KI losschreibt, statt erst nach der ganzen Antwort.",
     "Mathe-Formeln in allen KI-Antworten (z. B. in Mathematik 2) werden jetzt als echte Formeln mit Brüchen und Matrizen angezeigt statt als LaTeX-Code.",

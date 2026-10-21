@@ -234,6 +234,16 @@ label.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--
 .assist-form{display:flex;gap:8px;align-items:flex-end}
 .assist-form textarea{flex:1;min-width:0;resize:none;min-height:42px;max-height:160px;line-height:1.45;padding:10px 12px;font-size:15px}
 .assist-form .btn{height:42px}
+.assist-att{width:42px;padding:0;font-size:17px;flex:none;cursor:pointer;background:var(--card2);border-color:var(--line2)}
+.assist-att:hover{border-color:var(--acc-line)}
+.assist-imgs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.assist-imgs small{flex-basis:100%;font-size:12px}
+.assist-thumb{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--acc-line)}
+.assist-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.assist-thumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:11px;line-height:20px;padding:0;cursor:pointer}
+.assist-uimgs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.assist-uimgs img{max-width:220px;max-height:180px;border-radius:8px;display:block;object-fit:contain;background:#fff}
+.assist.drop{outline:2px dashed var(--acc);outline-offset:-6px}
 .assist.big{position:fixed;z-index:60;top:4vh;right:max(16px,calc(50vw - 430px));width:min(860px,calc(100vw - 32px));height:92vh;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:assist-in .2s ease}
 .assist.big .assist-log{flex:1;max-height:none;font-size:16px}
 .assist-shade{position:fixed;inset:0;z-index:59;background:rgba(5,8,12,.6);backdrop-filter:blur(3px)}
