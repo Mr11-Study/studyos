@@ -22,7 +22,7 @@ function setApp(v, p) {
   S().app = a; if (a && S().course !== a) S().course = a;
   const b = document.body; b.className = b.className.replace(/\bth-\S+/g, "").replace(/\bin-app\b/g, "").trim();
   if (a) b.classList.add("in-app", "th-" + a);
-  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = a ? CBY[a].color : matchMedia("(prefers-color-scheme: dark)").matches ? "#121417" : "#F5F4EF";
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = a ? CBY[a].color : (App.isDark ? App.isDark() : matchMedia("(prefers-color-scheme: dark)").matches) ? "#121417" : "#F5F4EF";
 }
 App.currentApp = app;
 
@@ -68,6 +68,12 @@ App.SIDE = () => {
       <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0], x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("")).join("")}
         <div class="eyebrow lbl">Deine Fächer</div><div class="hub-apps">${COURSES.map(x => `<button data-go="course" data-p="${x.id}" class="hd-${x.id}"><i></i>${esc(x.title)}</button>`).join("")}</div></nav>${meHTML}`;
   }
+  /* Fach-Apps bekommen oben eine farbige App-Leiste, damit man sofort sieht: man ist in einem Fach, nicht in der Übersicht */
+  const pg = $("#page"); let bar = $("#appbar");
+  if (c && pg) {
+    if (!bar) { bar = document.createElement("div"); bar.id = "appbar"; pg.parentNode.insertBefore(bar, pg); }
+    bar.innerHTML = `<div class="ab-ic" aria-hidden="true">${esc(c.icon || c.short[0])}</div><div class="ab-t"><span>Fach-App</span><b>${esc(c.title)}</b></div><button class="ab-back" data-go="courses"><span aria-hidden="true">▦</span> Alle Fächer</button>`;
+  } else if (bar) bar.remove();
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   const tbb = $(".topbar > b"); if (tbb) tbb.outerHTML = `<span class="tb-app"></span>`;
   const tba = $(".topbar .tb-app"); if (tba) tba.innerHTML = c ? `<i></i>${esc(c.title)}` : "StudyOS";
@@ -80,15 +86,15 @@ App.SIDE = () => {
   }
 };
 
-/* ---------- Fächer: Launcher, jede Kachel im Design ihrer App ---------- */
+/* ---------- Fächer: Launcher im neutralen Design der Übersicht, jedes Fach nur über seine Farbe erkennbar ---------- */
 PAGES.courses = (el) => {
-  el.innerHTML = `<div class="page"><header><span class="eyebrow">${esc(App.SEMLABEL || "")}</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Jedes Fach ist eine eigene App mit eigenem Skript, Üben und Prüfungstraining. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p></header>
+  el.innerHTML = `<div class="page"><header><span class="eyebrow">${esc(App.SEMLABEL || "")}</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Tippe ein Fach an, um seine App zu öffnen. Jedes Fach ist eine eigene App mit eigenem Skript, Üben und Prüfungstraining. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p></header>
    ${App.TRACK === "uni" && window.StudyProfiles && StudyProfiles.active() ? `<div class="semtabs" role="tablist" aria-label="Semester">${App.SEMS.map(x => { const n = App.semCount(x.n); return `<button class="semtab ${x.n === App.SEM ? "on" : ""}" data-sem="${x.n}" role="tab" aria-selected="${x.n === App.SEM}" ${n ? "" : "disabled"}><b>Semester ${x.n}</b><small>${x.term} · ${n ? n + (n === 1 ? " Fach" : " Fächer") : "noch keine Fächer"}</small></button>`; }).join("")}</div>` : ""}
    <div class="appgrid">${COURSES.map(c => { const ls = App.courseLessons(c.id), n = ls.length, u = ls.filter(l => App.isDone(l.id)).length, k = App.knowCourse ? App.knowCourse(c.id) : 0, cn = counts(c.id);
-     return `<button class="apptile th-${c.id}" data-go="course" data-p="${c.id}"><div class="spread"><div class="at-ic">${esc(c.icon || c.short[0])}</div><small>${esc(c.short)}</small></div>
+     return `<button class="apptile hubtile" style="--c:${c.color}" data-go="course" data-p="${c.id}"><div class="spread"><div class="at-ic">${esc(c.icon || c.short[0])}</div><small>${esc(c.short)}</small></div>
        <div><h3>${esc(c.title)}</h3><small>${esc(c.name)}</small></div>
        <div class="col" style="gap:5px"><div class="spread"><small>Wissen</small><small class="tab">${k} %</small></div><div class="at-bar"><i style="width:${k}%"></i></div></div>
-       <div class="at-meta"><span>${u}/${n} Lektionen</span>${cn.due ? `<span class="w">${cn.due} fällig</span>` : ""}${c.exam === "quicktest" ? `<span>Quick-Tests</span>` : ""}</div></button>`; }).join("")}</div></div>`;
+       <div class="at-meta"><span>${u}/${n} Lektionen</span>${cn.due ? `<span class="w">${cn.due} fällig</span>` : ""}${c.exam === "quicktest" ? `<span>Quick-Tests</span>` : ""}<em class="at-go">App öffnen <span aria-hidden="true">→</span></em></div></button>`; }).join("")}</div></div>`;
 };
 document.addEventListener("click", e => { const b = e.target.closest(".semtab[data-sem]"); if (!b || b.disabled || +b.dataset.sem === App.SEM) return; StudyProfiles.setSem(+b.dataset.sem); });
 wrapPage("courses"); // setApp läuft ohnehin
