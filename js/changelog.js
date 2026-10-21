@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.30.0", d: "2026-10-21", t: "Benachrichtigungen für Chats", items: [
+    "Schreibt dir ein Freund oder jemand aus deiner Gruppe, gibt StudyOS sofort Bescheid, auch wenn du gerade woanders in der App bist. Antippen öffnet den Chat.",
+    "Du wählst unter Einstellungen → Profil & Konto oder mit der Glocke unter Gemeinsam: „Am Gerät“ (Mitteilung von Windows, macOS oder Handy, auch wenn StudyOS im Hintergrund ist), „Nur in der App“ oder „Aus“.",
+    "Zähler zeigen, was neu ist: an „Freunde & Gruppen“, bei jedem Freund und jeder Gruppe, im Fenstertitel und am App-Symbol. Neue Freunde und Anfragen werden ebenfalls gemeldet."] },
   { v: "4.29.1", d: "2026-10-21", t: "Gruppe auf jedem Termin", items: [
     "Im Kalender zeigt ein kleines Abzeichen oben rechts, zu welcher Gruppe ein Termin gehört (1, 2, A, B …). So hältst du parallele Gruppen auseinander.",
     "Die Gruppe steht auch in den Details eines Termins. Räume werden ohne die vorangestellten Satzzeichen der FH angezeigt."] },

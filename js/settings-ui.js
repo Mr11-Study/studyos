@@ -54,7 +54,7 @@ App.afterBoot.push(() => {
 
 /* ---------- Bereiche ---------- */
 const SECTIONS = [
-  ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Sprache"]],
+  ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Benachrichtigungen (Chat)", "Sprache"]],
   ["look", "Darstellung", "◈", ["Darstellung", "Start"]],
   ["lernen", "Lernen", "↻", ["Lernen", "· Fragen"]],
   ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)"]],

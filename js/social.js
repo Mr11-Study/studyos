@@ -197,13 +197,13 @@ async function friendToast(id) {
   App.toast(ok ? "Ihr seid befreundet" : "Anfrage gesendet", ok ? `${nm(id)} ist jetzt in deiner Freundesliste.` : `${nm(id)} muss deine Anfrage noch annehmen.`, "☺");
 }
 async function addFriend(code) { const id = await q(sb.rpc("add_friend", { code: code.trim().toUpperCase() })); await loadNames([id]); return id; }
-const joinOpen = gid => q(sb.rpc("join_open_group", { gid }));
-async function joinGroup(code) { return q(sb.rpc("join_group", { code: code.trim().toUpperCase() })); }
+const joinOpen = gid => q(sb.rpc("join_open_group", { gid })).then(r => { inboxSoon(); return r; });
+async function joinGroup(code) { const g = await q(sb.rpc("join_group", { code: code.trim().toUpperCase() })); inboxSoon(); return g; }
 async function createGroup(f) {
   const row = { course: f.course || null, name: f.name, owner: me.id };
   if (f.open || f.tags.length || f.about) Object.assign(row, { open: f.open, tags: f.tags, about: f.about || null }); /* ohne Update 4 klappen private Gruppen weiterhin */
   const g = await q(sb.from("groups").insert(row).select().single());
-  await q(sb.from("group_members").insert({ group_id: g.id, user_id: me.id })); return g;
+  await q(sb.from("group_members").insert({ group_id: g.id, user_id: me.id })); inboxSoon(); return g;
 }
 async function takeInvite() {
   let inv = null; try { inv = JSON.parse(sessionStorage.getItem("studyos.invite") || "null"); sessionStorage.removeItem("studyos.invite"); } catch (e) {}
@@ -261,7 +261,7 @@ function authView(el, cont, mode) {
 }
 async function logout() {
   if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
-  drop(); try { await sb.auth.signOut(); } catch (e) {}
+  drop(); if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
   me = null; user = null; st().on = false; App.save(); App.go("together", "");
 }
 
@@ -340,6 +340,7 @@ async function boot(el, render) {
   if (!gate(el, () => boot(el, render))) return;
   if (!(sb && me)) el.innerHTML = `<div class="page so"><div class="so-wait"><span class="so-spin"></span>Verbinde …</div></div>`;
   try { await connect(); } catch (e) { drop(); if (stale()) return; if (e && e.auth) return authView(el, () => boot(el, render), e.auth); el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}<br><br><button class="btn sm" id="so-re">Nochmal versuchen</button></div></div>`; $("#so-re", el).onclick = () => boot(el, render); return; }
+  inboxSoon();
   if (stale()) return;
   try { await render(); } catch (e) { if (stale()) return; el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}</div></div>`; }
 }
@@ -354,10 +355,11 @@ PAGES.together = (el, p) => boot(el, async () => {
   if (kind === "c" && CBY[id]) return App.go("coursechat", id);
   if (kind === "find") return findPage(el, id || "");
   const [fr, gs] = await Promise.all([friends(), myGroups()]); if (stale()) return;
+  reqs = fr.inc.length; gs.forEach(g => { gnames[g.id] = g.name; });
   el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und die Live-Chats der Fächer.")}
     <section class="card so-me">${av(me)}<div><b>${esc(me.name)}</b><small class="muted">Dein Freundescode</small><span class="so-code">${esc(me.code)}</span></div>
       <div class="so-me-act"><button class="btn pri sm" id="so-qr">QR-Code zeigen</button><button class="btn sm" id="so-scan">QR scannen</button><button class="btn sm" id="so-add">Code eingeben</button></div>
-      <div class="so-acc"><span>Angemeldet als <b>${esc(user.email)}</b></span><span class="so-sp"></span><button class="btn ghost sm" id="so-out">Abmelden</button></div></section>
+      <div class="so-sum">${summary()}</div><div class="so-acc"><span>Angemeldet als <b>${esc(user.email)}</b></span><span class="so-sp"></span><button class="btn ghost sm" id="so-out">Abmelden</button></div></section>
     ${fr.inc.length ? `<section class="card so-req"><h3>Anfragen</h3>${fr.inc.map(id => `<div class="so-row">${av(names[id])}<b>${esc(nm(id))}</b><span class="so-sp"></span><button class="btn pri sm" data-acc="${id}">Annehmen</button><button class="btn ghost sm" data-rej="${id}">Ablehnen</button></div>`).join("")}</section>` : ""}
     <div class="so-grid">
       <section class="card"><div class="spread"><h3>Freunde</h3><span class="chip">${fr.ok.length}</span></div>
@@ -382,7 +384,7 @@ PAGES.together = (el, p) => boot(el, async () => {
     try {
       if (a.dataset.acc) await q(sb.from("friendships").update({ accepted: true }).eq("a", a.dataset.acc).eq("b", me.id));
       else await q(sb.from("friendships").delete().eq("a", a.dataset.rej).eq("b", me.id));
-      PAGES.together(el, "");
+      reqs = Math.max(0, reqs - 1); paintBadges(); PAGES.together(el, "");
     } catch (er) { App.toast("Fehler", fail(er), "!"); }
   };
 });
@@ -467,7 +469,7 @@ async function dmPage(el, id) {
   await loadNames([id]); if (stale()) return;
   el.innerHTML = `<div class="page so so-full">${head(`${av(names[id])} ${esc(nm(id))}`, "", ["together", "", "Gemeinsam"])}<div class="so-tools"><button class="btn ghost sm" id="so-unf">Freundschaft beenden</button></div><div class="card so-box"></div></div>`;
   $("#so-unf", el).onclick = async () => { if (!confirm(`Freundschaft mit ${nm(id)} beenden?`)) return; try { await q(sb.from("friendships").delete().or(`and(a.eq.${me.id},b.eq.${id}),and(a.eq.${id},b.eq.${me.id})`)); App.go("together", ""); } catch (e) { App.toast("Fehler", fail(e), "!"); } };
-  chat($(".so-box", el), { to_user: id }, `Nachricht an ${nm(id)} …`);
+  chat($(".so-box", el), { to_user: id }, `Nachricht an ${nm(id)} …`); markRead("dm:" + id);
 }
 async function groupPage(el, gid, back) {
   const g = await q(sb.from("groups").select("*").eq("id", gid).single());
@@ -483,7 +485,7 @@ async function groupPage(el, gid, back) {
     const own = g.owner === me.id; if (!confirm(own ? "Gruppe für alle löschen?" : "Gruppe verlassen?")) return;
     try { await q(own ? sb.from("groups").delete().eq("id", gid) : sb.from("group_members").delete().eq("group_id", gid).eq("user_id", me.id)); App.go(back[0], back[1]); } catch (e) { App.toast("Fehler", fail(e), "!"); }
   };
-  chat($(".so-box", el), { group_id: gid }, "In die Gruppe schreiben …");
+  gnames[gid] = g.name; chat($(".so-box", el), { group_id: gid }, "In die Gruppe schreiben …"); markRead("g:" + gid);
 }
 
 /* Fach-App: Live-Chat und Lerngruppen dieses Fachs (p = Fach-ID oder "FACH|g:GRUPPE") */
@@ -499,6 +501,166 @@ PAGES.coursechat = (el, p) => boot(el, async () => {
   $("#so-cnew", el).onclick = () => newGroupDialog(cid, g => App.go("coursechat", cid + "|g:" + g.id));
   $("#so-cjoin", el).onclick = () => codeDialog("Lerngruppe beitreten", "Gruppencode (8 Zeichen)", async code => { const g = await joinGroup(code); App.go("together", "g:" + g); });
   chat($(".so-box", el), { course: cid }, `Frag etwas zu ${c.title} …`);
+});
+
+/* ---------- Benachrichtigungen und ungelesene Nachrichten ----------
+   Sobald man angemeldet ist, hört StudyOS im Hintergrund auf neue Direktnachrichten, Gruppen-Nachrichten und Freundschaftsanfragen.
+   Einstellung (pro Profil): „system“ = Mitteilung von Windows, macOS oder Handy, auch wenn StudyOS nur im Hintergrund offen ist;
+   „app“ = Hinweis nur in StudyOS, solange es offen ist; „off“ = nur die Zähler. Ungelesen zählt pro Chat ab dem letzten Öffnen. */
+const note = () => st().note || (st().note = { mode: "app" });
+let inbox = null, gids = [], gnames = {}, unread = {}, reqs = 0, painting = 0;
+const keyOf = m => m.group_id ? "g:" + m.group_id : "dm:" + (m.sender === (me && me.id) ? m.to_user : m.sender);
+const readAt = k => (st().read || {})[k] || st().readBase || 0;
+const msgCount = () => Object.values(unread).reduce((a, u) => a + u.n, 0);
+App.unread = () => ({ messages: msgCount(), requests: reqs, total: msgCount() + reqs });
+/* welcher Chat gerade sichtbar offen ist */
+function viewing() {
+  if (document.visibilityState !== "visible") return null;
+  const R = App.route(), p = String(R.p || "");
+  if (R.v === "together" && /^(dm|g):/.test(p)) return p;
+  if (R.v === "coursechat" && p.includes("|g:")) return "g:" + p.split("|g:")[1];
+  return null;
+}
+function markRead(k) {
+  const s = st(); s.read = s.read || {}; s.read[k] = Math.max(Date.now(), (unread[k] && unread[k].last) || 0);
+  if (unread[k]) { delete unread[k]; paintBadges(); } App.save();
+}
+async function loadUnread() {
+  const rd = st().read || {}, since = Math.min(st().readBase || Date.now(), ...Object.values(rd));
+  let qq = sb.from("messages").select("id,sender,to_user,group_id,created_at").neq("sender", me.id).gt("created_at", new Date(since).toISOString()).order("created_at", { ascending: false }).limit(300);
+  qq = gids.length ? qq.or(`to_user.eq.${me.id},group_id.in.(${gids.join(",")})`) : qq.eq("to_user", me.id);
+  const rows = await q(qq), next = {};
+  rows.forEach(m => { const k = keyOf(m), t = Date.parse(m.created_at); if (t > readAt(k)) { const u = next[k] || (next[k] = { n: 0, last: 0 }); u.n++; u.last = Math.max(u.last, t); } });
+  const v = viewing(); unread = next; if (v && unread[v]) markRead(v);
+  try { reqs = (await friends()).inc.length; } catch (e) {}
+  await loadNames(rows.filter(m => !m.group_id).map(m => m.sender)); paintBadges();
+}
+async function startInbox() {
+  if (!sb || !me) return;
+  const s = st(); if (!s.readBase) { s.readBase = Date.now(); App.save(); } /* beim ersten Mal zählt nur, was ab jetzt kommt */
+  const gs = await myGroups(); gs.forEach(g => { gnames[g.id] = g.name; });
+  const ids = gs.map(g => g.id).sort();
+  if (!inbox || ids.join() !== gids.join()) {
+    if (inbox) sb.removeChannel(inbox); gids = ids;
+    inbox = sb.channel("so-inbox-" + me.id + "-" + Date.now())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `to_user=eq.${me.id}` }, p => incoming(p.new))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friendships", filter: `b=eq.${me.id}` }, p => friendReq(p.new));
+    if (gids.length) inbox.on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `group_id=in.(${gids.join(",")})` }, p => incoming(p.new));
+    inbox.subscribe();
+  }
+  await loadUnread();
+}
+const inboxSoon = () => { if (sb && me) startInbox().catch(() => {}); };
+async function incoming(m) {
+  if (!m || m.sender === me.id) return;
+  const k = keyOf(m), t = Date.parse(m.created_at) || Date.now();
+  if (viewing() === k) return markRead(k);
+  const u = unread[k] || (unread[k] = { n: 0, last: 0 }); u.n++; u.last = Math.max(u.last, t); paintBadges();
+  await loadNames([m.sender]);
+  const who = nm(m.sender), title = m.group_id ? (gnames[m.group_id] || "Gruppe") : who;
+  const body = (m.group_id ? who + ": " : "") + (m.body ? m.body.slice(0, 140) : m.file ? "📎 " + m.file.name : "Neue Nachricht");
+  alertUser(title, body, k, names[m.sender]);
+}
+async function friendReq(r) {
+  if (!r || r.b !== me.id) return;
+  if (!r.accepted) { reqs++; paintBadges(); }
+  await loadNames([r.a]);
+  alertUser(r.accepted ? "Neuer Freund" : "Freundschaftsanfrage", nm(r.a) + (r.accepted ? " hat dich als Freund hinzugefügt. Schreib doch gleich etwas!" : " möchte mit dir befreundet sein."), "dm:" + r.a, names[r.a]);
+  if (App.route().v === "together" && !App.route().p && !document.querySelector(".modal-back")) App.go("together", "");
+}
+/* Hinweis zeigen: im Fenster als antippbare Karte, im Hintergrund als Mitteilung des Systems */
+async function alertUser(title, body, k, who) {
+  const mode = note().mode; if (mode === "off") return;
+  const sys = mode === "system" && typeof Notification !== "undefined" && Notification.permission === "granted";
+  if (document.visibilityState === "visible" && document.hasFocus()) return inAppNote(title, body, k, who);
+  if (sys) {
+    const opts = { body, tag: "so-" + k, renotify: true, icon: "icons/v2/icon-192.png", badge: "icons/v2/icon-192.png", data: { url: "./#chat=" + k, chat: k } };
+    try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) return reg.showNotification(title, opts); } catch (e) {}
+    try { const n = new Notification(title, opts); n.onclick = () => { focus(); openChat(k); n.close(); }; return; } catch (e) {}
+  }
+  inAppNote(title, body, k, who); /* nur „in der App“: liegt bereit, wenn man zurückkommt */
+}
+function inAppNote(title, body, k, who) {
+  const box = $("#toasts"); if (!box) return;
+  const t = document.createElement("button"); t.className = "toast so-note"; t.type = "button";
+  t.innerHTML = `${av(who)}<div><div class="eyebrow">${esc(title)}</div><div>${esc(body)}</div></div>`;
+  t.onclick = () => { t.remove(); openChat(k); };
+  box.appendChild(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, 6500);
+}
+const openChat = k => App.go("together", k);
+/* Zähler überall eintragen: Seitenleiste, „Mehr“ am Handy, Freundes- und Gruppenzeilen, Fenstertitel und App-Symbol */
+function pill(b, n, cls) {
+  let s = b.querySelector(".so-unr");
+  if (!n) { if (s) s.remove(); return; }
+  if (!s) { s = document.createElement("span"); s.className = "so-unr " + (cls || ""); const at = b.querySelector(".so-sp") || null; at ? b.insertBefore(s, at) : b.appendChild(s); }
+  const txt = n > 99 ? "99+" : String(n); if (s.textContent !== txt) s.textContent = txt;
+  s.setAttribute("aria-label", n + " ungelesen");
+}
+function paintBadges() {
+  if (painting) return; painting = 1;
+  try {
+    const { total } = App.unread();
+    $$('#side [data-go="together"]:not([data-p])').forEach(b => pill(b, total, "badge"));
+    const more = $("#bmore .ni"); if (more) { const d = more.querySelector(".so-dot"); if (total && !d) more.insertAdjacentHTML("beforeend", `<i class="bdot so-dot"></i>`); else if (!total && d) d.remove(); }
+    $$('[data-go="together"][data-p^="dm:"],[data-go="together"][data-p^="g:"]').forEach(b => pill(b, (unread[b.dataset.p] || {}).n));
+    $$('[data-go="coursechat"][data-p*="|g:"]').forEach(b => pill(b, (unread["g:" + b.dataset.p.split("|g:")[1]] || {}).n));
+    const sum = $(".so-sum"), sh = summary(); if (sum && sum.dataset.h !== sh) { sum.innerHTML = sh; sum.dataset.h = sh; }
+    const base = document.title.replace(/^\(\d+\+?\) /, ""), want = total ? `(${total > 99 ? "99+" : total}) ${base}` : base; if (document.title !== want) document.title = want;
+    try { if (navigator.setAppBadge) total ? navigator.setAppBadge(total) : navigator.clearAppBadge(); } catch (e) {}
+  } finally { painting = 0; }
+}
+const summary = () => { const { messages: m, requests: r } = App.unread(), mode = note().mode;
+  return `<span class="so-sum-t">${m || r ? [m ? `<b>${m}</b> ${m === 1 ? "neue Nachricht" : "neue Nachrichten"}` : "", r ? `<b>${r}</b> ${r === 1 ? "Anfrage" : "Anfragen"}` : ""].filter(Boolean).join(" · ") : "Alles gelesen"}</span><button class="btn ghost sm" id="so-bell">🔔 ${mode === "system" ? "Am Gerät" : mode === "app" ? "In der App" : "Aus"}</button>`; };
+let painter = 0;
+new MutationObserver(() => { if (painting || painter) return; painter = requestAnimationFrame(() => { painter = 0; if (inbox) paintBadges(); }); }).observe(document.documentElement, { childList: true, subtree: true });
+document.addEventListener("click", e => { if (e.target.closest("#so-bell")) noteDialog(); });
+/* Einstellung: wie StudyOS Bescheid gibt */
+const MODES = [["system", "Am Gerät", "Mitteilung von Windows, macOS oder dem Handy, auch wenn StudyOS im Hintergrund oder minimiert ist."], ["app", "Nur in der App", "Ein Hinweis oben auf dem Bildschirm, solange StudyOS offen ist. Keine Mitteilungen vom System."], ["off", "Aus", "Kein Hinweis, nur die Zähler an Gemeinsam, Freunden und Gruppen."]];
+const permText = () => typeof Notification === "undefined" ? "Dieser Browser kann keine Mitteilungen anzeigen." : Notification.permission === "granted" ? "Mitteilungen sind erlaubt." : Notification.permission === "denied" ? "Mitteilungen sind blockiert. Erlaube sie in den Einstellungen des Browsers bzw. der App (Schloss-Symbol neben der Adresse)." : "Beim Wählen fragt der Browser einmal nach Erlaubnis.";
+function noteHTML() {
+  const mode = note().mode;
+  return `<div class="so-modes" role="radiogroup">${MODES.map(([k, t, d]) => `<label class="so-opt"><input type="radio" name="so-nm" value="${k}" ${mode === k ? "checked" : ""}><span><b>${t}</b><small>${d}</small></span></label>`).join("")}</div>
+    <small class="muted so-perm">${mode === "system" ? permText() : ""}</small>
+    <small class="muted">Gilt für neue Direktnachrichten, Nachrichten in deinen Gruppen und Freundschaftsanfragen. Der offene Live-Chat der Fächer meldet sich nicht. Ist StudyOS ganz geschlossen, gibt es keine Mitteilung; die Zähler zeigen beim nächsten Öffnen, was neu ist.</small>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" id="so-ntest">Test</button></div>`;
+}
+function bindNote(box, after) {
+  $$("[name=so-nm]", box).forEach(r => r.onchange = async () => {
+    let v = r.value;
+    if (v === "system") {
+      if (typeof Notification === "undefined") { App.toast("Nicht unterstützt", "Dieser Browser kann keine Mitteilungen. „Nur in der App“ funktioniert trotzdem.", "!"); v = "app"; }
+      else if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") { App.toast("Nicht erlaubt", "Ohne Erlaubnis zeigt StudyOS Hinweise nur in der App.", "!"); v = "app"; }
+    }
+    note().mode = v; App.save(); $$("[name=so-nm]", box).forEach(x => { x.checked = x.value === v; });
+    $(".so-perm", box).textContent = v === "system" ? permText() : ""; paintBadges(); after && after();
+  });
+  $("#so-ntest", box).onclick = () => { const mode = note().mode;
+    if (mode === "off") return App.toast("Benachrichtigungen sind aus", "Wähle „Am Gerät“ oder „Nur in der App“.", "!");
+    if (mode === "system" && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      App.toast("Test kommt gleich", "Wechsle kurz in ein anderes Fenster, dann siehst du die Mitteilung.", "🔔");
+      setTimeout(() => alertUser("StudyOS", "So sieht eine neue Nachricht aus.", "test", me), 3000); }
+    else inAppNote("StudyOS", "So sieht eine neue Nachricht aus.", "test", me); };
+}
+function noteDialog() {
+  App.modal(`<div class="spread"><h2>Benachrichtigungen</h2><button class="btn ghost sm" data-close>✕</button></div><p class="muted" style="font-size:14px">Wie soll StudyOS Bescheid geben, wenn dir jemand schreibt?</p>${noteHTML()}`, m => bindNote(m));
+}
+const settingsPage = PAGES.settings;
+PAGES.settings = (el, p) => {
+  settingsPage(el, p);
+  const pg = $(".page", el) || el, card = document.createElement("div"); card.className = "card col";
+  card.innerHTML = `<h3>Benachrichtigungen (Chat)</h3><p class="muted" style="font-size:14px">Wenn dir Freunde oder deine Gruppen schreiben${st().on ? "" : " (nach der Anmeldung unter Gemeinsam)"}.</p>${noteHTML()}`;
+  pg.appendChild(card); bindNote(card);
+};
+/* Klick auf eine Mitteilung des Systems: der Service Worker schickt den Chat, oder die App startet mit #chat=… */
+if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", e => { const d = e.data || {}; if (d.type === "open-chat" && /^(dm|g):/.test(d.chat || "")) openChat(d.chat); });
+const START_CHAT = (/^#chat=((?:dm|g):[\w-]+)$/.exec(location.hash) || [])[1];
+if (START_CHAT) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+App.afterBoot.push(() => {
+  if (START_CHAT) setTimeout(() => openChat(START_CHAT), 60);
+  const go = () => { if (!st().on || !navigator.onLine) return; connect().then(startInbox).catch(() => {}); };
+  setTimeout(go, 1200);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { const v = viewing(); if (v && unread[v]) markRead(v); if (inbox) inboxSoon(); else go(); } });
+  window.addEventListener("online", go);
 });
 
 /* Einladungslink geöffnet: direkt zu „Gemeinsam“ */
