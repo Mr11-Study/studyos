@@ -97,23 +97,71 @@ function refreshTT() {
 }
 App.afterBoot.push(() => { refreshTT(); setInterval(refreshTT, 60e3); document.addEventListener("visibilitychange", refreshTT); window.addEventListener("online", refreshTT); });
 
+/* FH JOANNEUM: Abo-Link der Stundenplan-Suche (almaty) aus Studiengang, Semester und Gruppe bauen */
+const FH_BASE = "almaty.fh-joanneum.at/stundenplan/search.php?q=";
+const fhTerm = (op, v, neg) => { v = String(v || "").trim(); if (!v) return ""; const t = (neg ? "-" : "") + op + ":" + v; return /\s/.test(v) ? '"' + t + '"' : t; };
+function fhQuery(f) {
+  const g = String(f.gruppe || "").split(",").map(x => fhTerm("gruppe", x, f.gmode === "ohne")).filter(Boolean);
+  return [fhTerm("studiengang", f.sg), fhTerm("fachsemester", f.sem), ...g, String(f.extra || "").trim()].filter(Boolean).join(" ");
+}
+/* Anführungszeichen so wie in den Abo-Links der FH-Seite selbst (&quot;) */
+const fhURL = f => "webcal://" + FH_BASE + encodeURIComponent(fhQuery(f).replace(/"/g, "&quot;")).replace(/%20/g, "+");
+/* aus einem bestehenden FH-Link die Felder zurückgewinnen, damit man ihn später anpassen kann */
+function fhParse(url) {
+  try {
+    const u = new URL(String(url).replace(/^webcal:/i, "https:")); if (!/fh-joanneum\.at$/i.test(u.hostname)) return null;
+    const q = (u.searchParams.get("q") || "").replace(/&quot;/g, '"'), f = { sg: "", sem: "", gruppe: "", gmode: "nur", extra: "" }, rest = [], gs = [];
+    (q.match(/"[^"]*"|\S+/g) || []).forEach(t => { const x = t.replace(/^"|"$/g, ""), m = x.match(/^(-?)(studiengang|fachsemester|gruppe):(.+)$/i);
+      if (!m) return rest.push(t); const k = m[2].toLowerCase();
+      if (k === "studiengang" && !m[1]) f.sg = m[3]; else if (k === "fachsemester" && !m[1]) f.sem = m[3]; else if (k === "gruppe") { gs.push(m[3]); f.gmode = m[1] ? "ohne" : "nur"; } else rest.push(t); });
+    f.gruppe = gs.join(", "); f.extra = rest.join(" "); return f;
+  } catch (e) { return null; }
+}
+App.fhTimetable = { query: fhQuery, url: fhURL, parse: fhParse };
+
 function importDialog(onDone) {
+  const src = S().ttSource || {}, saved = S().ttFH || fhParse(src.url) || {};
+  const f = { sg: saved.sg || "IMA", sem: saved.sem || String(App.SEM || 1), gruppe: saved.gruppe || "", gmode: saved.gmode || "ohne", extra: saved.extra || "" };
+  const fhOn = !src.url || /fh-joanneum\.at/i.test(src.url) || !!S().ttFH;
   App.modal(`<div class="spread"><h2>Stundenplan holen</h2><button class="btn ghost sm" data-close>✕</button></div>
-    <p class="muted" style="font-size:14px"><b>.ics</b> (auch iCal) ist das Standardformat für Kalender. Eine .ics-Datei oder ein Kalender-Link enthält alle Termine mit Uhrzeit, Raum und Wiederholung. StudyOS liest sie ein und zeigt jede Vorlesung im Fach an.</p>
-    <ol class="tt-steps"><li><b>FH JOANNEUM:</b> In der <a href="https://almaty.fh-joanneum.at/stundenplan/" target="_blank" rel="noopener">Stundenplan-Suche</a> deinen Studiengang, dein Semester und deine Gruppe suchen, dann „Resultate als iCalendar abonnieren“ und den <b>Abonnement-Link</b> (webcal://…) kopieren.</li><li><b>Andere FH oder Kalender:</b> Nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“ suchen.</li><li><b>Link oder Datei:</b> Ein Link bleibt aktuell, StudyOS lädt ihn alle 30 Minuten neu. Eine Datei ist eine Momentaufnahme.</li><li>Link unten einfügen (am besten den Abo-Link, beginnt oft mit webcal://) oder die Datei wählen.</li></ol>
-    <p class="muted" style="font-size:13px">Hinweis: Studo kann Kalender nur importieren, nicht exportieren. Den Link bekommst du daher direkt vom Stundenplan der FH, nicht aus Studo.</p>
-    <label class="fld">Kalender-Link (https:// oder webcal://)<input type="url" id="tt-url" placeholder="https://…/calendar.ics" value="${esc((S().ttSource || {}).url || "")}"></label>
-    <div class="row" style="justify-content:space-between"><label class="btn">Datei wählen (.ics)<input type="file" id="tt-file" accept=".ics,text/calendar" hidden></label><button class="btn pri" id="tt-load">Link laden</button></div>
-    <small class="muted" id="tt-msg"></small>
+    <div class="tt-tabs" role="tablist"><button role="tab" data-tab="fh" class="${fhOn ? "on" : ""}">FH JOANNEUM</button><button role="tab" data-tab="link" class="${fhOn ? "" : "on"}">Link oder Datei</button></div>
+    <section class="tt-pane col" data-pane="fh" ${fhOn ? "" : "hidden"}>
+      <p class="muted" style="font-size:14px">StudyOS holt deinen Stundenplan direkt aus der <a href="https://almaty.fh-joanneum.at/stundenplan/" target="_blank" rel="noopener">Stundenplan-Suche der FH</a> und lädt ihn alle 30 Minuten neu. Wähle aus, was du sehen willst.</p>
+      <div class="tt-fh">
+        <label class="fld">Studiengang<input type="text" id="fh-sg" value="${esc(f.sg)}" placeholder="z. B. IMA" autocapitalize="characters" spellcheck="false"><small class="muted">Kürzel, Wirtschaftsinformatik = IMA</small></label>
+        <label class="fld">Fachsemester<select id="fh-sem">${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}" ${String(n) === String(f.sem) ? "selected" : ""}>${n}. Semester</option>`).join("")}<option value="" ${f.sem ? "" : "selected"}>alle</option></select></label>
+        <label class="fld tt-fh-wide">Gruppe (optional)<span class="tt-grp"><span class="lvl" role="radiogroup" aria-label="Gruppe"><button type="button" data-gm="nur" class="${f.gmode === "nur" ? "on" : ""}">nur</button><button type="button" data-gm="ohne" class="${f.gmode === "ohne" ? "on" : ""}">ohne</button></span><input type="text" id="fh-gr" value="${esc(f.gruppe)}" placeholder="z. B. Gruppe 1" spellcheck="false"></span><small class="muted">Tipp: Die <b>anderen</b> Gruppen mit „ohne“ ausblenden, dann bleiben gemeinsame Vorlesungen drin. Mehrere mit Komma trennen.</small></label>
+        <details class="tt-fh-wide" ${f.extra ? "open" : ""}><summary>Weitere Suchbegriffe</summary><input type="text" id="fh-ex" value="${esc(f.extra)}" placeholder="z. B. -titel:Sport referent:Radeke" spellcheck="false"><small class="muted">Wie in der FH-Suche: titel:, referent:, ort:, notiz:, ein Minus schließt aus.</small></details>
+      </div>
+      <div class="tt-q"><span class="eyebrow">Suche bei der FH</span><code id="fh-q"></code></div>
+      <div class="row" style="justify-content:flex-end"><button class="btn pri" id="fh-load">Stundenplan abonnieren</button></div>
+    </section>
+    <section class="tt-pane col" data-pane="link" ${fhOn ? "hidden" : ""}>
+      <p class="muted" style="font-size:14px"><b>.ics</b> (auch iCal) ist das Standardformat für Kalender. Ein Kalender-Link bleibt aktuell, StudyOS lädt ihn alle 30 Minuten neu. Eine Datei ist eine Momentaufnahme. Suche in deinem Kalender nach „Kalender abonnieren“, „iCal“ oder „Export (.ics)“.</p>
+      <p class="muted" style="font-size:13px">Hinweis: Studo kann Kalender nur importieren, nicht exportieren. Den Link bekommst du daher direkt vom Stundenplan der FH, nicht aus Studo.</p>
+      <label class="fld">Kalender-Link (https:// oder webcal://)<input type="url" id="tt-url" placeholder="https://…/calendar.ics" value="${esc(src.url || "")}"></label>
+      <div class="row" style="justify-content:space-between"><label class="btn">Datei wählen (.ics)<input type="file" id="tt-file" accept=".ics,text/calendar" hidden></label><button class="btn pri" id="tt-load">Link laden</button></div>
+    </section>
+    <small class="muted" id="tt-msg" aria-live="polite"></small>
     <div class="divider"></div><div class="spread"><small class="muted">Abgaben und eigene Termine in den Handy-Kalender übernehmen</small><button class="btn ghost sm" id="tt-exp">Export (.ics)</button></div>
-    ${(S().timetable || []).length ? `<div class="divider"></div><div class="spread"><small class="muted">${S().timetable.length} Einträge geladen${S().ttSource && S().ttSource.name ? " aus " + esc(S().ttSource.name) : ""}.</small><button class="btn ghost sm" id="tt-clear">Stundenplan entfernen</button></div>` : ""}`, (m, close) => {
+    ${(S().timetable || []).length ? `<div class="divider"></div><div class="spread"><small class="muted">${S().timetable.length} Einträge geladen${src.name ? " aus " + esc(src.name) : ""}.</small><button class="btn ghost sm" id="tt-clear">Stundenplan entfernen</button></div>` : ""}`, (m, close) => {
     const msg = $("#tt-msg", m);
-    $("#tt-file", m).onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => importText(t, { name: f.name })).then(ok => { if (ok) { close(); onDone(); } }); };
-    $("#tt-load", m).onclick = async () => { const url = $("#tt-url", m).value.trim(); if (!url) return $("#tt-url", m).focus(); msg.textContent = "Lade …";
-      try { const t = await fetchURL(url); if (await importText(t, { url, name: new URL(url.replace(/^webcal:/i, "https:")).hostname })) { close(); onDone(); } else msg.textContent = ""; }
+    $$("[data-tab]", m).forEach(t => t.onclick = () => { $$("[data-tab]", m).forEach(x => { x.classList.toggle("on", x === t); x.setAttribute("aria-selected", x === t); }); $$("[data-pane]", m).forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab); msg.textContent = ""; });
+    const read = () => ({ sg: $("#fh-sg", m).value.trim().toUpperCase(), sem: $("#fh-sem", m).value, gruppe: $("#fh-gr", m).value.trim(), gmode: f.gmode, extra: $("#fh-ex", m).value.trim() });
+    const show = () => { $("#fh-q", m).textContent = fhQuery(read()) || "–"; };
+    ["#fh-sg", "#fh-sem", "#fh-gr", "#fh-ex"].forEach(id => $(id, m).addEventListener("input", show));
+    $$("[data-gm]", m).forEach(b => b.onclick = () => { f.gmode = b.dataset.gm; $$("[data-gm]", m).forEach(x => x.classList.toggle("on", x === b)); show(); });
+    show();
+    const load = async (url, name, after) => { msg.textContent = "Lade …";
+      try { const t = await fetchURL(url); if (await importText(t, { url, name })) { after && after(); close(); onDone(); } else msg.textContent = ""; }
       catch (e) { msg.textContent = fetchErr(e); } };
+    $("#fh-load", m).onclick = () => { const v = read(); if (!v.sg) { msg.textContent = "Bitte den Studiengang eintragen, z. B. IMA."; return $("#fh-sg", m).focus(); }
+      load(fhURL(v), "FH JOANNEUM · " + v.sg + (v.sem ? " " + v.sem + ". Sem." : ""), () => { S().ttFH = v; App.save(); }); };
+    $("#tt-file", m).onchange = e => { const fl = e.target.files[0]; if (!fl) return; fl.text().then(t => importText(t, { name: fl.name })).then(ok => { if (ok) { S().ttFH = null; App.save(); close(); onDone(); } }); };
+    $("#tt-load", m).onclick = () => { const url = $("#tt-url", m).value.trim(); if (!url) return $("#tt-url", m).focus();
+      load(url, new URL(url.replace(/^webcal:/i, "https:")).hostname, () => { S().ttFH = fhParse(url); App.save(); }); };
     $("#tt-exp", m).onclick = () => { close(); App.exportICS(); };
-    const cl = $("#tt-clear", m); if (cl) cl.onclick = () => { S().timetable = []; S().ttSource = null; App.save(); close(); onDone(); };
+    const cl = $("#tt-clear", m); if (cl) cl.onclick = () => { S().timetable = []; S().ttSource = null; S().ttFH = null; App.save(); close(); onDone(); };
   });
 }
 App.timetableImport = importDialog;
