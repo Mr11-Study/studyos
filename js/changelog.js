@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.23.0", d: "2026-10-21", t: "Schönere Fächer-Kacheln", items: [
+    "„Deine Fächer“ auf der Startseite zeigt jedes Fach als eigene Kachel in seiner Farbe, mit Symbol, Fachkürzel und Fortschrittsring.",
+    "Jede Kachel nennt die nächste Lektion und zeigt deinen Wissensstand als Balken."] },
   { v: "4.22.0", d: "2026-10-20", t: "Gemeinsam nur mit Konto, Freunde sofort", items: [
     "Für Freunde, Chats und Gruppen erstellst du jetzt ein Konto mit E-Mail und Passwort oder meldest dich an. So bist du in der App, im Browser und auf jedem Gerät dieselbe Person.",
     "Bisherige Gastkonten werden einmal mit E-Mail und Passwort gesichert, Freunde und Gruppen bleiben dabei erhalten.",
