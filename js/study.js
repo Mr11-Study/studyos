@@ -104,9 +104,13 @@ PAGES.dash = el => {
        ${soon.length ? `<div class="dh-soon"><span class="eyebrow">Demnächst</span>${soon.map(e => `<div class="dh-si" style="--c:${e.course && CBY[e.course] ? CBY[e.course].color : "var(--warn)"}"><span>${esc(e.title)}</span><small>${KINDS[e.type] || "Termin"} · ${daysUntil(e.date) === 0 ? "heute" : daysUntil(e.date) === 1 ? "morgen" : "in " + daysUntil(e.date) + " Tagen"}</small></div>`).join("")}</div>` : ""}</section>
    </div>
    ${conts.length > 1 ? `<section class="col"><h2>Auch dran</h2><div class="dh-also">${conts.slice(1).map(x => `<button class="card dh-a" data-go="lesson" data-p="${x.nl.id}" style="--c:${x.c.color}">${badge(x.c)}<b>${esc(x.nl.title)}</b><small>${esc(x.c.title)} · ${x.nl.min} min</small>${x.ev ? `<span class="chip ${daysUntil(x.ev.date) <= 7 ? "warn" : ""}">${evLabel(x.ev)}</span>` : ""}</button>`).join("")}</div></section>` : ""}
-   <section class="col"><div class="spread"><h2>Deine Fächer</h2><button class="btn ghost sm" data-go="courses">Alle →</button></div>
+   <section class="col"><div class="spread"><h2>Deine Fächer <small class="dh-cn tab">${COURSES.length}</small></h2><button class="btn ghost sm" data-go="courses">Alle →</button></div>
      <div class="dh-courses">${COURSES.map(c => { const n = App.courseLessons(c.id).length, u = understood(c.id), k = knowCourse(c.id), p = n ? Math.round(100 * u / n) : 0;
-       return `<button class="dh-c" data-go="course" data-p="${c.id}" style="--c:${c.color}"><div class="dh-rw">${ring(p, c.color)}<span class="tab">${p}%</span></div><div class="dh-ct"><b>${esc(c.title)}</b><small>${u}/${n} Lektionen · Wissen ${k} %</small></div></button>`; }).join("")}</div></section>
+       const nl = App.courseLessons(c.id).find(l => !App.isDone(l.id)), ic = esc(c.icon || c.short[0]);
+       return `<button class="dh-c" data-go="course" data-p="${c.id}" style="--c:${c.color}"><span class="dh-cbg" aria-hidden="true">${ic}</span>
+         <div class="dh-ch"><span class="dh-ci" aria-hidden="true">${ic}</span><span class="dh-cs">${esc(c.short)}</span><div class="dh-rw">${ring(p, c.color)}<span class="tab">${p}%</span></div></div>
+         <div class="dh-ct"><b>${esc(c.title)}</b><small>${n ? nl ? "Weiter: " + esc(nl.title) : "Alles gelesen ✓" : "Inhalte folgen"}</small></div>
+         <div class="dh-cb"><div class="dh-cbar" title="Wissen ${k} %"><i style="width:${k}%"></i></div><div class="dh-cm"><span class="tab">${u}/${n} Lektionen</span><span class="tab">Wissen ${k} %</span></div></div></button>`; }).join("")}</div></section>
   </div>`;
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) $$("[data-count]", el).forEach(b => { const to = +b.dataset.count; if (!to) return; const t0 = performance.now(), D = 700; const f = now => { const x = Math.min(1, (now - t0) / D); b.textContent = Math.round(to * (1 - Math.pow(1 - x, 3))); if (x < 1 && b.isConnected) requestAnimationFrame(f); }; b.textContent = "0"; requestAnimationFrame(f); });
 };
