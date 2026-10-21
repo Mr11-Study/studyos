@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.28.0", d: "2026-10-21", t: "Neuer Kalender", items: [
+    "Der Kalender ist jetzt ein echtes Stundenplan-Raster: Wochentage nebeneinander, Uhrzeiten links, jede Lehrveranstaltung als Block in der Farbe ihres Fachs mit Zeit und Raum. Überschneidungen stehen nebeneinander, eine rote Linie zeigt die aktuelle Uhrzeit.",
+    "Umschalten zwischen Woche und Tag. Am Handy startet die Tagesansicht, die Wahl wird gemerkt.",
+    "Neue Stundenplan-Leiste: wann zuletzt aktualisiert wurde, „Aktualisieren“ zum sofortigen Neuladen, „Ändern“ und „Entfernen“, um einen anderen Stundenplan zu holen.",
+    "In eine freie Stelle tippen legt dort einen Termin an. Ein Tipp auf eine Vorlesung zeigt Zeit, Raum und Wiederholung und führt zur Fach-App."] },
   { v: "4.27.1", d: "2026-10-21", t: "FH-Stundenplan: 6 Semester", items: [
     "Bei „FH JOANNEUM“ gibt es jetzt nur noch die Semester 1 bis 6, so viele hat das Studium."] },
   { v: "4.27.0", d: "2026-10-21", t: "FH-Stundenplan direkt auswählen", items: [
