@@ -19,7 +19,7 @@ async function server() {
   return c && c.url ? c : null;
 }
 async function alive(c) {
-  try { const r = await fetch(c.url.replace(/\/+$/, "") + "/v1/models", { headers: c.key ? { authorization: "Bearer " + c.key } : {}, signal: AbortSignal.timeout(4000) }); return r.ok; }
+  try { const r = await fetch(c.url.replace(/\/+$/, "") + "/v1/models", { headers: c.key ? { authorization: "Bearer " + c.key } : {}, signal: AbortSignal.timeout(4000) }); return r.status < 500; }
   catch { return false; }
 }
 
