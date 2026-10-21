@@ -156,6 +156,10 @@ PAGES.settings = (el, p) => {
     else x.onchange = () => { UI[k] = x.value; saveUI(); App.toast("Startseite", "Beim nächsten Öffnen: " + x.options[x.selectedIndex].text + ".", "✓"); };
   });
   const dc = $("#st-data", pg); if (dc) bindData(dc);
+  /* Kopfbereich live mitziehen: Avatar und Name ändern sich sofort mit */
+  const hAv = $(".st-av", head), hName = $(".st-who b", head);
+  pg.addEventListener("click", e => { if (!e.target.closest("[data-av]")) return; requestAnimationFrame(() => { const st = S().settings || {}; hAv.innerHTML = st.avatar || esc((S().name || "?")[0].toUpperCase()); hAv.classList.remove("pop"); void hAv.offsetWidth; hAv.classList.add("pop"); }); });
+  const nm = $("#st-name", pg); if (nm) nm.addEventListener("input", () => { hName.textContent = S().name || "Student"; if (!(S().settings || {}).avatar) hAv.textContent = (S().name || "?")[0].toUpperCase(); });
 
   /* Suche */
   const q = $("#st-q", pg);
