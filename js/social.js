@@ -8,6 +8,7 @@ const S = () => App.S();
 const SB_URL = "https://nanknvsfotrcyxjzwsyd.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hbmtudnNmb3RyY3l4anp3c3lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MzY4NDUsImV4cCI6MjEwODAxMjg0NX0.jm2jc4Fix2W1JuawR8a3kYT1pkAfabnDMnZjK38pGGk";
 const LINK = location.origin + location.pathname;
+App.SB = { url: SB_URL, key: SB_KEY }; /* auch für den Kalender-Abruf (Edge Function „kalender“) */
 
 /* Einladungslinks (#friend=CODE, #group=CODE) vor dem Routing abfangen */
 const INVITE = (/^#(friend|group)=([A-Za-z0-9]{4,12})$/.exec(location.hash) || []).slice(1);
