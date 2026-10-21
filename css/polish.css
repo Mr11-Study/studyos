@@ -802,3 +802,18 @@ html.less-motion .rv{opacity:1!important;transform:none!important}
 .cg-ev.tiny .cg-grp{top:50%;transform:translateY(-50%);height:16px;font-size:10.5px}
 .cg.cg-day .cg-grp{height:22px;font-size:12.5px;padding:0 8px}
 .cg.cg-day .cg-ev.has-grp{padding-right:44px}
+
+/* 4.30 · Chat-Benachrichtigungen und Zähler */
+.so-unr{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--bad);color:#fff;font:700 11.5px/1 var(--f-body);margin-left:8px;animation:so-pop .25s cubic-bezier(.2,.8,.2,1)}
+.nav .so-unr.badge{margin-left:auto;background:var(--bad);color:#fff;padding:0 6px}
+.so-link .so-unr{margin-left:10px}
+.chip .so-unr{height:17px;min-width:17px;font-size:10.5px;margin-left:6px}
+.so-dot{background:var(--bad)!important}
+@keyframes so-pop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+.so-sum{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;grid-column:1/-1;padding:10px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--line)}
+.so-sum-t{font-size:14px;color:var(--muted)}.so-sum-t b{color:var(--text);font-size:15px}
+button.toast.so-note{font:inherit;color:inherit;text-align:left;cursor:pointer;border-left:3px solid var(--acc)}
+button.toast.so-note:hover{border-color:var(--acc-line);border-left-color:var(--acc)}
+.so-note .so-av{flex:none}
+.so-modes{display:flex;flex-direction:column;gap:8px}
+.so-me .so-sum{flex-basis:100%}
