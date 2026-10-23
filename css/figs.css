@@ -58,6 +58,8 @@ figcaption.fig-cap{min-height:0;color:var(--muted);font-size:13.5px}
 
 /* Schritte: einblenden, hervorheben */
 .fig svg [data-st],.fig svg [data-on]{opacity:0;transition:opacity .45s ease,transform .45s ease}
+/* noch nicht gezeigte Schritte als blasse Vorschau, damit die Fläche nicht leer wirkt */
+.fig svg [data-st]:not(.fx-in){opacity:.07}
 .fig svg [data-st].fx-in,.fig svg [data-on].fx-in{opacity:1}
 .fig svg [data-hl]{transition:opacity .35s,filter .35s}
 .fig svg .fx-hl rect,.fig svg rect.fx-hl,.fig svg .fx-hl path,.fig svg path.fx-hl,.fig svg circle.fx-hl{stroke:var(--acc)!important;stroke-width:2.6!important}

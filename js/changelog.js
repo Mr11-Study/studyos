@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.38.1", d: "2026-10-23", t: "Feinschliff im BWL-Skript", items: [
+    "Breite Tabellen im Skript laufen nicht mehr über den Rand hinaus, lange Texte brechen jetzt in der Zelle um.",
+    "In der Grafik „Auszahlung, Aufwand, Kosten“ kreuzt der gestrichelte Rahmen keine Beschriftung mehr.",
+    "Bei Schritt-für-Schritt-Animationen sind die kommenden Schritte schon blass zu sehen, die Grafik wirkt am Anfang nicht mehr leer."
+  ] },
   { v: "4.38.0", d: "2026-10-23", t: "BWL: die Altprüfung 1:1", items: [
     "Die echte BWL-Altprüfung ist jetzt als eigene Prüfung drin: alle 31 Fragen in der Originalreihenfolge, mit Originaltexten, Bilanz, Anlagenspiegel und allen Antwortmöglichkeiten.",
     "Prüfungsmodus wie am Termin: 90 Minuten, 90 Punkte, wählbare Minuspunkte, Auswertung erst nach der Abgabe und Note nach dem Schlüssel der Vorlesung.",
