@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.37.0", d: "2026-10-23", t: "Großes BWL-Update für die Klausur", items: [
+    "Neuer Prüfungstrainer: 18 Rechenarten wie in Moodle mit neuen Zahlen bei jedem Versuch. Die falschen Antworten sind typische Fehler aus der Altprüfung, danach siehst du den ganzen Lösungsweg.",
+    "16 neue Animationen und Schieberegler, z. B. Fixkostendegression aus dem VO-Excel, BAB im Stufenleiterverfahren, Deckungsgrade, Debitorenumschlag mit USt-Falle, Buchführungspflicht, Rückstellung und URG-Ampel.",
+    "Neue Welt „Prüfungstraining kompakt“: die 10 Fallen aus deiner Altprüfung, Fallstudie 1 und 2 (Pix-Mania, Müller KG, Fine Print) und Übung 3 komplett durchgerechnet, dazu eine Formelsammlung.",
+    "25 neue Theoriefragen aus den Vorlesungsfolien und Mitschriften, 10 neue Karteikarten und Beispiele aus der Vorlesung in den bestehenden Lektionen."
+  ] },
   { v: "4.36.0", d: "2026-10-23", t: "Schneller und sicherer", items: [
     "Updates laden nur noch die Dateien, die sich geändert haben, statt jedes Mal die ganze App (rund 6 MB).",
     "Beim Start fragt StudyOS nicht mehr jede Datei einzeln beim Server nach. Die App öffnet direkt aus dem Offline-Speicher, das spart Daten und Akku am Handy.",
