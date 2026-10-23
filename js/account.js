@@ -4,7 +4,29 @@ const { $, $$, esc, PAGES, CBY, COURSES } = App;
 const S = () => App.S(), SEC = () => App.secrets();
 
 /* ---------------- PIN lock ---------------- */
-async function hash(pin) { const data = new TextEncoder().encode("studyos:" + pin); try { const h = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { let x = 5381; for (const c of data) x = ((x << 5) + x + c) >>> 0; return "djb" + x; } }
+async function hashOld(pin) { const data = new TextEncoder().encode("studyos:" + pin); try { const h = await crypto.subtle.digest("SHA-256", data); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join(""); } catch (e) { let x = 5381; for (const c of data) x = ((x << 5) + x + c) >>> 0; return "djb" + x; } }
+/* PIN v2: PBKDF2 mit eigenem Salz pro Profil (150.000 Runden), damit ein kopierter Speicher den PIN nicht in Sekunden verrät.
+   Alte PINs werden beim nächsten richtigen Entsperren still umgestellt. */
+const hex = b => Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join("");
+async function hash(pin, salt) {
+  try {
+    salt = salt || hex(crypto.getRandomValues(new Uint8Array(16)));
+    const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode("studyos:" + salt), iterations: 150000 }, k, 256);
+    return "p2$" + salt + "$" + hex(bits);
+  } catch (e) { return hashOld(pin); }
+}
+async function checkPin(pin) {
+  const st = S().profile.pinHash || ""; if (!st) return true;
+  if (st.startsWith("p2$")) return (await hash(pin, st.split("$")[1])) === st;
+  if ((await hashOld(pin)) !== st) return false;
+  const up = await hash(pin); if (up.startsWith("p2$")) { S().profile.pinHash = up; App.save(); } return true;
+}
+/* Zu viele Fehlversuche: Wartezeit, die mit jedem weiteren Fehlversuch wächst (30 s, 1 min, 2 min … höchstens 15 min) */
+const FAIL = () => "studyos.pinfail." + (window.STUDYOS_PID || "x");
+const fails = () => { try { return JSON.parse(localStorage.getItem(FAIL()) || "null") || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } };
+const setFails = f => { try { f ? localStorage.setItem(FAIL(), JSON.stringify(f)) : localStorage.removeItem(FAIL()); } catch (e) {} };
+App.pinWait = () => Math.max(0, fails().until - Date.now());
 /* Zuletzt entsperrt benutzt (nur dieses Gerät): Innerhalb der gewählten Zeit fragt StudyOS nach einem Neustart nicht erneut */
 const SEEN = () => "studyos.seen." + (window.STUDYOS_PID || "x");
 const graceMs = () => { const m = S().profile.lockAfterMin; return (m == null ? 5 : +m) * 60000; };
@@ -18,11 +40,20 @@ function lockScreen() {
     <div class="pin-dots">${[0, 1, 2, 3].map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("")}${S().profile.pinLen > 4 ? [4, 5].slice(0, S().profile.pinLen - 4).map(i => `<i class="${i < pin.length ? "on" : ""}"></i>`).join("") : ""}</div><div class="pin-err">${esc(err)}</div>
     <div class="pin-pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, "", 0, "⌫"].map(k => k === "" ? "<span></span>" : `<button data-k="${k}" aria-label="${k === "⌫" ? "Löschen" : k}">${k}</button>`).join("")}</div>
     <button class="btn ghost sm" id="pin-forgot">PIN vergessen?</button></div>`; };
-  const tryPin = async () => { if ((await hash(pin)) === S().profile.pinHash) { box.remove(); App.locked = false; App.lastActive = Date.now(); markSeen(); } else { err = "Falscher PIN"; pin = ""; draw(); } };
+  let busy = false, tick = null;
+  const waitMsg = () => { const w = App.pinWait(); return w ? `Zu viele Fehlversuche. Warte ${Math.ceil(w / 1000)} s.` : ""; };
+  const countdown = () => { clearInterval(tick); if (!App.pinWait()) return; tick = setInterval(() => { err = waitMsg(); if (!err) clearInterval(tick); draw(); }, 1000); };
+  const tryPin = async () => {
+    if (busy) return; if (App.pinWait()) { err = waitMsg(); pin = ""; draw(); return; }
+    busy = true; const ok = await checkPin(pin); busy = false;
+    if (ok) { setFails(null); clearInterval(tick); box.remove(); App.locked = false; App.lastActive = Date.now(); markSeen(); return; }
+    const f = fails(); f.n++; if (f.n >= 5) f.until = Date.now() + Math.min(900e3, 30e3 * 2 ** (f.n - 5)); setFails(f);
+    err = f.until > Date.now() ? waitMsg() : `Falscher PIN (${5 - f.n} ${5 - f.n === 1 ? "Versuch" : "Versuche"} bis zur Wartezeit)`; pin = ""; draw(); countdown();
+  };
   box.addEventListener("click", async e => { const k = e.target.closest("[data-k]"); if (k) { if (k.dataset.k === "⌫") pin = pin.slice(0, -1); else if (pin.length < 6) pin += k.dataset.k; err = ""; draw(); if (pin.length === (S().profile.pinLen || 4)) tryPin(); }
     if (e.target.id === "pin-forgot") App.modal(`<h2>PIN vergessen</h2><p>Der PIN schützt StudyOS auf diesem Gerät. Ohne PIN kannst du nur alle lokalen Daten löschen. Wenn du Sync (GitHub Gist) eingerichtet hast, holst du deinen Stand danach von dort zurück.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="wipe">Alles auf diesem Gerät löschen</button></div>`, m => { $("#wipe", m).onclick = () => { try { localStorage.clear(); } catch (e2) {} location.reload(); }; }); });
   const key = e => { if (!document.body.contains(box)) { window.removeEventListener("keydown", key); return; } if (/^\d$/.test(e.key) && pin.length < 6) { pin += e.key; draw(); if (pin.length === (S().profile.pinLen || 4)) tryPin(); } if (e.key === "Backspace") { pin = pin.slice(0, -1); draw(); } };
-  window.addEventListener("keydown", key); draw(); document.body.appendChild(box);
+  window.addEventListener("keydown", key); err = waitMsg(); draw(); countdown(); document.body.appendChild(box);
 }
 App.lockScreen = lockScreen;
 let hiddenAt = 0;

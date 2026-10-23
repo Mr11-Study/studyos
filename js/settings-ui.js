@@ -57,7 +57,7 @@ const SECTIONS = [
   ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Benachrichtigungen (Chat)", "Sprache"]],
   ["look", "Darstellung", "◈", ["Darstellung", "Start"]],
   ["lernen", "Lernen", "↻", ["Lernen", "· Fragen"]],
-  ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)"]],
+  ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)", "Schutz & Tempo"]],
   ["daten", "Sync & Daten", "⇅", ["Sync zwischen Handy und Laptop", "Speicher & Daten"]],
   ["app", "App", "▣", ["App installieren", "KI-Assistent (optional)", "Über"]],
   ["reset", "Zurücksetzen", "⚠", ["Lernfortschritt zurücksetzen", "Zurücksetzen"]],
@@ -101,6 +101,24 @@ function bindData(card) {
   $("#st-fresh", card).onclick = async () => { try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch (e) {} location.reload(); };
 }
 
+function guardCard() {
+  const G = window.STUDYOS_GUARD || {}, ms = G.ready ? Math.round(G.ready) : 0;
+  const csp = !!document.querySelector('meta[http-equiv="Content-Security-Policy"]'), off = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  const pin = (S().profile || {}).pinHash || "", nb = (G.blocked || []).length;
+  const line = (ok, t, d) => `<div class="spread st-line"><div><div>${ok ? "✓" : "○"} ${t}</div><small class="muted">${d}</small></div></div>`;
+  return `<div class="card col st-new" id="st-guard"><h3>Schutz & Tempo</h3>
+    ${line(true, `Start in ${ms ? ms + " ms" : "–"}`, off ? "StudyOS kam aus dem Offline-Speicher und musste nichts aus dem Internet laden." : "Dieser Start kam aus dem Internet. Ab dem nächsten Start lädt StudyOS aus dem Offline-Speicher.")}
+    ${line(true, "Schnelle Updates", "Bei einem Update lädt StudyOS nur die Dateien, die sich wirklich geändert haben, und fragt beim Start nicht mehr jede Datei einzeln beim Server nach.")}
+    ${line(csp, "Schutzschild gegen fremden Code", csp ? `Nur Skripte von StudyOS selbst und wenigen geprüften Quellen dürfen laufen. Eingeschleuster Code in Chats, Notizen oder Kalender-Importen wird blockiert.${nb ? ` Blockiert in dieser Sitzung: ${nb}.` : ""}` : "Nicht aktiv.")}
+    ${line(true, "Kein Einbetten in fremde Seiten", "StudyOS lässt sich nicht unsichtbar in eine andere Webseite legen (Schutz vor Klick-Fallen).")}
+    ${line(pin.startsWith("p2$"), "PIN sicher gespeichert", pin ? (pin.startsWith("p2$") ? "Der PIN ist mit Salz und 150.000 Runden verschlüsselt. Nach 5 Fehlversuchen wächst die Wartezeit bis 15 Minuten." : "Wird beim nächsten Entsperren automatisch auf die sichere Speicherung umgestellt.") : "Kein PIN gesetzt. Mit PIN schützt du StudyOS auf geteilten Geräten.")}
+    ${line(true, "Schlüssel bleiben auf dem Gerät", "KI- und Sync-Schlüssel liegen nur in diesem Browser und werden nicht mit dem Lernstand synchronisiert.")}
+    ${nb ? `<button class="btn sm ghost" id="st-blocked" style="align-self:flex-start">Blockierte Inhalte ansehen</button>` : ""}</div>`;
+}
+function bindGuard(card) {
+  const b = $("#st-blocked", card); if (b) b.onclick = () => App.modal(`<h2>Blockierte Inhalte</h2><p class="muted">Diese Inhalte wollte eine Seite laden, StudyOS hat sie aber nicht erlaubt.</p><ul>${(STUDYOS_GUARD.blocked || []).map(x => `<li><code>${esc(x.dir)}</code> ${esc(x.url || "(eingebettet)")}</li>`).join("")}</ul><div class="row" style="justify-content:flex-end"><button class="btn" data-close>Schließen</button></div>`);
+}
+
 /* ---------- Seite ---------- */
 const inner = PAGES.settings;
 let navObs = null, query = "";
@@ -111,7 +129,7 @@ PAGES.settings = (el, p) => {
   const h1 = $("h1", pg);
   const cards = [...pg.children].filter(n => n.classList.contains("card"));
   /* neue Karten dazu */
-  const tmp = document.createElement("div"); tmp.innerHTML = lookCard() + dataCard();
+  const tmp = document.createElement("div"); tmp.innerHTML = lookCard() + dataCard() + guardCard();
   cards.push(...tmp.children);
   /* Farbe der App aus dem Profil in „Darstellung“ holen */
   const accRow = $(".pf-acc", pg), slot = $(".st-acc-slot", tmp);
@@ -156,6 +174,7 @@ PAGES.settings = (el, p) => {
     else x.onchange = () => { UI[k] = x.value; saveUI(); App.toast("Startseite", "Beim nächsten Öffnen: " + x.options[x.selectedIndex].text + ".", "✓"); };
   });
   const dc = $("#st-data", pg); if (dc) bindData(dc);
+  const gc = $("#st-guard", pg); if (gc) bindGuard(gc);
   /* Kopfbereich live mitziehen: Avatar und Name ändern sich sofort mit */
   const hAv = $(".st-av", head), hName = $(".st-who b", head);
   pg.addEventListener("click", e => { if (!e.target.closest("[data-av]")) return; requestAnimationFrame(() => { const st = S().settings || {}; hAv.innerHTML = st.avatar || esc((S().name || "?")[0].toUpperCase()); hAv.classList.remove("pop"); void hAv.offsetWidth; hAv.classList.add("pop"); }); });
