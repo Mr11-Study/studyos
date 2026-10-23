@@ -5,6 +5,14 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.36.0", d: "2026-10-23", t: "Schneller und sicherer", items: [
+    "Updates laden nur noch die Dateien, die sich geändert haben, statt jedes Mal die ganze App (rund 6 MB).",
+    "Beim Start fragt StudyOS nicht mehr jede Datei einzeln beim Server nach. Die App öffnet direkt aus dem Offline-Speicher, das spart Daten und Akku am Handy.",
+    "Schriften laden im Hintergrund, die App wartet beim Start nicht mehr auf sie.",
+    "Schutzschild gegen fremden Code: Nur Skripte von StudyOS und wenigen geprüften Quellen dürfen laufen. StudyOS lässt sich auch nicht mehr in fremde Seiten einbetten.",
+    "Der PIN wird jetzt mit Salz und 150.000 Runden gespeichert. Nach 5 Fehlversuchen kommt eine Wartezeit, die bis 15 Minuten wächst.",
+    "Neu unter Einstellungen › Sicherheit: „Schutz & Tempo“ zeigt Startzeit und alle Schutzfunktionen auf einen Blick."
+  ] },
   { v: "4.35.1", d: "2026-10-21", t: "Zuverlässigere KI-Antworten", items: [
     "Bricht eine KI-Antwort wegen ihrer Länge ab, schreibt die KI jetzt automatisch an derselben Stelle weiter.",
     "Ist der KI-Server kurz ausgelastet, versucht StudyOS es nach ein paar Sekunden selbst nochmal.",

@@ -59,7 +59,7 @@ let chan = null, curR = null;
 const drop = () => { if (chan && sb) { sb.removeChannel(chan); } chan = null; };
 const stale = () => App.route() !== curR; /* Seite inzwischen gewechselt: nichts mehr hineinschreiben */
 const time = t => { const d = new Date(t), today = new Date().toDateString() === d.toDateString(); return d.toLocaleString("de-AT", today ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
-const linkify = s => esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+const linkify = s => esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
 
 /* Dateien: privater Speicher „chat“, sichtbar nur für alle, die auch die Nachricht sehen dürfen (Policy in supabase-update-2.sql).
    Anhänge laufen nach 24 Stunden ab, der offene Fach-Chat ebenso; Lerngruppen und Direktchats bleiben. */
