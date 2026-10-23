@@ -14,16 +14,18 @@ const out = (root, k, html) => { const e = root.querySelector(`[data-o="${k}"]`)
 const stage = (root, s) => { root.querySelector(".fig-stage").innerHTML = s; };
 
 /* ---------- 1. Auszahlung – Aufwand – Kosten ---------- */
+/* Beschriftung jeweils im Teil ohne Überlappung, damit der gestrichelte Rahmen keinen Text kreuzt */
+const pbox = (x, y, w, label, cls, tx) => `<g class="fx-box ${cls}"><rect x="${x}" y="${y}" width="${w}" height="34" rx="8"/>${t(tx, y + 21.5, label, { fw: 600, fs: 12.5 })}</g>`;
 const pair = (y0, a, b, ex, st) =>
-  g({ st }, box(30, y0, 380, 34, a[0], { cls: a[1] })) +
-  g({ st: st + 1 }, box(230, y0 + 42, 380, 34, b[0], { cls: b[1] }) + r(226, y0 - 4, 188, 84, { cls: "fx-dashacc", rx: 10 })) +
+  g({ st }, pbox(30, y0, 380, a[0], a[1], 128)) +
+  g({ st: st + 1 }, pbox(230, y0 + 42, 380, b[0], b[1], 512) + r(226, y0 - 4, 188, 84, { cls: "fx-dashacc", rx: 10 })) +
   g({ st: st + 2 }, tl(128, y0 + 104, ex[0], { fs: 11, lh: 14 }) + tl(320, y0 + 104, ex[1], { fs: 11, lh: 14, fw: 600 }) + tl(516, y0 + 104, ex[2], { fs: 11, lh: 14 }));
 FIG["bwl2v-begriffe"] = { title: "Auszahlung, Aufwand, Kosten: wo sie sich decken und wo nicht",
   svg: () => svg(640, 380,
     t(20, 18, "Zahlung ↔ externes Ergebnis (GuV)", { a: "start", cls: "fx-sub", fs: 11 }) +
-    pair(28, ["Auszahlung · Kassa/Bank sinkt", "fx-info"], ["Aufwand · GuV-Ergebnis sinkt", "fx-warn"], ["nur Auszahlung|Kredit tilgen, Auto kaufen", "beides|Miete, Löhne zahlen", "nur Aufwand|Abschreibung, Rückstellung"], 0) +
+    pair(28, ["Auszahlung: Bank sinkt", "fx-info"], ["Aufwand: Ergebnis sinkt", "fx-warn"], ["nur Auszahlung|Kredit tilgen, Auto kaufen", "beides|Miete, Löhne zahlen", "nur Aufwand|Abschreibung, Rückstellung"], 0) +
     t(20, 188, "externes Ergebnis (GuV) ↔ internes Ergebnis (KORE)", { a: "start", cls: "fx-sub", fs: 11 }) +
-    pair(198, ["Aufwand · FIBU / GuV", "fx-warn"], ["Kosten · Kostenrechnung", "fx-ok"], ["neutraler Aufwand|Maschinenbrand, Wertpapierverlust", "Zweckaufwand = Grundkosten|Löhne, Material", "kalkulatorische Kosten|kalk. Zinsen, kalk. Unternehmerlohn"], 3) +
+    pair(198, ["Aufwand (FIBU, GuV)", "fx-warn"], ["Kosten (KORE)", "fx-ok"], ["neutraler Aufwand|Maschinenbrand, Wertpapierverlust", "Zweckaufwand = Grundkosten|Löhne, Material", "kalkulatorische Kosten|kalk. Zinsen, kalk. Unternehmerlohn"], 3) +
     g({ st: 6 }, r(30, 340, 580, 32, { cls: "fx-acc" }) + t(320, 361, "Gewinn ≠ Cashflow · Aufwand ≠ Kosten · Eigenkapital ≠ liquide Mittel", { cls: "fx-onacc", fw: 600, fs: 12.5 }))),
   steps: [
     "Die <b>Auszahlung</b> ist die engste Größe: Geld verlässt Kassa oder Bank.",

@@ -318,6 +318,7 @@ body.assist-open{overflow:hidden}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
 table.dt{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
 .dt th,.dt td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.dt td{white-space:normal}
 .dt th:first-child,.dt td:first-child{text-align:left}
 .dt th{font:600 11px var(--f-mono);color:var(--muted);background:var(--card2);letter-spacing:.04em}
 .dt td.na{color:var(--bad);font-family:var(--f-mono)}
