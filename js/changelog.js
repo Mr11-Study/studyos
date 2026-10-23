@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.38.0", d: "2026-10-23", t: "BWL: die Altprüfung 1:1", items: [
+    "Die echte BWL-Altprüfung ist jetzt als eigene Prüfung drin: alle 31 Fragen in der Originalreihenfolge, mit Originaltexten, Bilanz, Anlagenspiegel und allen Antwortmöglichkeiten.",
+    "Prüfungsmodus wie am Termin: 90 Minuten, 90 Punkte, wählbare Minuspunkte, Auswertung erst nach der Abgabe und Note nach dem Schlüssel der Vorlesung.",
+    "Lernmodus ohne Zeitlimit: jede Frage sofort prüfen, mit Lösungsweg. Die 10 Fragen, die beim echten Termin danebengingen, sind markiert.",
+    "Ein angefangener Versuch bleibt gespeichert und lässt sich später fortsetzen. Zu finden unter BWL 2, Prüfung üben und Prüfungstrainer."
+  ] },
   { v: "4.37.0", d: "2026-10-23", t: "Großes BWL-Update für die Klausur", items: [
     "Neuer Prüfungstrainer: 18 Rechenarten wie in Moodle mit neuen Zahlen bei jedem Versuch. Die falschen Antworten sind typische Fehler aus der Altprüfung, danach siehst du den ganzen Lösungsweg.",
     "16 neue Animationen und Schieberegler, z. B. Fixkostendegression aus dem VO-Excel, BAB im Stufenleiterverfahren, Deckungsgrade, Debitorenumschlag mit USt-Falle, Buchführungspflicht, Rückstellung und URG-Ampel.",
