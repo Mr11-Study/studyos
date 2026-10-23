@@ -81,6 +81,7 @@ const FALLEN = [
 ];
 const world = { id: "bvw", n: 7, title: "Prüfungstraining kompakt", sub: "Altprüfungs-Fallen, Zufallsaufgaben, Fallstudien 1 + 2, Übung 3", boss: null, lessons: [
   { id: "bv-1", title: "Die 10 Fallen aus deiner Altprüfung", topic: "bv-fallen", min: 14, xp: 30, blocks: [
+    { t: "html", html: `<button class="card prep-cta alt-cta" data-go="exam" data-p="bwlalt"><div><span class="eyebrow">Originalprüfung</span><div class="lrow-t">Die ganze Altprüfung 1:1 schreiben</div><small>31 Fragen · 90 Minuten · Prüfungs- oder Lernmodus</small></div><span class="alt-go">→</span></button>` },
     { t: "lead", html: "In der Altprüfung sind 10 Fragen daneben gegangen. Fast immer war es dieselbe Art Fehler: ein Detail der Angabe überlesen. Hier sind alle 10 auf einen Blick, danach die passenden Animationen." },
     { t: "html", html: `<table class="dt"><tr><th>Thema</th><th>Was passiert ist</th><th>So ist es richtig</th></tr>${FALLEN.map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</table>` },
     { t: "keys", items: ["<b>Angabe zweimal lesen:</b> „abnutzbar“, „unversteuerte Rücklagen zum EK“, „innerhalb von 4 Monaten“, „exkl. USt“ sind immer Hinweise.", "<b>Richtig/Falsch-Fragen</b> sind oft wörtlich von den Folien, aber mit einem vertauschten Wort (Ende statt t = 0, Erträge statt Einzahlungen).", "<b>Minuspunkte:</b> Bei Mehrfachauswahl nur ankreuzen, was du sicher begründen kannst.", "<b>Bestehen erst über 60 %:</b> 60,00 % ist noch „Nicht genügend“."] },
