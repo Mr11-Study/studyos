@@ -253,6 +253,7 @@ function authView(el, cont, mode) {
         const b = await sb.auth.updateUser({ password }); if (b.error) throw b.error; user = b.data.user;
       }
       me = null; st().on = true; App.save();
+      (App.authHooks || []).forEach(f => { try { f("login", user); } catch (e) {} });
       App.toast(mode === "login" ? "Angemeldet" : mode === "signup" ? "Konto erstellt" : "Konto gesichert", "Mit " + email + " meldest du dich auf jedem Gerät an.", "✓");
       cont();
     } catch (er) { btn.disabled = false; App.toast("Hat nicht geklappt", authErr(er), "!"); }
@@ -263,7 +264,7 @@ async function logout() {
   if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
   drop(); try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(), sub = reg && reg.pushManager && await reg.pushManager.getSubscription(); if (sub && me) await sb.from("push_subs").delete().eq("user_id", me.id).eq("endpoint", sub.endpoint); } catch (e) {} delete st().push;
   if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
-  me = null; user = null; st().on = false; App.save(); App.go("together", "");
+  me = null; user = null; st().on = false; App.save(); (App.authHooks || []).forEach(f => { try { f("logout"); } catch (e) {} }); App.go("together", "");
 }
 
 /* ---------- QR-Code in der App scannen (statt mit der Kamera-App, die den Link im Browser öffnen würde) ---------- */
@@ -699,5 +700,5 @@ App.afterBoot.push(() => {
 
 /* Einladungslink geöffnet: direkt zu „Gemeinsam“ */
 App.afterBoot.push(() => { try { if (sessionStorage.getItem("studyos.invite")) setTimeout(() => App.go("together", ""), 50); } catch (e) {} });
-App.social = { connect, me: () => me, client: () => sb };
+App.social = { connect, me: () => me, client: () => sb, ensure: client };
 })();
