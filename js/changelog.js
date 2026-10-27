@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.39.1", d: "2026-10-27", t: "Termine mit Endzeit", items: [
+    "Beim Termin kannst du jetzt optional eintragen, bis wann er dauert. Ohne Angabe dauert er 1 Stunde.",
+    "Die Endzeit erscheint im Kalender, im Export und in Google, Apple oder Outlook."
+  ] },
   { v: "4.39.0", d: "2026-10-27", t: "Kalender auf jedem Gerät", items: [
     "Wer unter Gemeinsam mit E-Mail und Passwort angemeldet ist, hat eigene Termine und Stundenplan jetzt auf jedem Gerät. Neue, geänderte und gelöschte Termine werden automatisch abgeglichen.",
     "Eigene Termine sehen anders aus als Lehrveranstaltungen (Stern und eigene Markierung) und bleiben immer erhalten, auch wenn du einen anderen Stundenplan holst oder ihn entfernst.",
