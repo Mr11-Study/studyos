@@ -65,6 +65,8 @@ function wireAgenda(root, rerender) {
 }
 
 /* ---------------- event form ---------------- */
+const toM = t => { const [h, mm] = String(t).split(":").map(Number); return h * 60 + (mm || 0); };
+const endOf = (t, min) => { const x = (toM(t) + min) % 1440; return String(Math.floor(x / 60)).padStart(2, "0") + ":" + String(x % 60).padStart(2, "0"); };
 function eventForm(ev, onDone, preset = {}) {
   const isNew = !ev; ev = ev || Object.assign({ src: "user", id: "u" + Date.now(), title: "", type: "exam", course: S().course, date: today(), time: "", note: "", repeat: "none", until: "" }, preset);
   const ro = ev.src === "course", plan = ev.src === "plan";
@@ -73,16 +75,20 @@ function eventForm(ev, onDone, preset = {}) {
     <div class="grid g2"><label class="fld">Art<select id="ef-type" ${ro || plan ? "disabled" : ""}>${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${ev.type === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
       <label class="fld">Kurs<select id="ef-course" ${ro || plan ? "disabled" : ""}><option value="">–</option>${COURSES.map(c => `<option value="${c.id}" ${ev.course === c.id ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label></div>
     <div class="grid g2"><label class="fld">Datum<input type="date" id="ef-date" value="${esc(ev.date || "")}"></label><label class="fld">Uhrzeit (optional)<input type="time" id="ef-time" value="${esc(ev.time || "")}"></label></div>
-    ${!ro && !plan ? `<div class="grid g2"><label class="fld">Wiederholung<select id="ef-rep"><option value="none">keine</option><option value="weekly" ${ev.repeat === "weekly" ? "selected" : ""}>wöchentlich (z. B. LV)</option></select></label><label class="fld">bis (optional)<input type="date" id="ef-until" value="${esc(ev.until || "")}"></label></div>` : ""}
+    ${!ro && !plan ? `<label class="fld">bis (optional)<input type="time" id="ef-end" value="${esc(ev.time && ev.min > 0 ? endOf(ev.time, ev.min) : "")}" ${ev.time ? "" : "disabled"}><small class="muted" id="ef-endh">${ev.time ? "Leer lassen = 1 Stunde" : "Erst eine Uhrzeit wählen"}</small></label>` : ""}
+    ${!ro && !plan ? `<div class="grid g2"><label class="fld">Wiederholung<select id="ef-rep"><option value="none">keine</option><option value="weekly" ${ev.repeat === "weekly" ? "selected" : ""}>wöchentlich (z. B. LV)</option></select></label><label class="fld">Wiederholen bis (optional)<input type="date" id="ef-until" value="${esc(ev.until || "")}"></label></div>` : ""}
     <label class="fld">Notiz<textarea rows="3" id="ef-note" ${ro ? "disabled" : ""}>${esc(ev.note || "")}</textarea></label>
     ${ev.date ? `<a class="btn ghost sm" href="${gcalLink(ev)}" target="_blank" rel="noopener">In Google Kalender übernehmen ↗</a>` : ""}
     <div class="spread"><div class="row">${!isNew && ev.src !== "plan" ? `<button class="btn danger sm" id="ef-del">${ro ? "Ausblenden" : "Löschen"}</button>` : ""}</div><div class="row"><button class="btn ghost" data-close>Abbrechen</button><button class="btn pri" id="ef-save">Speichern</button></div></div>`, (m, close) => {
+    const tIn = $("#ef-time", m), eIn = $("#ef-end", m);
+    if (tIn && eIn) tIn.addEventListener("input", () => { eIn.disabled = !tIn.value; $("#ef-endh", m).textContent = tIn.value ? "Leer lassen = 1 Stunde" : "Erst eine Uhrzeit wählen"; if (!tIn.value) eIn.value = ""; });
     $("#ef-save", m).onclick = () => {
       const date = $("#ef-date", m).value, time = $("#ef-time", m).value;
       if (ro) { setEventProp(ev, { date, time }); }
       else if (plan) { setEventProp(ev, { date }); }
       else { const t = $("#ef-title", m).value.trim(); if (!t) { $("#ef-title", m).focus(); return; }
-        const obj = { id: ev.id, title: t, type: $("#ef-type", m).value, course: $("#ef-course", m).value || null, date, time, note: $("#ef-note", m).value, repeat: $("#ef-rep", m).value, until: $("#ef-until", m).value };
+        const end = time ? $("#ef-end", m).value : "", min = end ? (toM(end) - toM(time) + 1440) % 1440 : 0;
+        const obj = { id: ev.id, title: t, type: $("#ef-type", m).value, course: $("#ef-course", m).value || null, date, time, min: min > 0 ? min : 60, note: $("#ef-note", m).value, repeat: $("#ef-rep", m).value, until: $("#ef-until", m).value };
         const i = S().events.findIndex(x => x.id === ev.id); if (i >= 0) S().events[i] = Object.assign(S().events[i], obj); else S().events.push(obj); App.save(); App.syncReminders(); }
       close(); onDone && onDone(); App.renderSide(); };
     const del = $("#ef-del", m); if (del) del.onclick = () => { if (ro) setEventProp(ev, { hidden: true }); else { S().events = S().events.filter(x => x.id !== ev.id); App.save(); } close(); onDone && onDone(); };
