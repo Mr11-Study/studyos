@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.39.0", d: "2026-10-27", t: "Kalender auf jedem Gerät", items: [
+    "Wer unter Gemeinsam mit E-Mail und Passwort angemeldet ist, hat eigene Termine und Stundenplan jetzt auf jedem Gerät. Neue, geänderte und gelöschte Termine werden automatisch abgeglichen.",
+    "Eigene Termine sehen anders aus als Lehrveranstaltungen (Stern und eigene Markierung) und bleiben immer erhalten, auch wenn du einen anderen Stundenplan holst oder ihn entfernst.",
+    "Neu: „In meinen Kalender“. Den Stundenplan mit einem Tipp in Google Kalender, Apple Kalender oder Outlook abonnieren, oder Stundenplan und eigene Termine als .ics-Datei übernehmen."
+  ] },
   { v: "4.38.1", d: "2026-10-23", t: "Feinschliff im BWL-Skript", items: [
     "Breite Tabellen im Skript laufen nicht mehr über den Rand hinaus, lange Texte brechen jetzt in der Zelle um.",
     "In der Grafik „Auszahlung, Aufwand, Kosten“ kreuzt der gestrichelte Rahmen keine Beschriftung mehr.",

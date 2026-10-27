@@ -66,7 +66,7 @@ async function importText(txt, source) {
   const list = App.parseICS(txt);
   if (!list.length) { App.toast("Keine Termine gefunden", "Die Datei enthält keine Kalendereinträge (.ics).", "!"); return false; }
   S().timetable = list; S().ttSource = Object.assign({ at: Date.now() }, source); App.save();
-  App.toast("Stundenplan importiert", list.length + " Einträge übernommen.", "▦"); return true;
+  const own = (S().events || []).length; App.toast("Stundenplan importiert", list.length + " Einträge übernommen." + (own ? ` Deine ${own} eigenen Termine bleiben unverändert.` : ""), "▦"); return true;
 }
 /* Erst direkt laden. Erlaubt der Server das nicht (CORS), über die Supabase Edge Function „kalender“ holen. */
 async function fetchURL(url) {
@@ -243,8 +243,44 @@ function blockHTML(x, H, h0) {
   const e = x.e, top = (x.s - h0 * 60) / 60 * H, ht = Math.max(22, (x.t - x.s) / 60 * H - 3), c = e.course && CBY[e.course];
   const sub = [e.time + "–" + endTime(e), e.loc].filter(Boolean).map(esc).join(" · ");
   const grp = (e.grp || []).filter(g => !/^standardgruppe$/i.test(g)).map(g => g.replace(/^gruppe\s+/i, ""));
-  return `<button class="cg-ev ${grp.length ? "has-grp" : ""} ${ht < 44 ? "tiny" : ht < 80 ? "short" : ""} ${e.done ? "done" : ""}" style="--c:${colorOf(e)};top:${top}px;height:${ht}px;left:calc(${x.col} * 100% / ${x.n} + 2px);width:calc(100% / ${x.n} - 4px)" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}" title="${esc(e.title + (grp.length ? " · Gruppe " + grp.join(", ") : "") + (e.loc ? " · " + e.loc : "") + " · " + e.time + "–" + endTime(e))}">
-    ${c ? `<span class="cg-tag">${esc(c.short)}</span>` : e.type !== "class" ? `<span class="cg-tag">${esc(KIND[e.type] || "Termin")}</span>` : ""}<b class="t-long">${esc(e.title)}</b><b class="t-short">${esc(c ? c.title : e.title)}</b><small>${sub}</small>${grp.length ? `<span class="cg-grp" aria-label="Gruppe ${esc(grp.join(", "))}">${esc(grp.join("·"))}</span>` : ""}</button>`;
+  const own = e.src === "user";
+  return `<button class="cg-ev ${own ? "own" : ""} ${grp.length ? "has-grp" : ""} ${ht < 44 ? "tiny" : ht < 80 ? "short" : ""} ${e.done ? "done" : ""}" style="--c:${colorOf(e)};top:${top}px;height:${ht}px;left:calc(${x.col} * 100% / ${x.n} + 2px);width:calc(100% / ${x.n} - 4px)" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}" title="${esc(e.title + (grp.length ? " · Gruppe " + grp.join(", ") : "") + (e.loc ? " · " + e.loc : "") + " · " + e.time + "–" + endTime(e))}">
+    ${own ? `<span class="cg-own" aria-label="Eigener Termin">★</span>` : ""}${c ? `<span class="cg-tag">${esc(c.short)}</span>` : e.type !== "class" ? `<span class="cg-tag">${esc(own ? "Eigener Termin" : KIND[e.type] || "Termin")}</span>` : ""}<b class="t-long">${esc(e.title)}</b><b class="t-short">${esc(c ? c.title : e.title)}</b><small>${sub}</small>${grp.length ? `<span class="cg-grp" aria-label="Gruppe ${esc(grp.join(", "))}">${esc(grp.join("·"))}</span>` : ""}</button>`;
+}
+
+/* ---------- Stundenplan und eigene Termine in den eigenen Kalender (Google, Apple, Outlook) ---------- */
+const icsEsc = v => String(v || "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const icsDT = (k, t) => k.replace(/-/g, "") + "T" + t.replace(":", "") + "00";
+function buildICS(withTT, withOwn) {
+  const from = addDays(today(), -14), to = addDays(today(), 220), stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const items = (withTT ? timetable(from, to) : []).concat(withOwn ? App.eventsBetween(from, to, false).filter(e => e.src === "user") : []);
+  const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//StudyOS//DE", "CALSCALE:GREGORIAN", "X-WR-CALNAME:StudyOS", "X-WR-TIMEZONE:Europe/Vienna"];
+  items.forEach(e => {
+    L.push("BEGIN:VEVENT", "UID:" + (e.src + "-" + e.id + "-" + e.date).replace(/[^\w-]/g, "") + "@studyos", "DTSTAMP:" + stamp, "SUMMARY:" + icsEsc(e.title));
+    if (e.time) { const en = toMin(e.time) + durOf(e); L.push("DTSTART;TZID=Europe/Vienna:" + icsDT(e.date, e.time), "DTEND;TZID=Europe/Vienna:" + icsDT(en >= 1440 ? addDays(e.date, 1) : e.date, fmtMin(en))); }
+    else L.push("DTSTART;VALUE=DATE:" + e.date.replace(/-/g, ""), "DTEND;VALUE=DATE:" + addDays(e.date, 1).replace(/-/g, ""));
+    if (e.loc) L.push("LOCATION:" + icsEsc(e.loc));
+    const d = [e.note, e.course && CBY[e.course] ? "Kurs: " + CBY[e.course].title : "", e.src === "user" ? "Eigener Termin aus StudyOS" : ""].filter(Boolean).join("\n"); if (d) L.push("DESCRIPTION:" + icsEsc(d));
+    L.push("END:VEVENT");
+  });
+  L.push("END:VCALENDAR"); return { text: L.join("\r\n"), n: items.length };
+}
+App.buildICS = buildICS;
+function outDialog() {
+  const src = S().ttSource || {}, url = /^(https?|webcal):\/\//i.test(src.url || "") ? src.url.trim() : "", https = url.replace(/^webcal:/i, "https:"), webcal = url.replace(/^https?:/i, "webcal:");
+  const nOwn = (S().events || []).length, nTT = (S().timetable || []).length;
+  App.modal(`<div class="spread"><h2>In meinen Kalender</h2><button class="btn ghost sm" data-close>✕</button></div>
+    ${url ? `<section class="col" style="gap:8px"><h3>Stundenplan abonnieren <small class="muted">empfohlen</small></h3><p class="muted" style="font-size:14px">Dein Kalender holt den Stundenplan direkt von der FH und bleibt so von selbst aktuell, auch wenn sich ein Raum oder eine Uhrzeit ändert.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px"><a class="btn pri sm" target="_blank" rel="noopener noreferrer" href="https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}">Google Kalender</a><a class="btn sm" href="${esc(webcal)}">iPhone, iPad, Mac</a><a class="btn sm" target="_blank" rel="noopener noreferrer" href="https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(https)}&name=${encodeURIComponent(src.name || "Stundenplan")}">Outlook</a><button class="btn ghost sm" id="o-copy">Link kopieren</button></div>
+      <small class="muted">Android: In Google Kalender am Handy erscheint der Stundenplan, sobald er im Browser hinzugefügt wurde (dasselbe Google-Konto). Samsung- oder Xiaomi-Kalender zeigen Google-Kalender automatisch mit an.</small></section><div class="divider"></div>` : `<p class="muted" style="font-size:14px">Dein Stundenplan kommt aus einer Datei, darum gibt es kein Abo. Mit der Datei unten übernimmst du ihn trotzdem.</p>`}
+    <section class="col" style="gap:8px"><h3>Als Datei (.ics)</h3><p class="muted" style="font-size:14px">Einmalig übernehmen, auch für deine eigenen Termine. Nach Änderungen einfach neu exportieren, doppelte Einträge gibt es dabei nicht.</p>
+      <label class="row" style="gap:8px"><input type="checkbox" id="o-tt" ${nTT ? "checked" : "disabled"}> Stundenplan (${nTT} Einträge)</label>
+      <label class="row" style="gap:8px"><input type="checkbox" id="o-own" ${nOwn ? "checked" : "disabled"}> Eigene Termine (${nOwn})</label>
+      <div class="row"><button class="btn sm" id="o-dl">.ics herunterladen</button></div>
+      <small class="muted">Öffnen: am iPhone die Datei antippen, am Laptop doppelklicken (Outlook, Apple Kalender) oder in Google Kalender unter Einstellungen › Importieren hochladen.</small></section>`, (m, close) => {
+    const cp = $("#o-copy", m); if (cp) cp.onclick = () => (navigator.clipboard ? navigator.clipboard.writeText(https) : Promise.reject()).then(() => App.toast("Kopiert", "Kalender-Link in der Zwischenablage.", "⎘"), () => prompt("Kopieren:", https));
+    $("#o-dl", m).onclick = () => { const r = buildICS($("#o-tt", m).checked, $("#o-own", m).checked); if (!r.n) { App.toast("Nichts zu exportieren", "Wähle Stundenplan oder eigene Termine.", "!"); return; } App.download("studyos-kalender.ics", r.text, "text/calendar"); App.toast("Exportiert", r.n + " Termine in studyos-kalender.ics.", "▦"); close(); };
+  });
 }
 
 PAGES.calendar = el => {
@@ -268,13 +304,14 @@ PAGES.calendar = el => {
         <div class="cal3-tools"><div class="cal3-nav"><button class="btn sm" id="c-prev" aria-label="${view === "day" ? "Voriger Tag" : "Vorige Woche"}">‹</button><button class="btn sm" id="c-now">Heute</button><button class="btn sm" id="c-next" aria-label="${view === "day" ? "Nächster Tag" : "Nächste Woche"}">›</button></div>
           <div class="lvl cal3-view" role="radiogroup" aria-label="Ansicht"><button data-view="week" class="${view === "week" ? "on" : ""}">Woche</button><button data-view="day" class="${view === "day" ? "on" : ""}">Tag</button></div>
           <button class="btn pri sm" id="c-add">+ Termin</button></div></header>
+      ${App.calSyncHTML ? App.calSyncHTML() : ""}
       ${hasTT ? `<section class="tt-bar"><span class="tt-bar-ic" aria-hidden="true">▦</span><div class="tt-bar-t"><b>${esc((src && src.name) || "Stundenplan")}</b><small id="tt-st">${src && src.url ? "Abo · aktualisiert " + ago(src.at || Date.now()) : "aus Datei · wird nicht automatisch aktualisiert"} · ${S().timetable.length} Einträge</small></div>
-          <div class="tt-bar-a">${src && src.url ? `<button class="btn sm" id="c-ref"><span class="rf" aria-hidden="true">↻</span> Aktualisieren</button>` : ""}<button class="btn sm ghost" id="c-tt">Ändern</button><button class="btn sm ghost" id="c-rm">Entfernen</button></div></section>`
+          <div class="tt-bar-a">${src && src.url ? `<button class="btn sm" id="c-ref"><span class="rf" aria-hidden="true">↻</span> Aktualisieren</button>` : ""}<button class="btn sm" id="c-out">In meinen Kalender</button><button class="btn sm ghost" id="c-tt">Ändern</button><button class="btn sm ghost" id="c-rm">Entfernen</button></div></section>`
         : `<section class="card tt-empty"><div class="tt-ill" aria-hidden="true"><i></i><i></i><i></i></div><div><h3>Hol dir deinen Stundenplan</h3><p class="muted">Wähle Studiengang und Semester der FH JOANNEUM oder füge einen Kalender-Link ein. Dann siehst du hier jede Lehrveranstaltung mit Raum und Uhrzeit.</p><button class="btn pri" id="c-tt">Stundenplan holen</button></div></section>`}
       ${view === "day" ? `<div class="cg-strip">${days.map(k => { const d = new Date(k + "T12:00:00"), n = (by[k] || []).length; return `<button class="wk-day ${k === sel ? "on" : ""} ${k === nowK ? "today" : ""}" data-sel="${k}"><small>${WD[(d.getDay() + 6) % 7]}</small><b>${d.getDate()}</b><span class="wk-dots">${(by[k] || []).slice(0, 4).map(e => `<i style="--c:${colorOf(e)}"></i>`).join("")}${n > 4 ? "<em>+</em>" : ""}</span></button>`; }).join("")}</div>` : ""}
       <section class="cg cg-${view}" style="--cols:${cols.length};--h:${H}px">
         <div class="cg-head"><div class="cg-gut"></div>${view === "day" ? `<div class="cg-dh today-ish"><b>${fmtDate(sel, { weekday: "long", day: "numeric", month: "long" })}</b></div>` : cols.map(head).join("")}</div>
-        ${allday ? `<div class="cg-all"><div class="cg-gut"><small>ganzt.</small></div>${cols.map(k => `<div class="cg-ac">${(by[k] || []).filter(e => !e.time).map(e => `<button class="cg-chip" style="--c:${colorOf(e)}" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : ""}
+        ${allday ? `<div class="cg-all"><div class="cg-gut"><small>ganzt.</small></div>${cols.map(k => `<div class="cg-ac">${(by[k] || []).filter(e => !e.time).map(e => `<button class="cg-chip ${e.src === "user" ? "own" : ""}" style="--c:${colorOf(e)}" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : ""}
         <div class="cg-body"><div class="cg-gut">${hours.map(h => `<span style="top:${(h - h0) * H}px">${String(h).padStart(2, "0")}:00</span>`).join("")}</div>
           ${cols.map(k => `<div class="cg-col ${k === nowK ? "today" : ""}" data-day="${k}" style="height:${(h1 - h0) * H}px">${layout((by[k] || []).filter(e => e.time)).map(x => blockHTML(x, H, h0)).join("")}${k === nowK && nowM >= h0 * 60 && nowM <= h1 * 60 ? `<i class="cg-now" style="top:${(nowM - h0 * 60) / 60 * H}px"></i>` : ""}</div>`).join("")}</div>
         ${!timed.length ? `<div class="cg-emptymsg">${view === "day" ? (new Date(sel + "T12:00:00").getDay() % 6 === 0 ? "Wochenende. Nichts geplant." : "An diesem Tag ist nichts geplant.") : "Diese Woche ist nichts geplant."}</div>` : ""}
@@ -290,6 +327,7 @@ PAGES.calendar = el => {
     $$("[data-view]", el).forEach(b => b.onclick = () => { view = b.dataset.view; setView(view); draw(); });
     $("#c-add", el).onclick = () => App.eventForm(null, draw, { type: "other", date: sel });
     $("#c-tt", el).onclick = () => importDialog(draw);
+    const out = $("#c-out", el); if (out) out.onclick = () => outDialog();
     const rm = $("#c-rm", el); if (rm) rm.onclick = () => App.modal(`<h2>Stundenplan entfernen?</h2><p class="muted">Die Lehrveranstaltungen verschwinden aus dem Kalender. Deine eigenen Termine bleiben. Du kannst danach jederzeit einen anderen Stundenplan holen.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="rm-yes">Entfernen</button></div>`, (m, close) => {
       $("#rm-yes", m).onclick = () => { S().timetable = []; S().ttSource = null; S().ttFH = null; App.save(); close(); App.toast("Stundenplan entfernt", "Hol dir jederzeit einen neuen.", "▦"); draw(); };
     });
