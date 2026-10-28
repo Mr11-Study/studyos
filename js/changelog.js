@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.42.1", d: "2026-10-28", t: "Bessere Übersetzung", items: [
+    "Übersetzt wird jetzt standardmäßig online mit Google: ganze Sätze statt einzelner Satzteile, dadurch genauer (z. B. Ukrainisch) und deutlich schneller.",
+    "Unter Einstellungen › Profil & Konto › Sprache kannst du „Auf dem Gerät“ wählen, das geht auch offline. Ohne Internet schaltet StudyOS automatisch darauf um.",
+    "Auf dem Gerät wird jetzt zuerst übersetzt, was du gerade siehst, und mehrere Texte gleichzeitig."
+  ] },
   { v: "4.42.0", d: "2026-10-28", t: "Einstellungen wie am iPhone", items: [
     "Einstellungen aufgebaut wie am iPhone: oben dein Profil, darunter die Bereiche mit farbigen Symbolen. Am Handy öffnet ein Tipp den Bereich, „‹ Einstellungen“ führt zurück.",
     "Am Laptop stehen Liste und Bereich nebeneinander, wie am iPad.",
