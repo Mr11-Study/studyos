@@ -1,4 +1,4 @@
-/* StudyOS · Gemeinsam: Freunde, Direktchat, Lerngruppen pro Fach und offener Live-Chat pro Fach (Supabase).
+/* StudyOS · Gemeinsam: Freunde, Direktchat, Lerngruppen (auch pro Fach) und ein Global-Chat für alle (Supabase).
    Alles andere in StudyOS bleibt offline nutzbar. Die Supabase-Bibliothek wird erst geladen, wenn man den Bereich öffnet.
    Der anon key ist öffentlich gedacht; geschützt wird über Row Level Security (siehe ANLEITUNG.md, supabase-setup.sql).
    Muss vor apps.js geladen werden, damit „Gemeinsam“ als Hub-Seite umhüllt wird. */
@@ -120,7 +120,7 @@ async function chat(box, target, hint) {
   };
   let query = sb.from("messages").select("*").order("created_at", { ascending: false }).limit(150);
   query = key === "to_user" ? query.or(`and(sender.eq.${me.id},to_user.eq.${val}),and(sender.eq.${val},to_user.eq.${me.id})`) : query.eq(key, val);
-  if (key === "course") query = query.gt("created_at", new Date(Date.now() - DAY).toISOString()); /* offener Fach-Chat zeigt nur die letzten 24 Stunden */
+  if (key === "course") query = query.gt("created_at", new Date(Date.now() - DAY).toISOString()); /* offener Global-Chat zeigt nur die letzten 24 Stunden */
   try { list = (await q(query)).reverse(); await Promise.all([loadNames(list.map(m => m.sender)), sign(list.filter(m => m.file && !expired(m)).map(m => m.file.path))]); if (!box.isConnected) return; paint(); }
   catch (e) { log.innerHTML = `<div class="so-empty">${esc(fail(e))}</div>`; return; }
   const add = async m => {
@@ -227,9 +227,9 @@ function authView(el, cont, mode) {
   const T = { signup: ["Konto erstellen", "Erstelle ein Konto mit E-Mail und Passwort. Damit bist du in der App, im Browser und auf jedem Gerät dieselbe Person.", "Konto erstellen"],
     login: ["Anmelden", "Melde dich mit deiner E-Mail und deinem Passwort an. Freunde, Gruppen und Chats sind dann auch hier da.", "Anmelden"],
     secure: ["Konto sichern", "Gemeinsam funktioniert jetzt nur noch mit Konto. Sichere dein bisheriges Gastkonto mit E-Mail und Passwort, dann bleiben Freunde, Gruppen und Chats erhalten.", "Konto sichern"] }[mode];
-  el.innerHTML = `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Gruppen und ein offener Live-Chat zu jedem Fach.")}
+  el.innerHTML = `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Gruppen und ein Global-Chat für alle.")}
     <div class="so-auth-wrap">${intro ? `<section class="card so-intro"><div class="so-ill" aria-hidden="true"><i></i><i></i><i></i></div>
-        <ul class="muted"><li>Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.</li><li>Offene oder private Gruppen gründen, zum Lernen, mit Freunden oder für Projekte.</li><li>Zu jedem Fach ein offener Live-Chat mit allen, die StudyOS nutzen.</li></ul>
+        <ul class="muted"><li>Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.</li><li>Offene oder private Gruppen gründen, zum Lernen, mit Freunden oder für Projekte.</li><li>Ein offener Global-Chat mit allen, die StudyOS nutzen.</li></ul>
         <p class="muted" style="font-size:13px">Sichtbar für andere sind nur dein Name „${esc(S().name || "Studi")}“ und dein Avatar, nicht deine E-Mail und nicht dein Lernstand. Nachrichten liegen auf einem Server in der EU. Ohne Internet funktioniert alles andere in StudyOS wie bisher.</p></section>` : ""}
     <section class="card so-auth">${mode === "secure" ? "" : `<div class="so-seg" role="tablist"><button class="chip ${mode === "signup" ? "acc" : ""}" data-mode="signup" role="tab" aria-selected="${mode === "signup"}">Konto erstellen</button><button class="chip ${mode === "login" ? "acc" : ""}" data-mode="login" role="tab" aria-selected="${mode === "login"}">Anmelden</button></div>`}
       <h3>${T[0]}</h3><p class="muted">${T[1]}</p>
@@ -347,18 +347,18 @@ async function boot(el, render) {
   try { await render(); } catch (e) { if (stale()) return; el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">${esc(fail(e))}</div></div>`; }
 }
 
-/* Hub-Seite: Übersicht, Direktchat (dm:ID), Gruppe (g:ID), Fach-Chat (c:FACH) */
+/* Hub-Seite: Übersicht, Direktchat (dm:ID), Gruppe (g:ID), Global-Chat (global) */
 PAGES.together = (el, p) => boot(el, async () => {
   const inv = await takeInvite(); if (inv && !p) p = inv;
   drop();
   const [kind, id] = String(p || "").split(/:(.*)/);
   if (kind === "dm") return dmPage(el, id);
   if (kind === "g") return groupPage(el, id, ["together", "", "Gemeinsam"]);
-  if (kind === "c" && CBY[id]) return App.go("coursechat", id);
+  if (kind === "global" || kind === "c") return globalPage(el);
   if (kind === "find") return findPage(el, id || "");
   const [fr, gs] = await Promise.all([friends(), myGroups()]); if (stale()) return;
   reqs = fr.inc.length; gs.forEach(g => { gnames[g.id] = g.name; });
-  el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und die Live-Chats der Fächer.")}
+  el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und der Global-Chat.")}
     <section class="card so-me">${av(me)}<div><b>${esc(me.name)}</b><small class="muted">Dein Freundescode</small><span class="so-code">${esc(me.code)}</span></div>
       <div class="so-me-act"><button class="btn pri sm" id="so-qr">QR-Code zeigen</button><button class="btn sm" id="so-scan">QR scannen</button><button class="btn sm" id="so-add">Code eingeben</button></div>
       <div class="so-sum">${summary()}</div><div class="so-acc"><span>Angemeldet als <b>${esc(user.email)}</b></span><span class="so-sp"></span><button class="btn ghost sm" id="so-out">Abmelden</button></div></section>
@@ -372,8 +372,7 @@ PAGES.together = (el, p) => boot(el, async () => {
         ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe, zum Lernen, mit Freunden oder für ein Projekt, oder tritt einer offenen Gruppe bei.</p>`}
         <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
-    <section class="card"><h3>Live-Chat pro Fach</h3><p class="muted">Offen für alle, die StudyOS nutzen, Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p>
-      <div class="so-courses">${COURSES.map(c => `<button class="so-cc th-${c.id}" data-go="coursechat" data-p="${c.id}"><i></i><b>${esc(c.title)}</b><small>${esc(c.short)}</small></button>`).join("")}</div></section></div>`;
+    <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein Chat für alle, die StudyOS nutzen. Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p></section></div>`;
   $("#so-qr", el).onclick = () => shareDialog("Dein Freundescode", "Lass den Code scannen oder schick den Link. Wer ihn öffnet, ist mit dir befreundet.", LINK + "#friend=" + me.code, me.code);
   $("#so-scan", el).onclick = () => scanDialog(handleScan);
   $("#so-out", el).onclick = logout;
@@ -490,19 +489,29 @@ async function groupPage(el, gid, back) {
   gnames[gid] = g.name; chat($(".so-box", el), { group_id: gid }, "In die Gruppe schreiben …"); markRead("g:" + gid);
 }
 
-/* Fach-App: Live-Chat und Lerngruppen dieses Fachs (p = Fach-ID oder "FACH|g:GRUPPE") */
+/* Global-Chat: ein offener Raum für alle (messages.course = "global", 24 Stunden) */
+function globalPage(el) {
+  el.innerHTML = `<div class="page so so-full">${head("Global-Chat", "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten.")}
+    <div class="so-tools so-gtabs"><button class="chip" data-go="together">‹ Gemeinsam</button><button class="chip" data-go="together" data-p="find">Gruppen entdecken</button></div>
+    <div class="card so-box"></div></div>`;
+  chat($(".so-box", el), { course: "global" }, "An alle schreiben …");
+}
+
+/* Fach-App: Lerngruppen dieses Fachs (p = Fach-ID oder "FACH|g:GRUPPE") */
 PAGES.coursechat = (el, p) => boot(el, async () => {
   drop();
   const [cid, sub] = String(p || (App.currentApp && App.currentApp()) || "").split("|"), c = CBY[cid];
   if (!c) return App.go("together", "");
-  if (sub && sub.startsWith("g:")) return groupPage(el, sub.slice(2), ["coursechat", cid, "Live-Chat " + c.short]);
+  if (sub && sub.startsWith("g:")) return groupPage(el, sub.slice(2), ["coursechat", cid, "Lerngruppen " + c.short]);
   const gs = (await myGroups()).filter(g => g.course === cid); if (stale()) return;
-  el.innerHTML = `<div class="page so so-full">${head(`Live-Chat · ${esc(c.title)}`, "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten.")}
-    <div class="so-tools so-gtabs">${gs.map(g => `<button class="chip" data-go="coursechat" data-p="${cid}|g:${g.id}">◎ ${esc(g.name)}</button>`).join("")}<button class="chip acc" id="so-cnew">+ Gruppe</button><button class="chip" data-go="together" data-p="find:${cid}">Offene Gruppen</button><button class="chip" id="so-cjoin">Code eingeben</button><button class="chip" data-go="together">Freunde ›</button></div>
-    <div class="card so-box"></div></div>`;
+  el.innerHTML = `<div class="page so">${head(`Lerngruppen · ${esc(c.title)}`, "Deine Gruppen zu diesem Fach. Für alle offen schreibst du im Global-Chat.")}
+    <section class="card"><div class="spread"><h3>Gruppen</h3><span class="chip">${gs.length}</span></div>
+      ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="coursechat" data-p="${cid}|g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Noch keine Gruppe zu ${esc(c.title)}. Gründe eine oder tritt einer offenen Gruppe bei.</p>`}
+      <div class="row so-gact"><button class="btn sm pri" id="so-cnew">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find:${cid}">Offene Gruppen</button><button class="btn ghost sm" id="so-cjoin">Mit Code beitreten</button></div></section>
+    <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein offener Chat für alle, die StudyOS nutzen.</p></section>
+    <div class="row"><button class="btn ghost sm" data-go="together">Freunde & alle Gruppen ›</button></div></div>`;
   $("#so-cnew", el).onclick = () => newGroupDialog(cid, g => App.go("coursechat", cid + "|g:" + g.id));
   $("#so-cjoin", el).onclick = () => codeDialog("Lerngruppe beitreten", "Gruppencode (8 Zeichen)", async code => { const g = await joinGroup(code); App.go("together", "g:" + g); });
-  chat($(".so-box", el), { course: cid }, `Frag etwas zu ${c.title} …`);
 });
 
 /* ---------- Web Push: Mitteilungen auch bei geschlossener App ----------
@@ -655,7 +664,7 @@ function noteHTML() {
   const mode = note().mode;
   return `<div class="so-modes" role="radiogroup">${MODES.map(([k, t, d]) => `<label class="so-opt"><input type="radio" name="so-nm" value="${k}" ${mode === k ? "checked" : ""}><span><b>${t}</b><small>${d}</small></span></label>`).join("")}</div>
     <small class="muted so-perm">${mode === "system" ? permText() : ""}</small><small class="so-push">${pushText()}</small>
-    <small class="muted">Gilt für neue Direktnachrichten, Nachrichten in deinen Gruppen und Freundschaftsanfragen. Der offene Live-Chat der Fächer meldet sich nicht. Mit „Am Gerät“ kommen Mitteilungen auch bei geschlossener App. Am Handy muss der Browser dafür im Hintergrund laufen dürfen (Xiaomi: Autostart und Akku „Keine Einschränkungen“ für Chrome).</small>
+    <small class="muted">Gilt für neue Direktnachrichten, Nachrichten in deinen Gruppen und Freundschaftsanfragen. Der Global-Chat meldet sich nicht. Mit „Am Gerät“ kommen Mitteilungen auch bei geschlossener App. Am Handy muss der Browser dafür im Hintergrund laufen dürfen (Xiaomi: Autostart und Akku „Keine Einschränkungen“ für Chrome).</small>
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" id="so-ntest">Test</button></div>`;
 }
 function bindNote(box, after) {

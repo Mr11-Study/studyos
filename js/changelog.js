@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.49.0", d: "2026-10-28", t: "Gemeinsam: ein Global-Chat für alle", items: [
+    "Neu: ein Global-Chat für alle, die StudyOS nutzen. Du findest ihn unter Gemeinsam und direkt in der Seitenleiste. Nachrichten bleiben wie bisher 24 Stunden.",
+    "Die offenen Live-Chats pro Fach sind weg. In jedem Fach heißt der Punkt jetzt „Lerngruppen“ und zeigt deine Gruppen zu diesem Fach, mit Gruppe gründen, offenen Gruppen und Beitritt per Code.",
+    "Gruppenchats, Direktchats und Fach-Gruppen bleiben genau wie sie waren."] },
   { v: "4.48.0", d: "2026-10-28", t: "Unterwegs: Karte und „Ich fahre mit“", items: [
     "Neue Karte unter den Verbindungen: die ganze Strecke in den Linienfarben, alle Halte, Fußwege gestrichelt, Start A und Ziel B. Mit „📍 Wo bin ich“ siehst du dich als blauen Punkt, „⤢ Größer“ macht die Karte groß.",
     "„▶ Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft. Oben steht, in welcher Linie du sitzt, der nächste Halt mit Uhrzeit, wie viele Halte noch kommen, die Verspätung und ein Fortschrittsbalken bis zur Ankunft.",
