@@ -57,6 +57,7 @@ App.timetableBetween = timetable;
 
 /* alles, was in der Wochenansicht steht: Stundenplan + Abgaben/Prüfungen mit Datum + eigene Termine */
 function dayItems(from, to) {
+  if (LV) return lvItems(from, to);
   const ev = App.eventsBetween(from, to, false).filter(e => e.type !== "info" && !(e.src === "course" && e.type === "class"));
   return timetable(from, to).concat(ev).sort((a, b) => (a.date + (a.time || "99")).localeCompare(b.date + (b.time || "99")));
 }
@@ -218,6 +219,60 @@ function importDialog(onDone) {
 }
 App.timetableImport = importDialog;
 
+/* ---------- Lehrende: was eine Lehrperson unterrichtet, direkt aus der FH-Suche (referent:) ----------
+   Mit Studiengang nur die Lehrveranstaltungen in diesem Studiengang, ohne alle Fächer. Nur eine Ansicht: dein Stundenplan bleibt unverändert. */
+let LV = null;
+const LVKEY = "studyos.lvRecent";
+const lvRecent = () => { try { return JSON.parse(localStorage.getItem(LVKEY) || "[]"); } catch (e) { return []; } };
+const lvRemember = f => { try { localStorage.setItem(LVKEY, JSON.stringify([{ name: f.name, sg: f.sg }].concat(lvRecent().filter(x => x.name.toLowerCase() !== f.name.toLowerCase() || x.sg !== f.sg)).slice(0, 6))); } catch (e) {} };
+const lvQuery = f => [fhTerm("referent", f.name), fhTerm("studiengang", f.sg)].filter(Boolean).join(" ");
+const lvURL = f => "webcal://" + FH_BASE + encodeURIComponent(lvQuery(f).replace(/"/g, "&quot;")).replace(/%20/g, "+");
+const lvItems = (from, to) => LV.list.flatMap(e => expandTT(e, from, to)).map(e => Object.assign({}, e, { src: "lv", type: "class" }));
+const lvTitle = t => t.replace(/\s*[-,(]?\s*(Standardgruppe|Gruppe\s+\S+)\)?/gi, "").trim() || t;
+/* läuft gerade etwas, sonst das Nächste in den kommenden 8 Wochen */
+function lvNow() {
+  const k = today(), m = new Date().getHours() * 60 + new Date().getMinutes();
+  const l = lvItems(k, addDays(k, 56)).filter(e => e.time).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const now = l.find(e => e.date === k && toMin(e.time) <= m && m < toMin(e.time) + durOf(e));
+  return now ? { now } : { next: l.find(e => e.date > k || toMin(e.time) > m) };
+}
+function lvDialog(onDone) {
+  const last = LV || lvRecent()[0] || { name: "", sg: "" }, rec = lvRecent();
+  App.modal(`<div class="spread"><h2>Lehrende ansehen</h2><button class="btn ghost sm" data-close>✕</button></div>
+    <p class="muted" style="font-size:14px">Sieh nach, was jemand gerade unterrichtet. StudyOS fragt die <a href="https://almaty.fh-joanneum.at/stundenplan/" target="_blank" rel="noopener">Stundenplan-Suche der FH</a>, dein eigener Stundenplan bleibt dabei unverändert.</p>
+    <div class="tt-fh">
+      <label class="fld">Name<input type="text" id="lv-n" value="${esc(last.name)}" placeholder="z. B. Radeke" list="lv-rec" spellcheck="false" autocomplete="off"><small class="muted">Der Nachname reicht meistens.</small></label>
+      <label class="fld">Studiengang <small class="muted">(optional)</small><input type="text" id="lv-sg" value="${esc(last.sg || "")}" placeholder="leer = alle Fächer" autocapitalize="characters" spellcheck="false"><small class="muted">z. B. IMA oder DAT. Leer lassen zeigt alles, was die Person unterrichtet.</small></label>
+    </div>
+    <datalist id="lv-rec">${rec.map(r => `<option value="${esc(r.name)}">`).join("")}</datalist>
+    ${rec.length ? `<div class="lv-rec"><span class="eyebrow">Zuletzt</span>${rec.map((r, i) => `<button type="button" class="tt-g" data-rec="${i}">${esc(r.name)}${r.sg ? " · " + esc(r.sg) : ""}</button>`).join("")}</div>` : ""}
+    <div class="tt-q"><span class="eyebrow">Suche bei der FH</span><code id="lv-q"></code></div>
+    <small class="muted" id="lv-msg" aria-live="polite"></small>
+    <div class="row" style="justify-content:flex-end"><button class="btn pri" id="lv-go">Plan ansehen</button></div>`, (m, close) => {
+    const read = () => ({ name: $("#lv-n", m).value.trim().replace(/\s+/g, " "), sg: $("#lv-sg", m).value.trim().toUpperCase() });
+    const show = () => { $("#lv-q", m).textContent = lvQuery(read()) || "–"; };
+    ["#lv-n", "#lv-sg"].forEach(id => $(id, m).addEventListener("input", show));
+    $$("[data-rec]", m).forEach(b => b.onclick = () => { const r = rec[+b.dataset.rec]; $("#lv-n", m).value = r.name; $("#lv-sg", m).value = r.sg || ""; show(); go(); });
+    const msg = $("#lv-msg", m), btn = $("#lv-go", m);
+    const go = async () => { const f = read(); if (!f.name) { msg.textContent = "Bitte einen Namen eintragen."; return $("#lv-n", m).focus(); }
+      msg.textContent = "Suche …"; btn.disabled = true;
+      try { const list = App.parseICS(await fetchURL(lvURL(f)));
+        if (!list.length) { msg.textContent = `Für „${f.name}“${f.sg ? " in " + f.sg : ""} hat die FH keine Termine. Stimmt die Schreibweise?${f.sg ? " Versuch es ohne Studiengang." : ""}`; return; }
+        LV = { name: f.name, sg: f.sg, list, at: Date.now() }; lvRemember(f); close();
+        const n = lvNow(); onDone(n.now ? n.now.date : n.next ? n.next.date : null);
+      } catch (e) { msg.textContent = fetchErr(e); } finally { btn.disabled = false; } };
+    btn.onclick = go; $("#lv-n", m).onkeydown = $("#lv-sg", m).onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+    show(); $("#lv-n", m).focus();
+  });
+}
+function lvBarHTML() {
+  const n = lvNow(), e = n.now || n.next, when = e ? (n.now ? `<b class="lv-live">Gerade</b> ${esc(lvTitle(e.title))}${e.loc ? " · " + esc(e.loc) : ""} bis ${endTime(e)}` : `Als Nächstes: ${esc(lvTitle(e.title))}, ${e.date === today() ? "heute" : fmtDate(e.date, { weekday: "short", day: "numeric", month: "numeric" })} ${e.time}${e.loc ? " · " + esc(e.loc) : ""}`) : "In den nächsten Wochen keine Termine.";
+  const subj = [...new Set(LV.list.map(x => lvTitle(x.title)))].sort((a, b) => a.localeCompare(b, "de"));
+  return `<section class="tt-bar lv-bar"><span class="tt-bar-ic" aria-hidden="true">◉</span><div class="tt-bar-t"><b>Plan von ${esc(LV.name)}</b><small>${LV.sg ? esc(LV.sg) : "alle Studiengänge"} · ${subj.length} ${subj.length === 1 ? "Fach" : "Fächer"}</small><small class="lv-when">${when}</small></div>
+    <div class="tt-bar-a"><button class="btn sm" id="lv-edit">Andere Person</button><button class="btn sm pri" id="lv-off">Zurück zu meinem Plan</button></div>
+    <div class="lv-subj">${subj.slice(0, 16).map(t => `<span class="chip">${esc(t)}</span>`).join("")}${subj.length > 16 ? `<span class="chip">+${subj.length - 16}</span>` : ""}</div></section>`;
+}
+
 /* ---------- Seite: Wochenraster wie ein Stundenplan ---------- */
 const colorOf = e => e.course && CBY[e.course] ? CBY[e.course].color : e.type === "deadline" ? "var(--warn)" : e.type === "exam" ? "var(--bad)" : "var(--acc)";
 const KIND = { class: "Vorlesung", deadline: "Abgabe", exam: "Prüfung", register: "Anmeldung", study: "Lernen", other: "Termin" };
@@ -303,9 +358,9 @@ PAGES.calendar = el => {
       <header class="cal3-top"><div><span class="eyebrow">${d0.toLocaleDateString("de-AT", { day: "numeric", month: "long" })} – ${d6.toLocaleDateString("de-AT", { day: "numeric", month: "long", year: "numeric" })}</span><h1>Kalender</h1></div>
         <div class="cal3-tools"><div class="cal3-nav"><button class="btn sm" id="c-prev" aria-label="${view === "day" ? "Voriger Tag" : "Vorige Woche"}">‹</button><button class="btn sm" id="c-now">Heute</button><button class="btn sm" id="c-next" aria-label="${view === "day" ? "Nächster Tag" : "Nächste Woche"}">›</button></div>
           <div class="lvl cal3-view" role="radiogroup" aria-label="Ansicht"><button data-view="week" class="${view === "week" ? "on" : ""}">Woche</button><button data-view="day" class="${view === "day" ? "on" : ""}">Tag</button></div>
-          <button class="btn pri sm" id="c-add">+ Termin</button></div></header>
+          <button class="btn sm" id="c-lv" aria-pressed="${!!LV}">Lehrende</button><button class="btn pri sm" id="c-add">+ Termin</button></div></header>
       ${App.calSyncHTML ? App.calSyncHTML() : ""}
-      ${hasTT ? `<section class="tt-bar"><span class="tt-bar-ic" aria-hidden="true">▦</span><div class="tt-bar-t"><b>${esc((src && src.name) || "Stundenplan")}</b><small id="tt-st">${src && src.url ? "Abo · aktualisiert " + ago(src.at || Date.now()) : "aus Datei · wird nicht automatisch aktualisiert"} · ${S().timetable.length} Einträge</small></div>
+      ${LV ? lvBarHTML() : hasTT ? `<section class="tt-bar"><span class="tt-bar-ic" aria-hidden="true">▦</span><div class="tt-bar-t"><b>${esc((src && src.name) || "Stundenplan")}</b><small id="tt-st">${src && src.url ? "Abo · aktualisiert " + ago(src.at || Date.now()) : "aus Datei · wird nicht automatisch aktualisiert"} · ${S().timetable.length} Einträge</small></div>
           <div class="tt-bar-a">${src && src.url ? `<button class="btn sm" id="c-ref"><span class="rf" aria-hidden="true">↻</span> Aktualisieren</button>` : ""}<button class="btn sm" id="c-out">In meinen Kalender</button><button class="btn sm ghost" id="c-tt">Ändern</button><button class="btn sm ghost" id="c-rm">Entfernen</button></div></section>`
         : `<section class="card tt-empty"><div class="tt-ill" aria-hidden="true"><i></i><i></i><i></i></div><div><h3>Hol dir deinen Stundenplan</h3><p class="muted">Wähle Studiengang und Semester der FH JOANNEUM oder füge einen Kalender-Link ein. Dann siehst du hier jede Lehrveranstaltung mit Raum und Uhrzeit.</p><button class="btn pri" id="c-tt">Stundenplan holen</button></div></section>`}
       ${view === "day" ? `<div class="cg-strip">${days.map(k => { const d = new Date(k + "T12:00:00"), n = (by[k] || []).length; return `<button class="wk-day ${k === sel ? "on" : ""} ${k === nowK ? "today" : ""}" data-sel="${k}"><small>${WD[(d.getDay() + 6) % 7]}</small><b>${d.getDate()}</b><span class="wk-dots">${(by[k] || []).slice(0, 4).map(e => `<i style="--c:${colorOf(e)}"></i>`).join("")}${n > 4 ? "<em>+</em>" : ""}</span></button>`; }).join("")}</div>` : ""}
@@ -314,7 +369,7 @@ PAGES.calendar = el => {
         ${allday ? `<div class="cg-all"><div class="cg-gut"><small>ganzt.</small></div>${cols.map(k => `<div class="cg-ac">${(by[k] || []).filter(e => !e.time).map(e => `<button class="cg-chip ${e.src === "user" ? "own" : ""}" style="--c:${colorOf(e)}" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : ""}
         <div class="cg-body"><div class="cg-gut">${hours.map(h => `<span style="top:${(h - h0) * H}px">${String(h).padStart(2, "0")}:00</span>`).join("")}</div>
           ${cols.map(k => `<div class="cg-col ${k === nowK ? "today" : ""}" data-day="${k}" style="height:${(h1 - h0) * H}px">${layout((by[k] || []).filter(e => e.time)).map(x => blockHTML(x, H, h0)).join("")}${k === nowK && nowM >= h0 * 60 && nowM <= h1 * 60 ? `<i class="cg-now" style="top:${(nowM - h0 * 60) / 60 * H}px"></i>` : ""}</div>`).join("")}</div>
-        ${!timed.length ? `<div class="cg-emptymsg">${view === "day" ? (new Date(sel + "T12:00:00").getDay() % 6 === 0 ? "Wochenende. Nichts geplant." : "An diesem Tag ist nichts geplant.") : "Diese Woche ist nichts geplant."}</div>` : ""}
+        ${!timed.length ? `<div class="cg-emptymsg">${LV ? `${esc(LV.name)} unterrichtet ${view === "day" ? "an diesem Tag" : "diese Woche"} nichts${LV.sg ? " in " + esc(LV.sg) : ""}.` : view === "day" ? (new Date(sel + "T12:00:00").getDay() % 6 === 0 ? "Wochenende. Nichts geplant." : "An diesem Tag ist nichts geplant.") : "Diese Woche ist nichts geplant."}</div>` : ""}
       </section>
       <p class="faint cg-hint">Tipp: In eine freie Stelle tippen legt dort einen Termin an.</p>
       ${up.length ? `<section class="col"><h2>Demnächst</h2><div class="card list">${up.map(e => `<button class="lrow" data-item="${esc(e.src)}|${esc(e.id)}|${e.date}"><span class="up-d" style="--c:${colorOf(e)}"><b>${new Date(e.date + "T12:00:00").getDate()}</b><small>${new Date(e.date + "T12:00:00").toLocaleDateString("de-AT", { month: "short" })}</small></span><div class="lrow-main"><div class="lrow-title">${esc(e.title)}</div><small class="muted">${[KIND[e.type] || "Termin", e.time, e.course && CBY[e.course] ? CBY[e.course].title : ""].filter(Boolean).map(esc).join(" · ")}</small></div><span class="chip">${daysUntil(e.date) === 1 ? "morgen" : "in " + daysUntil(e.date) + " Tagen"}</span></button>`).join("")}</div></section>` : ""}
@@ -326,7 +381,11 @@ PAGES.calendar = el => {
     $("#c-now", el).onclick = () => { sel = today(); wk = monday(sel); draw(); };
     $$("[data-view]", el).forEach(b => b.onclick = () => { view = b.dataset.view; setView(view); draw(); });
     $("#c-add", el).onclick = () => App.eventForm(null, draw, { type: "other", date: sel });
-    $("#c-tt", el).onclick = () => importDialog(draw);
+    const tt = $("#c-tt", el); if (tt) tt.onclick = () => importDialog(draw);
+    const lvOpen = () => lvDialog(d => { if (d && !dayItems(view === "day" ? sel : wk, view === "day" ? sel : addDays(wk, 6)).some(x => x.time)) { sel = d; wk = monday(d); } draw(); });
+    $("#c-lv", el).onclick = lvOpen;
+    const le = $("#lv-edit", el); if (le) le.onclick = lvOpen;
+    const lo = $("#lv-off", el); if (lo) lo.onclick = () => { LV = null; draw(); };
     const out = $("#c-out", el); if (out) out.onclick = () => outDialog();
     const rm = $("#c-rm", el); if (rm) rm.onclick = () => App.modal(`<h2>Stundenplan entfernen?</h2><p class="muted">Die Lehrveranstaltungen verschwinden aus dem Kalender. Deine eigenen Termine bleiben. Du kannst danach jederzeit einen anderen Stundenplan holen.</p><div class="row" style="justify-content:flex-end"><button class="btn ghost" data-close>Abbrechen</button><button class="btn danger" id="rm-yes">Entfernen</button></div>`, (m, close) => {
       $("#rm-yes", m).onclick = () => { S().timetable = []; S().ttSource = null; S().ttFH = null; App.save(); close(); App.toast("Stundenplan entfernt", "Hol dir jederzeit einen neuen.", "▦"); draw(); };
@@ -347,7 +406,7 @@ PAGES.calendar = el => {
       App.eventForm(null, draw, { type: "other", date: col.dataset.day, time: fmtMin(Math.max(0, Math.min(23 * 60 + 45, m))) }); return; }
     const [src, id, date] = it.dataset.item.split("|");
     const ev = dayItems(date, date).find(x => x.src === src && x.id === id); if (!ev) return;
-    if (src === "tt") { const c = ev.course && CBY[ev.course];
+    if (src === "tt" || src === "lv") { const c = ev.course && CBY[ev.course];
       App.modal(`<div class="ev-pop" style="--c:${colorOf(ev)}"><div class="spread"><span class="eyebrow">${c ? esc(c.title) : "Lehrveranstaltung"}</span><button class="btn ghost sm" data-close>✕</button></div><h2>${esc(ev.title)}</h2>
         <dl><dt>Wann</dt><dd>${fmtDate(ev.date, { weekday: "long", day: "numeric", month: "long" })}${ev.time ? ", " + ev.time + "–" + endTime(ev) : ""}</dd>${(ev.grp || []).length ? `<dt>Gruppe</dt><dd>${esc(ev.grp.join(", "))}</dd>` : ""}${ev.loc ? `<dt>Raum</dt><dd>${esc(ev.loc)}</dd>` : ""}${ev.repeat === "weekly" ? `<dt>Wiederholung</dt><dd>wöchentlich${ev.until ? " bis " + fmtDate(ev.until, { day: "numeric", month: "long" }) : ""}</dd>` : ""}</dl>
         ${c ? `<button class="btn pri" data-go="course" data-p="${c.id}" data-close>Zur Fach-App</button>` : ""}</div>`); }

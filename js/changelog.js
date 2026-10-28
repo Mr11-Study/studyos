@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.40.0", d: "2026-10-28", t: "Lehrende im Kalender", items: [
+    "Neuer Knopf „Lehrende“ im Kalender: Name eintragen und sehen, was die Person gerade und in den nächsten Wochen unterrichtet.",
+    "Mit Studiengang (z. B. IMA oder DAT) nur die Fächer dort, ohne Studiengang alle Fächer, die sie unterrichtet.",
+    "Dein eigener Stundenplan bleibt dabei unverändert, ein Tipp bringt dich zurück."
+  ] },
   { v: "4.39.1", d: "2026-10-27", t: "Termine mit Endzeit", items: [
     "Beim Termin kannst du jetzt optional eintragen, bis wann er dauert. Ohne Angabe dauert er 1 Stunde.",
     "Die Endzeit erscheint im Kalender, im Export und in Google, Apple oder Outlook."
