@@ -46,12 +46,45 @@ async function walk(root) {
   const quick = [], slow = [];
   todo.forEach(n => { const c = cache[n.data.trim()]; if (c !== undefined) { orig.set(n, n.data); n.data = n.data.replace(n.data.trim(), c); mine.set(n, n.data); } else slow.push(n); });
   slow.sort((a, b) => topOf(a) - topOf(b));
-  await runPool(slow.map(n => async () => { const src = n.data; orig.set(n, src); const out = await trText(src); if (n.data === src) { n.data = out; mine.set(n, out); } }));
+  const uniq = new Set(slow.map(n => n.data.trim()).filter(t => cache[t] === undefined)).size;
+  if (uniq) prog.add(uniq);
+  const counted = new Set();
+  await runPool(slow.map(n => async () => { const src = n.data, k = src.trim(); orig.set(n, src); const out = await trText(src); if (!counted.has(k)) { counted.add(k); prog.tick(); } if (n.data === src) { n.data = out; mine.set(n, out); } }));
+  prog.sync(counted.size, uniq);
   if (root.nodeType === 1) for (const el of root.querySelectorAll("[placeholder],[title]")) for (const a of ["placeholder", "title"]) {
     const v = el.getAttribute(a); if (!v || el.dataset["tr" + a] === v) continue;
     const out = await trText(v); el.setAttribute(a, out); el.dataset["tr" + a] = out;
   }
 }
+/* Abbrechen: zurück auf Deutsch. Was schon übersetzt wurde, bleibt im Cache und geht beim nächsten Mal sofort. */
+function stop() { on = false; if (obs) obs.disconnect(); S().settings.lang = "de"; App.save(); App.toast && App.toast("Übersetzung abgebrochen", "StudyOS zeigt wieder Deutsch. Unter Einstellungen › Sprache kannst du es erneut versuchen.", "文"); setTimeout(() => location.reload(), 600); }
+/* Ladeanzeige: beim ersten Übersetzen ein Ladebildschirm mit Fortschritt, danach bei neuen Seiten ein kleiner Hinweis oben */
+const NAME = () => (LANGS.find(x => x[0] === lang()) || [, lang()])[1];
+const prog = (() => {
+  let total = 0, done = 0, el = null, full = false, first = true, t = null, hideT = null;
+  const ui = () => {
+    if (!el) { el = document.createElement("div"); el.id = "tr-load"; el.setAttribute("translate", "no"); el.className = "notranslate"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite"); document.body.appendChild(el);
+      el.addEventListener("click", e => { if (e.target.closest("#tr-bg")) { full = false; paint(); } if (e.target.closest("#tr-stop")) stop(); }); }
+    return el; };
+  const paint = () => {
+    if (!el) return; const pct = total ? Math.min(100, Math.round(100 * done / total)) : 0, fin = done >= total;
+    el.className = "notranslate " + (full ? "full" : "pill") + (fin ? " fin" : "");
+    el.innerHTML = full
+      ? `<div class="trl-box"><div class="trl-ic" aria-hidden="true">文</div><b>${fin ? "Fertig übersetzt" : "StudyOS wird übersetzt"}</b><span class="trl-lang">Deutsch → ${esc(NAME())}</span>
+         <div class="trl-bar"><i style="width:${pct}%"></i></div><small>${fin ? "Alles bereit." : `${done} von ${total} Texten · ${pct} %`}</small>
+         ${fin ? "" : `<div class="trl-act"><button class="btn ghost sm" id="tr-stop">Abbrechen</button><button class="btn sm" id="tr-bg">Im Hintergrund weiter</button></div><small class="trl-note">Beim ersten Mal dauert es etwas. Danach merkt sich StudyOS die Übersetzungen.</small>`}</div>`
+      : `<span class="trl-ic" aria-hidden="true">${fin ? "✓" : "文"}</span><span>${fin ? "Übersetzt" : `Übersetze … ${pct} %`}</span><i class="trl-mini"><b style="width:${pct}%"></b></i>${fin ? "" : `<button class="trl-x" id="tr-stop" aria-label="Übersetzung abbrechen" title="Abbrechen, Deutsch anzeigen">✕</button>`}`;
+  };
+  const finish = () => { paint(); if (hideT) return; hideT = setTimeout(() => { hideT = null; if (done < total) return; el && el.classList.add("out"); setTimeout(() => { if (done >= total && el) { el.remove(); el = null; } total = done = 0; full = false; }, 350); }, full ? 700 : 900); first = false; };
+  return {
+    add(n) { clearTimeout(hideT); hideT = null; if (total === 0) done = 0; total += n;
+      if (first) { full = true; ui(); paint(); }
+      else if (!el && !t) t = setTimeout(() => { t = null; if (done < total) { ui(); paint(); } }, 350);
+      else if (el) paint(); },
+    tick() { done++; if (el) { if (done >= total) finish(); else paint(); } else if (done >= total) { first = false; total = done = 0; } },
+    sync() { if (total && done >= total) { if (el) finish(); else { first = false; total = done = 0; } } }
+  };
+})();
 function start() {
   on = true; document.documentElement.lang = lang(); loadCache();
   walk(document.body);
