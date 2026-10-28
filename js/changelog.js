@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.44.0", d: "2026-10-28", t: "Ladebildschirm beim Seitenwechsel", items: [
+    "Wenn StudyOS in einer anderen Sprache läuft und du eine neue Seite öffnest (z. B. ein Skript), zeigt ein kurzer Ladebildschirm, dass die Seite gerade übersetzt wird.",
+    "Sobald alles übersetzt ist, erscheint kurz „Seite übersetzt“ mit Häkchen und der Bildschirm verschwindet von selbst.",
+    "Seiten, die schon einmal übersetzt wurden, gehen sofort auf, ohne Ladebildschirm."
+  ] },
   { v: "4.43.0", d: "2026-10-28", t: "Übersetzung repariert, Updates schneller", items: [
     "Beim Übersetzen zeigt ein Ladebildschirm, wie weit es ist und wann es fertig ist. Du kannst abbrechen (dann bleibt Deutsch) oder im Hintergrund weitermachen lassen, dann zeigt ein kleiner Hinweis oben den Fortschritt.",
     "Updates kommen schneller an: Solange StudyOS offen ist, wird alle 2 Minuten und beim Zurückkehren in die App nachgesehen. Ein neues Update zeigt sofort „Jetzt neu laden“.",
