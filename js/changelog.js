@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.42.0", d: "2026-10-28", t: "Einstellungen wie am iPhone", items: [
+    "Einstellungen aufgebaut wie am iPhone: oben dein Profil, darunter die Bereiche mit farbigen Symbolen. Am Handy öffnet ein Tipp den Bereich, „‹ Einstellungen“ führt zurück.",
+    "Am Laptop stehen Liste und Bereich nebeneinander, wie am iPad.",
+    "Behoben: Beim Wechseln der Bereiche blieben alle Bereiche sichtbar."
+  ] },
   { v: "4.41.0", d: "2026-10-28", t: "Profilbild, neue Einstellungen, weniger Neuladen", items: [
     "Eigenes Foto als Profilbild: hochladen, zurechtziehen und zoomen. Oder ein Emoji aus über 250 Avataren in Kategorien wie Katzen, Hunde, Tiere, Essen oder Sport.",
     "In der Profil-Karte stehen nur ein paar Vorschläge, „Mehr“ öffnet alle. Dazu Hintergrundfarben für Emoji und Buchstabe.",
