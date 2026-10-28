@@ -58,7 +58,7 @@ App.SIDE = () => {
     <div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
     <nav class="nav" aria-label="Hauptmenü">${NAVG.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(([v, t, i]) => `<button data-go="${v}" class="${cur === v ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "review" && due ? `<span class="badge">${due}</span>` : ""}</button>`).join("")).join("")}
       <div class="eyebrow lbl">Konto</div><button data-go="settings" class="${cur === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button></nav>
-    <div class="me"><div class="me-top"><div class="avatar">${esc((S().settings && S().settings.avatar) || (S().name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
+    <div class="me"><div class="me-top">${App.avatar.html("avatar", 'data-go="settings" role="link" title="Profil"')}<div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
       ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profile">${StudyProfiles.list().length > 1 ? "⇄ Profil wechseln" : "＋ Profil hinzufügen"}</button>` : ""}</div>`;
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   const tb = $("#tb-stats"); if (tb) tb.innerHTML = due ? `<button class="chip acc" data-go="review">↻ ${due} fällig</button>` : "";

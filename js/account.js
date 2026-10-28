@@ -123,7 +123,7 @@ async function syncNow(interactive) {
       const merged = App.mergeStates(JSON.parse(cur), remote);
       merged.sync = Object.assign({}, S().sync, { gistId: gid });
       merged.profile = Object.assign({}, merged.profile, { pinHash: S().profile.pinHash });
-      if (JSON.stringify(merged) !== cur) App.replaceState(merged);
+      if (JSON.stringify(merged) !== cur) App.replaceState(merged, { quiet: !interactive });
     }
     await pushGist(); setSync("Synchronisiert · " + new Date().toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" }));
     if (interactive) App.toast("Synchronisiert", "Beide Geräte haben jetzt denselben Stand.", "⇅");
@@ -350,14 +350,28 @@ App.renderAssistant = (box, l) => {
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; });
 const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+/* Updates: Eine neue Version wird im Hintergrund geladen und erst übernommen, wenn es nicht stört:
+   direkt beim Start (bevor man etwas anfasst), nach längerer Pause im Hintergrund oder auf Tipp auf „Neu laden“.
+   Nach Updates wird höchstens alle 30 Minuten gesucht. */
+const bootAt = Date.now();
 function registerSW() {
   if (!("serviceWorker" in navigator) || !/^https?:/.test(location.protocol)) return;
-  const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+  const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false, lastCheck = 0, hiddenSince = 0, toastShown = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadCtrl && !reloaded) { reloaded = true; location.reload(); } });
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
-    reg.update().catch(() => {});
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
-    reg.addEventListener("updatefound", () => { const nw = reg.installing; nw && nw.addEventListener("statechange", () => { if (nw.state === "installed" && navigator.serviceWorker.controller) { const t = document.createElement("div"); t.className = "toast ach"; t.innerHTML = `<div class="ti">↻</div><div><div class="eyebrow">Update verfügbar</div><div>Neue Version von StudyOS.</div></div><button class="btn sm pri">Neu laden</button>`; $("button", t).onclick = () => location.reload(); $("#toasts").appendChild(t); } }); });
+    const fresh = () => Date.now() - bootAt < 4000 && !document.querySelector(".modal-back");
+    const apply = () => { if (reg.waiting) reg.waiting.postMessage("skip-waiting"); };
+    const offer = () => { if (!reg.waiting || !navigator.serviceWorker.controller) return; if (fresh()) return apply(); if (toastShown) return; toastShown = true;
+      const t = document.createElement("div"); t.className = "toast ach"; t.innerHTML = `<div class="ti">↻</div><div><div class="eyebrow">Update bereit</div><div>Wird beim nächsten Öffnen übernommen.</div></div><button class="btn sm pri">Jetzt neu laden</button>`;
+      $("button", t).onclick = () => { t.remove(); apply(); }; $("#toasts").appendChild(t); setTimeout(() => t.remove(), 12000); };
+    const check = () => { if (Date.now() - lastCheck < 30 * 60e3) return; lastCheck = Date.now(); reg.update().catch(() => {}); };
+    check(); offer();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") { hiddenSince = Date.now(); return; }
+      if (reg.waiting && hiddenSince && Date.now() - hiddenSince > 10 * 60e3 && !document.querySelector(".modal-back")) return apply();
+      check();
+    });
+    reg.addEventListener("updatefound", () => { const nw = reg.installing; nw && nw.addEventListener("statechange", () => { if (nw.state === "installed") offer(); }); });
   }).catch(() => {});
 }
 

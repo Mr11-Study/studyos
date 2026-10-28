@@ -54,13 +54,13 @@ App.afterBoot.push(() => {
 
 /* ---------- Bereiche ---------- */
 const SECTIONS = [
-  ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Benachrichtigungen (Chat)", "Sprache"]],
-  ["look", "Darstellung", "◈", ["Darstellung", "Start"]],
-  ["lernen", "Lernen", "↻", ["Lernen", "· Fragen"]],
-  ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)", "Schutz & Tempo"]],
-  ["daten", "Sync & Daten", "⇅", ["Sync zwischen Handy und Laptop", "Speicher & Daten"]],
-  ["app", "App", "▣", ["App installieren", "KI-Assistent (optional)", "Über"]],
-  ["reset", "Zurücksetzen", "⚠", ["Lernfortschritt zurücksetzen", "Zurücksetzen"]],
+  ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Benachrichtigungen (Chat)", "Sprache"], "Name, Profilbild, Tagesziel und Sprache"],
+  ["look", "Darstellung", "◈", ["Darstellung", "Start"], "Farben, Schriftgröße und Startseite"],
+  ["lernen", "Lernen", "↻", ["Lernen", "· Fragen"], "Wiederholen, Schwierigkeit und Fragen"],
+  ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)", "Schutz & Tempo"], "PIN-Sperre und Schutz der App"],
+  ["daten", "Sync & Daten", "⇅", ["Sync zwischen Handy und Laptop", "Speicher & Daten"], "Geräte verbinden, Speicher und Updates"],
+  ["app", "App", "▣", ["App installieren", "KI-Assistent (optional)", "Über"], "Installieren, KI-Assistent und Infos"],
+  ["reset", "Zurücksetzen", "⚠", ["Lernfortschritt zurücksetzen", "Zurücksetzen"], "Fortschritt oder alles löschen"],
 ];
 const sectionOf = t => { for (const s of SECTIONS) if (s[3].some(k => k.startsWith("·") ? t.endsWith(k) : t === k)) return s[0]; return "app"; };
 
@@ -121,7 +121,7 @@ function bindGuard(card) {
 
 /* ---------- Seite ---------- */
 const inner = PAGES.settings;
-let navObs = null, query = "";
+let query = "";
 PAGES.settings = (el, p) => {
   inner(el, p);
   const pg = $(".page", el); if (!pg) return;
@@ -140,25 +140,24 @@ PAGES.settings = (el, p) => {
   else if (slot) slot.remove();
   const by = {}; cards.forEach(c => { const t = (($("h3", c) || {}).textContent || "").trim(); (by[sectionOf(t)] = by[sectionOf(t)] || []).push(c); });
 
-  const s = S(), pr = s.profile || {}, st = s.settings || {};
-  const av = st.avatar || esc((s.name || "?")[0].toUpperCase());
+  const s = S(), pr = s.profile || {};
   const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const synced = App.secrets && App.secrets().ghToken;
   const chip = (on, t) => `<span class="st-chip ${on ? "on" : ""}"><i></i>${t}</span>`;
   const head = document.createElement("header"); head.className = "st-hero";
-  head.innerHTML = `<div class="st-av" aria-hidden="true">${av}</div><div class="st-who"><span class="eyebrow">Einstellungen</span><b>${esc(s.name || "Student")}</b>
+  head.innerHTML = `<button type="button" class="st-avb" data-avopen aria-label="Profilbild ändern">${App.avatar.html("st-av")}<i aria-hidden="true">✎</i></button><div class="st-who"><span class="eyebrow">Einstellungen</span><b>${esc(s.name || "Student")}</b>
      <div class="st-chips">${chip(true, "Version " + esc(App.VERSION || ""))}${chip(!!synced, synced ? "Sync an" : "Sync aus")}${chip(!!pr.pinHash, pr.pinHash ? "PIN aktiv" : "Kein PIN")}${chip(!!installed, installed ? "Installiert" : "Im Browser")}</div></div>
    <label class="st-search"><span aria-hidden="true">⌕</span><input type="search" id="st-q" placeholder="Einstellung suchen …" autocomplete="off" aria-label="Einstellungen durchsuchen"><kbd class="kbd">/</kbd></label>`;
   const nav = document.createElement("nav"); nav.className = "st-nav"; nav.setAttribute("aria-label", "Bereiche");
   const body = document.createElement("div"); body.className = "st-body";
-  SECTIONS.forEach(([id, title, ic]) => {
+  SECTIONS.forEach(([id, title, ic, , desc]) => {
     const list = by[id]; if (!list || !list.length) return;
     const sec = document.createElement("section"); sec.className = "st-sec" + (id === "reset" ? " st-danger" : ""); sec.id = "sec-" + id; sec.dataset.sec = id;
-    sec.innerHTML = `<h2 class="st-h"><span class="st-hi" aria-hidden="true">${ic}</span>${title}</h2>`;
+    sec.innerHTML = `<header class="st-h"><span class="st-hi" aria-hidden="true">${ic}</span><div><h2>${title}</h2><small>${desc}</small></div></header>`;
     const keys = SECTIONS.find(x => x[0] === id)[3], rank = c => { const t = (($("h3", c) || {}).textContent || "").trim(); const i = keys.findIndex(k => k.startsWith("·") ? t.endsWith(k) : t === k); return i < 0 ? 99 : i; };
     list.sort((a, b) => rank(a) - rank(b)).forEach(c => { c.classList.add("st-card"); sec.appendChild(c); });
     body.appendChild(sec);
-    nav.insertAdjacentHTML("beforeend", `<a href="#settings" data-sec="${id}"><span aria-hidden="true">${ic}</span>${title}</a>`);
+    nav.insertAdjacentHTML("beforeend", `<a href="#settings" data-sec="${id}" class="${id === "reset" ? "st-nav-danger" : ""}"><span class="st-ni" aria-hidden="true">${ic}</span><span class="st-nt"><b>${title}</b><small>${desc}</small></span></a>`);
   });
   body.insertAdjacentHTML("beforeend", `<div class="empty st-none" hidden>Keine Einstellung gefunden.</div>`);
   if (h1) h1.remove();
@@ -175,33 +174,42 @@ PAGES.settings = (el, p) => {
   });
   const dc = $("#st-data", pg); if (dc) bindData(dc);
   const gc = $("#st-guard", pg); if (gc) bindGuard(gc);
-  /* Kopfbereich live mitziehen: Avatar und Name ändern sich sofort mit */
-  const hAv = $(".st-av", head), hName = $(".st-who b", head);
-  pg.addEventListener("click", e => { if (!e.target.closest("[data-av]")) return; requestAnimationFrame(() => { const st = S().settings || {}; hAv.innerHTML = st.avatar || esc((S().name || "?")[0].toUpperCase()); hAv.classList.remove("pop"); void hAv.offsetWidth; hAv.classList.add("pop"); }); });
-  const nm = $("#st-name", pg); if (nm) nm.addEventListener("input", () => { hName.textContent = S().name || "Student"; if (!(S().settings || {}).avatar) hAv.textContent = (S().name || "?")[0].toUpperCase(); });
+  /* Kopfbereich live mitziehen: Name und Anfangsbuchstabe ändern sich sofort mit */
+  const hName = $(".st-who b", head);
+  const nm = $("#st-name", pg); if (nm) nm.addEventListener("input", () => { hName.textContent = S().name || "Student"; App.avatar.paint(); });
 
+  /* immer nur ein Bereich sichtbar; bei der Suche alle Treffer aus allen Bereichen */
+  const ids = SECTIONS.map(x => x[0]).filter(id => $("#sec-" + id, pg));
+  let cur = ids.includes(p) ? p : ids.includes(UI.sec) ? UI.sec : ids[0];
+  const showSec = (id, anim) => {
+    cur = id; UI.sec = id; saveUI();
+    $$(".st-sec", pg).forEach(sec => { const on = sec.dataset.sec === id; sec.hidden = !on; if (on && anim) { sec.classList.remove("st-in"); void sec.offsetWidth; sec.classList.add("st-in"); } });
+    $$(".st-card", pg).forEach(c => c.hidden = false);
+    $$(".st-nav a", pg).forEach(a => { const on = a.dataset.sec === id; a.classList.toggle("on", on); a.classList.remove("off"); if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    const on = $(".st-nav a.on", pg); if (on && innerWidth <= 860) nav.scrollTo({ left: on.offsetLeft - 16, behavior: html.classList.contains("less-motion") ? "auto" : "smooth" });
+  };
   /* Suche */
   const q = $("#st-q", pg);
   const filter = () => {
     query = q.value.trim().toLowerCase(); let any = false;
+    pg.classList.toggle("st-searching", !!query);
+    if (!query) { showSec(cur); $(".st-none", pg).hidden = true; return; }
     $$(".st-sec", pg).forEach(sec => {
       let vis = 0; const hit = query && sec.querySelector(".st-h").textContent.toLowerCase().includes(query);
       $$(".st-card", sec).forEach(c => { const on = !query || hit || c.textContent.toLowerCase().includes(query); c.hidden = !on; vis += on; });
       sec.hidden = !vis; any = any || !!vis;
     });
     $(".st-none", pg).hidden = any;
-    $$(".st-nav a", pg).forEach(a => a.classList.toggle("off", !!($("#sec-" + a.dataset.sec, pg) || {}).hidden));
+    $$(".st-nav a", pg).forEach(a => { a.classList.remove("on"); a.classList.toggle("off", !!($("#sec-" + a.dataset.sec, pg) || {}).hidden); });
   };
-  q.value = query; q.oninput = filter; if (query) filter();
+  q.value = query; q.oninput = filter; filter();
   q.onkeydown = e => { if (e.key === "Escape") { q.value = ""; filter(); q.blur(); } };
 
   /* Navigation */
-  nav.onclick = e => { const a = e.target.closest("a[data-sec]"); if (!a) return; e.preventDefault(); const sec = $("#sec-" + a.dataset.sec, pg); if (sec) { const y = sec.getBoundingClientRect().top + scrollY - (innerWidth <= 860 ? 118 : 24); scrollTo({ top: y, behavior: html.classList.contains("less-motion") ? "auto" : "smooth" }); } };
-  if (navObs) navObs.disconnect();
-  if ("IntersectionObserver" in window) {
-    navObs = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { $$(".st-nav a", pg).forEach(a => a.classList.toggle("on", a.dataset.sec === en.target.dataset.sec)); const on = $(".st-nav a.on", pg); if (on && innerWidth <= 860) nav.scrollTo({ left: on.offsetLeft - 16, behavior: "smooth" }); } }), { rootMargin: "-30% 0px -60% 0px" });
-    $$(".st-sec", pg).forEach(sec => navObs.observe(sec));
-  }
+  nav.onclick = e => { const a = e.target.closest("a[data-sec]"); if (!a) return; e.preventDefault();
+    if (query) { q.value = ""; filter(); }
+    showSec(a.dataset.sec, true);
+    const top = grid.getBoundingClientRect().top + scrollY - (innerWidth <= 860 ? 60 : 20); if (scrollY > top) scrollTo({ top, behavior: html.classList.contains("less-motion") ? "auto" : "smooth" }); };
 };
 /* „/“ springt in die Suche */
 document.addEventListener("keydown", e => { if (e.key !== "/" || App.route().v !== "settings") return; const t = e.target; if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return; const q = $("#st-q"); if (q) { e.preventDefault(); q.focus(); } });

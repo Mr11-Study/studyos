@@ -98,7 +98,7 @@ function refreshTT(force) {
     const l = App.parseICS(t); if (!l.length) throw new Error("Unter dem Link stehen gerade keine Termine");
     const changed = JSON.stringify(l) !== JSON.stringify(S().timetable || []);
     S().timetable = l; src.at = Date.now(); App.save();
-    if (changed && force !== true && ["calendar", "dash"].includes(App.route().v) && !document.querySelector(".modal-back")) App.render();
+    if (changed && force !== true && ["calendar", "dash"].includes(App.route().v)) App.softRender();
     return { changed, count: l.length };
   });
   ttBusy.catch(() => {}).finally(() => { ttBusy = null; });
