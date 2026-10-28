@@ -832,3 +832,17 @@ button.toast.so-note:hover{border-color:var(--acc-line);border-left-color:var(--
 .cal-sync.err > span:first-child{color:var(--warn)}
 .cal-sync .btn{margin-left:auto}
 @media (max-width:560px){.cal-sync{padding:6px 10px;flex-wrap:nowrap}.cal-sync small{display:none}.cal-sync > span:nth-child(2){min-width:0}}
+
+/* Kalender: Plan einer Lehrperson (4.40) */
+.lv-bar{flex-wrap:wrap;border-color:color-mix(in srgb,var(--acc) 45%,var(--line));background:color-mix(in srgb,var(--acc) 6%,var(--card))}
+.lv-bar .tt-bar-ic{background:var(--acc);color:var(--acc-ink)}
+.lv-when{color:var(--text)!important;font-size:13px!important}
+.lv-live{color:var(--acc);font-weight:700}
+.lv-live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:5px;vertical-align:1px;animation:lvpulse 1.6s ease-in-out infinite}
+@keyframes lvpulse{50%{opacity:.35}}
+.lv-subj{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px}
+.lv-subj .chip{font-size:12px}
+.lv-rec{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lv-rec .eyebrow{flex-basis:100%}
+#c-lv[aria-pressed="true"]{background:var(--acc-soft);color:var(--acc);border-color:var(--acc)}
+@media (prefers-reduced-motion:reduce){.lv-live::before{animation:none}}
