@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.49.1", d: "2026-10-28", t: "Unterwegs: Karte repariert und in der Verbindung", items: [
+    "Die Karte zeigt wieder Straßen statt „API KEY REQUIRED“. Sie nutzt jetzt die freien OpenStreetMap-Karten, im Dunkelmodus abgedunkelt.",
+    "Klappst du eine Verbindung auf, erscheint ihre Karte direkt darin. Klappst du sie zu, zeigt die Karte unten wieder die nächste Verbindung.",
+    "Die leere grüne Leiste oben ist weg, sie erscheint nur noch, wenn du mitfährst.",
+    "Die Verbindungen unter „Danach“ sind jetzt nach Abfahrt sortiert."] },
   { v: "4.49.0", d: "2026-10-28", t: "Gemeinsam: ein Global-Chat für alle", items: [
     "Neu: ein Global-Chat für alle, die StudyOS nutzen. Du findest ihn unter Gemeinsam und direkt in der Seitenleiste. Nachrichten bleiben wie bisher 24 Stunden.",
     "Die offenen Live-Chats pro Fach sind weg. In jedem Fach heißt der Punkt jetzt „Lerngruppen“ und zeigt deine Gruppen zu diesem Fach, mit Gruppe gründen, offenen Gruppen und Beitritt per Code.",

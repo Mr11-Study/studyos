@@ -151,7 +151,7 @@ async function load(r, force, jEvery) {
 }
 const realLegs = j => j.legs.filter(g => !g.walk);
 const jDep = j => T((realLegs(j)[0] || j.legs[0] || {}).dep), jArr = j => T((j.legs[j.legs.length - 1] || {}).arr);
-const upcoming = x => (x && x.j || []).filter(j => { const d = jDep(j); return d && d - Date.now() > -60000 && !j.legs.some(g => g.x); });
+const upcoming = x => (x && x.j || []).filter(j => { const d = jDep(j); return d && d - Date.now() > -60000 && !j.legs.some(g => g.x); }).sort((a, b) => jDep(a) - jDep(b) || jArr(a) - jArr(b));
 const walkMin = r => +((placeOf(r.from) || {}).walk || 0);
 const firstWalk = j => j.legs[0] && j.legs[0].walk ? Math.max(1, Math.round((T(j.legs[0].arr) - T(j.legs[0].dep)) / 60000)) : 0;
 const leaveAt = (j, r) => { const d = jDep(j); return d ? new Date(d - (walkMin(r) + firstWalk(j)) * 60000) : null; };
@@ -191,12 +191,12 @@ function heroHTML(j, r) {
     <div class="tr-hl"><div class="tr-big tab" data-cd>${esc(inTxt(mins(dep)))}</div><div class="tr-go" data-lv>${lm == null ? "" : lm <= 0 ? "Jetzt losgehen!" : "Losgehen " + inTxt(lm)}</div>${lv ? `<small class="muted tab">spätestens ${hm(lv)} los</small>` : ""}</div>
     <div class="tr-hr">${legsHTML(j)}<div class="tr-tm tab"><b>${hm(dep)}</b> ${delayTxt(f.dd)} <span class="tr-arrow">→</span> <b>${hm(arr)}</b> ${f.pl ? `<span class="chip">Steig ${esc(f.pl)}</span>` : ""}</div>
       <small class="muted">${esc(f.o || "")}${f.dir ? " · Richtung " + esc(f.dir) : ""}</small>${factsHTML(j)}${by}</div></div>
-    <div class="row tr-acts"><details class="tr-jd tr-hd" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary>Alle Details zur Fahrt</summary>${detailHTML(j)}</details><button type="button" class="btn sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div>`;
+    <div class="row tr-acts"><button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button><details class="tr-jd tr-hd" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary>Halte, Steige & Karte</summary>${detailHTML(j)}</details></div><small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small>`;
 }
 function rowJ(j) {
   const L = realLegs(j), f = L[0] || j.legs[0], dep = jDep(j), arr = jArr(j), k = jKey(j);
   return `<details class="tr-jd" data-dep="${dep ? dep.getTime() : ""}" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary class="tr-row"><b class="tr-min tab" data-cd>${esc(inTxt(mins(dep)))}</b>${legsHTML(j)}<span class="tr-tm tab">${hm(dep)} ${delayTxt(f.dd)} → ${hm(arr)}</span><small class="muted">${Math.max(0, L.length - 1) ? (L.length - 1) + "× um" : "direkt"} ▾</small></summary>
-    <div class="tr-jb">${factsHTML(j)}${detailHTML(j)}<div class="row tr-acts"><button type="button" class="btn ghost sm" data-map="${esc(k)}">🗺 Auf der Karte</button><button type="button" class="btn sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div></div></details>`;
+    <div class="tr-jb">${factsHTML(j)}${detailHTML(j)}<div class="row tr-acts"><button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div><small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small></div></details>`;
 }
 function rowD(d) {
   const w = T(d.when), m = mins(w);
@@ -316,7 +316,9 @@ function rideHTML(j) {
     <div class="spread tr-rft"><small class="tab">${hm(dep)} ${esc((realLegs(j)[0] || {}).o || "")}</small><small class="tab">Ankunft <b>${hm(arr)}</b>${arr - Date.now() > 0 ? " · " + inTxt(mins(arr)) : ""}</small></div>`;
 }
 let MAP = null; /* { m, grp, veh, me, watch, key } */
-const TILE = () => App.isDark && App.isDark() ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+/* freie OpenStreetMap-Kacheln ohne Key (CARTO verlangt inzwischen einen); im Dunkelmodus per CSS-Filter abgedunkelt, bei Fehlern Ausweich-Server */
+const TILES = ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", "https://tile.openstreetmap.de/{z}/{x}/{y}.png"];
+const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende';
 const pin = (L, cls, html) => L.divIcon({ className: "tr-pin " + cls, html, iconSize: null });
 function drawMap(box, j, title) {
   const note = $(".tr-mapnote", box.closest(".tr-mapc")), head = $(".tr-mt", box.closest(".tr-mapc"));
@@ -327,7 +329,8 @@ function drawMap(box, j, title) {
       if (MAP && MAP.watch != null) navigator.geolocation.clearWatch(MAP.watch);
       const m = L.map(box, { zoomControl: false, attributionControl: true, scrollWheelZoom: false, tap: true });
       L.control.zoom({ position: "bottomright" }).addTo(m);
-      L.tileLayer(TILE(), { subdomains: "abcd", maxZoom: 19, detectRetina: true, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' }).addTo(m);
+      let ti = 0, bad = 0; const tl = L.tileLayer(TILES[0], { maxZoom: 19, attribution: OSM_ATTR, className: "tr-tiles" }).addTo(m);
+      tl.on("tileerror", () => { if (++bad > 6 && ti < TILES.length - 1) { bad = 0; tl.setUrl(TILES[++ti]); } });
       MAP = { box, m, grp: L.layerGroup().addTo(m), veh: null, me: null, watch: null, key: null };
       if (navigator.permissions && navigator.geolocation) navigator.permissions.query({ name: "geolocation" }).then(st => { if (st.state === "granted") showMe(false); }).catch(() => {});
     }
@@ -388,14 +391,15 @@ PAGES.transit = el => {
     </div>
     <section class="card tr-ridec" hidden></section>
     <section class="card tr-main" aria-live="polite"><div class="tr-load">Lade Verbindungen …</div></section>
-    <section class="card tr-mapc"><div class="spread"><h3 class="tr-mt">Karte</h3><div class="row tr-mapb"><button type="button" class="chip" data-me>📍 Wo bin ich</button><button type="button" class="chip" data-big aria-label="Karte größer">⤢ Größer</button></div></div><div class="tr-map notranslate" translate="no" aria-label="Karte der Verbindung"></div><small class="muted tr-mapnote"></small></section>
+    <section class="card tr-mapc" hidden><div class="spread"><h3 class="tr-mt">Karte</h3><div class="row tr-mapb"><button type="button" class="chip" data-me>📍 Wo bin ich</button><button type="button" class="chip" data-big aria-label="Karte größer">⤢ Größer</button></div></div><div class="tr-map notranslate" translate="no" aria-label="Karte der Verbindung"></div><small class="muted tr-mapnote"></small></section>
     <section class="card tr-board"><div class="spread"><h3>Abfahrten ab ${esc(a.name)}</h3><small class="muted tr-stamp"></small></div><div class="tr-deps"></div></section>
     <p class="tr-foot muted"><button type="button" class="linkish" data-go="settings" data-p="wege">Orte ändern</button><br>Live-Fahrplan von <a href="https://transitous.org/sources/" target="_blank" rel="noopener">Transitous</a> (Daten der Verkehrsverbünde, © OpenStreetMap-Mitwirkende), ersatzweise ÖBB. Abfahrten aktualisieren sich jede Minute von selbst, Verbindungen alle 90 Sekunden.</p>
   </div>`;
   const paint = x => {
     const main = $(".tr-main", el), deps = $(".tr-deps", el); if (!main) return;
+    const mc = $(".tr-mapc", el); if (mc && main.contains(mc)) main.after(mc); /* Karte vor dem Neuzeichnen retten */
     const up = upcoming(x), err = errTxt(x);
-    main.innerHTML = up.length ? heroHTML(up[0], r) + (up.length > 1 ? `<div class="tr-list"><span class="eyebrow">Danach</span>${up.slice(1, 5).map(rowJ).join("")}</div>` : "") + (err ? `<p class="tr-err">${esc(err)}</p>` : "")
+    main.innerHTML = up.length ? heroHTML(up[0], r) + (up.length > 1 ? `<div class="tr-list"><div class="spread"><span class="eyebrow">Danach</span><small class="muted">Antippen für Halte, Steige und Karte</small></div>${up.slice(1, 5).map(rowJ).join("")}</div>` : "") + (err ? `<p class="tr-err">${esc(err)}</p>` : "")
       : x && x.at ? `<div class="empty">Gerade keine Verbindung gefunden.${err ? " " + esc(err) : ""}</div>` : `<div class="empty">${esc(err || "Lade Verbindungen …")}</div>`;
     const dl = (x && x.d || []).filter(d => { const w = T(d.when); return w && w - Date.now() > -60000; }).slice(0, 10);
     deps.innerHTML = dl.length ? dl.map(rowD).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in der nächsten Zeit." : x && x.err ? "Gerade keine Live-Abfahrten." : "…"}</div>`;
@@ -407,10 +411,13 @@ PAGES.transit = el => {
   const paintLive = x => {
     lastX = x || lastX; const R = freshRide(lastX), rc = $(".tr-ridec", el);
     if (rc) { rc.hidden = !R; if (R) rc.innerHTML = rideHTML(R.j); }
-    const up = upcoming(lastX), j = R ? R.j : up.find(z => jKey(z) === mapK) || up[0];
+    const up = upcoming(lastX), j = R ? R.j : mapK ? up.find(z => jKey(z) === mapK) : null; /* Karte nur für die aufgeklappte Verbindung oder die laufende Fahrt */
     const box = $(".tr-map", el); if (!box) return;
-    $(".tr-mapc", el).hidden = !j;
-    if (j) drawMap(box, j, R ? "Deine Fahrt" : mapK && jKey(j) === mapK ? "Gewählte Verbindung " + hm(jDep(j)) : "Nächste Verbindung " + hm(jDep(j)));
+    const mc = $(".tr-mapc", el), open = mapK && !R && $$(`details.tr-jd:not(.tr-dd)[open]`, el).find(d => d.dataset.k === mapK);
+    const home = R ? $(".tr-ridec", el) : $(".tr-main", el);
+    if (open) { const at = open.querySelector(".tr-jb") || open, ref = at.querySelector(":scope > .tr-acts"); if (mc.parentNode !== at) at.insertBefore(mc, ref); } else if (mc.previousElementSibling !== home) home.after(mc);
+    mc.classList.toggle("tr-inl", !!open); mc.hidden = !j;
+    if (j) drawMap(box, j, R ? "Deine Fahrt auf der Karte" : "Karte dieser Verbindung");
   };
   el.addEventListener("click", e => {
     const mb = e.target.closest("[data-map]"); if (mb) { mapK = mb.dataset.map; paintLive(); $(".tr-mapc", el).scrollIntoView({ behavior: "smooth", block: "center" }); return; }
@@ -420,7 +427,9 @@ PAGES.transit = el => {
     if (e.target.closest("[data-big]")) { const c = $(".tr-mapc", el); c.classList.toggle("big"); e.target.closest("[data-big]").textContent = c.classList.contains("big") ? "⤡ Kleiner" : "⤢ Größer"; setTimeout(() => MAP && MAP.m.invalidateSize(), 250); }
   });
   /* aufgeklappte Fahrten bleiben beim Aktualisieren offen */
-  el.addEventListener("toggle", e => { const d = e.target; if (!d.matches || !d.matches("details.tr-jd[data-k]")) return; if (d.open) openJ.add(d.dataset.k); else openJ.delete(d.dataset.k); }, true);
+  el.addEventListener("toggle", e => { const d = e.target; if (!d.matches || !d.matches("details.tr-jd[data-k]")) return; if (d.open) openJ.add(d.dataset.k); else openJ.delete(d.dataset.k);
+    if (d.matches(".tr-dd")) return; /* Verbindung aufgeklappt: Karte dieser Fahrt direkt darin zeigen */
+    if (d.open) { mapK = d.dataset.k; paintLive(); } else if (mapK === d.dataset.k) { mapK = null; paintLive(); } }, true);
   const k = keyOf(a, b); if (data[k]) paint(data[k]);
   const refresh = force => load(r, force, 85000).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });
   refresh(false);

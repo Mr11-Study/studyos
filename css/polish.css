@@ -1155,3 +1155,15 @@ html.tr-noscroll,html.tr-noscroll body{overflow:hidden}
 .tr-rbar{height:8px;border-radius:8px;background:var(--card3);overflow:hidden}.tr-rbar i{display:block;height:100%;background:var(--acc);transition:width .5s}
 .tr-rft small{color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.tr-pin.tr-veh>*{animation:none}}
+
+/* 4.49.1 Unterwegs: Karte in der aufgeklappten Verbindung, leere Fahrt-Karte weg, OSM im Dunkelmodus */
+.tr-ridec[hidden],.tr-mapc[hidden]{display:none!important}
+.tr-acts .tr-hd:not([open]){flex:0 0 auto}
+.tr-mapc.tr-inl{margin:12px 0 4px;padding:0;border:0;background:none;box-shadow:none}
+.tr-mapc.tr-inl .tr-mt{font-size:15px}
+.tr-mapc.tr-inl .tr-map{height:260px}
+@media (min-width:900px){.tr-mapc.tr-inl .tr-map{height:340px}}
+.tr-mapc.tr-inl.big .tr-map{height:min(72vh,640px)}
+@media (prefers-color-scheme:dark){.tr-tiles{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6)}}
+.tr-hint{display:block;font-size:12.5px;margin-top:6px;line-height:1.4}
+.tr-list>.spread{margin-bottom:4px}
