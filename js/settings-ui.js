@@ -121,7 +121,9 @@ function bindGuard(card) {
 
 /* ---------- Seite ---------- */
 const inner = PAGES.settings;
-let query = "";
+let query = "", mView = "list";
+const ICOL = { konto: "#0A84FF", look: "#5E5CE6", lernen: "#FF9F0A", sicher: "#34C759", daten: "#32ADE6", app: "#8E8E93", reset: "#FF3B30" };
+const GROUPS = [["look", "lernen"], ["sicher", "daten"], ["app"], ["reset"]];
 PAGES.settings = (el, p) => {
   inner(el, p);
   const pg = $(".page", el); if (!pg) return;
@@ -143,27 +145,31 @@ PAGES.settings = (el, p) => {
   const s = S(), pr = s.profile || {};
   const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const synced = App.secrets && App.secrets().ghToken;
-  const chip = (on, t) => `<span class="st-chip ${on ? "on" : ""}"><i></i>${t}</span>`;
-  const head = document.createElement("header"); head.className = "st-hero";
-  head.innerHTML = `<button type="button" class="st-avb" data-avopen aria-label="Profilbild ändern">${App.avatar.html("st-av")}<i aria-hidden="true">✎</i></button><div class="st-who"><span class="eyebrow">Einstellungen</span><b>${esc(s.name || "Student")}</b>
-     <div class="st-chips">${chip(true, "Version " + esc(App.VERSION || ""))}${chip(!!synced, synced ? "Sync an" : "Sync aus")}${chip(!!pr.pinHash, pr.pinHash ? "PIN aktiv" : "Kein PIN")}${chip(!!installed, installed ? "Installiert" : "Im Browser")}</div></div>
-   <label class="st-search"><span aria-hidden="true">⌕</span><input type="search" id="st-q" placeholder="Einstellung suchen …" autocomplete="off" aria-label="Einstellungen durchsuchen"><kbd class="kbd">/</kbd></label>`;
-  const nav = document.createElement("nav"); nav.className = "st-nav"; nav.setAttribute("aria-label", "Bereiche");
+  /* wie am iPhone: links (am Handy zuerst) eine Liste mit farbigen Symbolen, rechts (am Handy nach dem Antippen) der Bereich */
+  const val = { look: { system: "System", light: "Hell", dark: "Dunkel" }[UI.scheme || "system"], sicher: pr.pinHash ? "PIN an" : "Aus", daten: synced ? "Sync an" : "Sync aus", app: installed ? "Installiert" : "v" + (App.VERSION || "") };
+  const row = id => { const x = SECTIONS.find(z => z[0] === id); return x && by[id] && by[id].length ? `<button type="button" class="st-row" data-sec="${id}"><span class="st-ic" style="--ic:${ICOL[id]}" aria-hidden="true">${x[2]}</span><span class="st-rt"><b>${x[1]}</b><small>${x[4]}</small></span>${val[id] ? `<span class="st-val">${esc(val[id])}</span>` : ""}<span class="st-chev" aria-hidden="true">›</span></button>` : ""; };
+  const side = document.createElement("aside"); side.className = "st-side";
+  side.innerHTML = `<div class="st-top"><h1>Einstellungen</h1><label class="st-search"><span aria-hidden="true">⌕</span><input type="search" id="st-q" placeholder="Suchen" autocomplete="off" aria-label="Einstellungen durchsuchen"><kbd class="kbd">/</kbd></label></div>
+    <button type="button" class="st-me" data-sec="konto">${App.avatar.html("st-av")}<span class="st-rt"><b class="st-myname">${esc(s.name || "Student")}</b><small>Profilbild, Name, Tagesziel und Sprache</small></span><span class="st-chev" aria-hidden="true">›</span></button>
+    ${GROUPS.map(g => { const h = g.map(row).join(""); return h ? `<div class="st-group">${h}</div>` : ""; }).join("")}
+    <p class="st-foot">StudyOS ${esc(App.VERSION || "")} · ${installed ? "als App installiert" : "im Browser"}</p>`;
   const body = document.createElement("div"); body.className = "st-body";
   SECTIONS.forEach(([id, title, ic, , desc]) => {
     const list = by[id]; if (!list || !list.length) return;
     const sec = document.createElement("section"); sec.className = "st-sec" + (id === "reset" ? " st-danger" : ""); sec.id = "sec-" + id; sec.dataset.sec = id;
-    sec.innerHTML = `<header class="st-h"><span class="st-hi" aria-hidden="true">${ic}</span><div><h2>${title}</h2><small>${desc}</small></div></header>`;
+    sec.innerHTML = `<header class="st-h"><span class="st-hi" style="--ic:${ICOL[id]}" aria-hidden="true">${ic}</span><div><h2>${title}</h2><small>${desc}</small></div></header>`;
     const keys = SECTIONS.find(x => x[0] === id)[3], rank = c => { const t = (($("h3", c) || {}).textContent || "").trim(); const i = keys.findIndex(k => k.startsWith("·") ? t.endsWith(k) : t === k); return i < 0 ? 99 : i; };
     list.sort((a, b) => rank(a) - rank(b)).forEach(c => { c.classList.add("st-card"); sec.appendChild(c); });
     body.appendChild(sec);
-    nav.insertAdjacentHTML("beforeend", `<a href="#settings" data-sec="${id}" class="${id === "reset" ? "st-nav-danger" : ""}"><span class="st-ni" aria-hidden="true">${ic}</span><span class="st-nt"><b>${title}</b><small>${desc}</small></span></a>`);
   });
   body.insertAdjacentHTML("beforeend", `<div class="empty st-none" hidden>Keine Einstellung gefunden.</div>`);
+  const detail = document.createElement("main"); detail.className = "st-detail";
+  detail.innerHTML = `<div class="st-dbar"><button type="button" class="st-back" aria-label="Zurück zu den Einstellungen"><span aria-hidden="true">‹</span> Einstellungen</button><b class="st-dtitle"></b></div>`;
+  detail.appendChild(body);
   if (h1) h1.remove();
   [...pg.children].forEach(n => n.remove());
-  const grid = document.createElement("div"); grid.className = "st-grid"; grid.append(nav, body);
-  pg.append(head, grid);
+  const grid = document.createElement("div"); grid.className = "st-ios"; grid.append(side, detail);
+  pg.append(grid);
 
   /* Handler der neuen Karten */
   $$("[data-ui]", pg).forEach(x => {
@@ -174,20 +180,24 @@ PAGES.settings = (el, p) => {
   });
   const dc = $("#st-data", pg); if (dc) bindData(dc);
   const gc = $("#st-guard", pg); if (gc) bindGuard(gc);
-  /* Kopfbereich live mitziehen: Name und Anfangsbuchstabe ändern sich sofort mit */
-  const hName = $(".st-who b", head);
+  /* Name ändert sich in der Liste sofort mit */
+  const hName = $(".st-myname", side);
   const nm = $("#st-name", pg); if (nm) nm.addEventListener("input", () => { hName.textContent = S().name || "Student"; App.avatar.paint(); });
 
-  /* immer nur ein Bereich sichtbar; bei der Suche alle Treffer aus allen Bereichen */
+  /* ein Bereich auf einmal; am Handy Liste ODER Bereich (mit Zurück), am Laptop beides nebeneinander */
   const ids = SECTIONS.map(x => x[0]).filter(id => $("#sec-" + id, pg));
   let cur = ids.includes(p) ? p : ids.includes(UI.sec) ? UI.sec : ids[0];
+  if (ids.includes(p)) mView = "detail";
+  const mobile = () => innerWidth <= 860;
+  const reduce = () => html.classList.contains("less-motion");
   const showSec = (id, anim) => {
     cur = id; UI.sec = id; saveUI();
     $$(".st-sec", pg).forEach(sec => { const on = sec.dataset.sec === id; sec.hidden = !on; if (on && anim) { sec.classList.remove("st-in"); void sec.offsetWidth; sec.classList.add("st-in"); } });
     $$(".st-card", pg).forEach(c => c.hidden = false);
-    $$(".st-nav a", pg).forEach(a => { const on = a.dataset.sec === id; a.classList.toggle("on", on); a.classList.remove("off"); if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-    const on = $(".st-nav a.on", pg); if (on && innerWidth <= 860) nav.scrollTo({ left: on.offsetLeft - 16, behavior: html.classList.contains("less-motion") ? "auto" : "smooth" });
+    $$("[data-sec]", side).forEach(a => { const on = a.dataset.sec === id; a.classList.toggle("on", on); if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    $(".st-dtitle", detail).textContent = (SECTIONS.find(x => x[0] === id) || [])[1] || "";
   };
+  const setView = v => { mView = v; grid.dataset.view = v; };
   /* Suche */
   const q = $("#st-q", pg);
   const filter = () => {
@@ -195,22 +205,28 @@ PAGES.settings = (el, p) => {
     pg.classList.toggle("st-searching", !!query);
     if (!query) { showSec(cur); $(".st-none", pg).hidden = true; return; }
     $$(".st-sec", pg).forEach(sec => {
-      let vis = 0; const hit = query && sec.querySelector(".st-h").textContent.toLowerCase().includes(query);
-      $$(".st-card", sec).forEach(c => { const on = !query || hit || c.textContent.toLowerCase().includes(query); c.hidden = !on; vis += on; });
+      let vis = 0; const hit = sec.querySelector(".st-h").textContent.toLowerCase().includes(query);
+      $$(".st-card", sec).forEach(c => { const on = hit || c.textContent.toLowerCase().includes(query); c.hidden = !on; vis += on; });
       sec.hidden = !vis; any = any || !!vis;
     });
     $(".st-none", pg).hidden = any;
-    $$(".st-nav a", pg).forEach(a => { a.classList.remove("on"); a.classList.toggle("off", !!($("#sec-" + a.dataset.sec, pg) || {}).hidden); });
+    $$("[data-sec]", side).forEach(a => a.classList.remove("on"));
+    $(".st-dtitle", detail).textContent = "Suche";
   };
   q.value = query; q.oninput = filter; filter();
-  q.onkeydown = e => { if (e.key === "Escape") { q.value = ""; filter(); q.blur(); } };
+  q.onkeydown = e => { if (e.key === "Escape") { q.value = ""; filter(); q.blur(); } if (e.key === "Enter" && query && mobile()) { q.blur(); setView("detail"); scrollTo(0, 0); } };
+  setView(query ? (mobile() ? "list" : "detail") : mView);
 
-  /* Navigation */
-  nav.onclick = e => { const a = e.target.closest("a[data-sec]"); if (!a) return; e.preventDefault();
+  side.addEventListener("click", e => { const a = e.target.closest("[data-sec]"); if (!a) return;
     if (query) { q.value = ""; filter(); }
-    showSec(a.dataset.sec, true);
-    const top = grid.getBoundingClientRect().top + scrollY - (innerWidth <= 860 ? 60 : 20); if (scrollY > top) scrollTo({ top, behavior: html.classList.contains("less-motion") ? "auto" : "smooth" }); };
+    showSec(a.dataset.sec, !mobile()); setView("detail");
+    if (mobile()) { grid.classList.remove("st-push", "st-pop"); void grid.offsetWidth; if (!reduce()) grid.classList.add("st-push"); scrollTo(0, 0); }
+    else { const top = grid.getBoundingClientRect().top + scrollY - 20; if (scrollY > top) scrollTo({ top, behavior: reduce() ? "auto" : "smooth" }); }
+  });
+  $(".st-back", detail).onclick = () => { if (query) { q.value = ""; filter(); } setView("list"); grid.classList.remove("st-push", "st-pop"); void grid.offsetWidth; if (!reduce()) grid.classList.add("st-pop"); scrollTo(0, 0); };
 };
+/* Einstellungen über das Menü öffnen: wieder mit der Liste beginnen (wie am iPhone) */
+document.addEventListener("click", e => { const g = e.target.closest && e.target.closest('[data-go="settings"]'); if (g && !g.dataset.p) mView = "list"; }, true);
 /* „/“ springt in die Suche */
 document.addEventListener("keydown", e => { if (e.key !== "/" || App.route().v !== "settings") return; const t = e.target; if (t.closest && t.closest("input,textarea,select,[contenteditable]")) return; const q = $("#st-q"); if (q) { e.preventDefault(); q.focus(); } });
 })();
