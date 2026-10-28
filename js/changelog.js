@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.47.0", d: "2026-10-28", t: "Unterwegs: alle Details zu jeder Fahrt", items: [
+    "Jede Verbindung lässt sich antippen: jede Teilstrecke mit Abfahrt, Ankunft und Steig, Linie mit Richtung und Betreiber, alle Zwischenhalte, Umsteigezeit (mit Hinweis, wenn es knapp wird) und Fußweg.",
+    "Verspätungen stehen bei jeder Abfahrt und Ankunft, mit der planmäßigen Zeit daneben. „● live“ zeigt, wo Echtzeitdaten dabei sind. Hinweise wie Ersatzverkehr erscheinen direkt bei der Fahrt.",
+    "Auch im Abfahrtsmonitor lässt sich jede Abfahrt aufklappen: Steig, Betreiber und Verspätung.",
+    "Verbindungen aktualisieren sich alle 90 Sekunden, Abfahrten jede Minute. Aufgeklappte Fahrten bleiben dabei offen."
+  ] },
   { v: "4.46.0", d: "2026-10-28", t: "Fahrplan repariert, kein ständiges Neuladen mehr", items: [
     "Unterwegs holt den Live-Fahrplan jetzt von Transitous (Fahrpläne der österreichischen Verkehrsverbünde und der ÖBB). Antwortet das nicht, springt automatisch der ÖBB-Fahrplan ein.",
     "Haltestellensuche und „📍 Hier“ zeigen jetzt auch den Ort dazu, z. B. „Weiz“. Klappt die Suche gerade nicht, kannst du den Namen trotzdem übernehmen.",
