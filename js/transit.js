@@ -42,6 +42,10 @@ async function mo(name, q, vers) {
 }
 const moStop = m => ({ id: String(m.id), name: m.name, lat: m.lat, lon: m.lon, src: "mo", area: ((m.areas || []).find(x => x.default) || (m.areas || [])[0] || {}).name || "" });
 const moLine = g => ({ name: g.routeShortName || g.displayName || g.tripShortName || "", product: MODE[g.mode] || "bus", color: hex(g.routeColor) });
+/* Koordinaten für die Karte: [lat, lon], Linienverlauf als „encoded polyline“ (Genauigkeit steht dabei) */
+const cc = (a, b) => a != null && b != null && isFinite(a) && isFinite(b) ? [+(+a).toFixed(5), +(+b).toFixed(5)] : null;
+function unpoly(str, prec) { const f = Math.pow(10, prec), out = []; let i = 0, lat = 0, lon = 0; try { while (i < str.length) { for (const k of [0, 1]) { let r = 0, sh = 0, c; do { c = str.charCodeAt(i++) - 63; r |= (c & 31) << sh; sh += 5; } while (c >= 32); const d = r & 1 ? ~(r >> 1) : r >> 1; if (k) lon += d; else lat += d; } out.push([+(lat / f).toFixed(5), +(lon / f).toFixed(5)]); } } catch (e) {} return out; }
+const thin = a => { if (!a || a.length <= 120) return a; const st = a.length / 120, o = []; for (let i = 0; i < a.length; i += st) o.push(a[Math.floor(i)]); o.push(a[a.length - 1]); return o; };
 const moAlerts = a => (a || []).map(x => x && (x.headerText || x.descriptionText)).filter(Boolean).slice(0, 3);
 const moWhere = p => p.src === "mo" && p.id ? p.id : p.lat != null ? p.lat + "," + p.lon : null;
 const MOTIS = {
@@ -59,7 +63,8 @@ const MOTIS = {
       const arr = g.endTime || (g.to || {}).arrival, sarr = g.scheduledEndTime || (g.to || {}).scheduledArrival;
       return { o: (g.from || {}).name, dst: (g.to || {}).name, dep, dd: g.realTime && dep && sdep ? (T(dep) - T(sdep)) / 1000 : null, arr, ad: g.realTime && arr && sarr ? (T(arr) - T(sarr)) / 1000 : null, rt: !!g.realTime,
         pl: (g.from || {}).track || (g.from || {}).scheduledTrack || "", apl: (g.to || {}).track || (g.to || {}).scheduledTrack || "", line: walk ? null : moLine(g), dir: g.headsign || "", walk, m: g.distance ? Math.round(g.distance) : null,
-        op: g.agencyName || "", stops: walk ? [] : (g.intermediateStops || []).map(x => ({ n: x.name, t: x.departure || x.arrival || x.scheduledDeparture || x.scheduledArrival })), warn: moAlerts(g.alerts), x: !!g.cancelled }; }) })).filter(j => j.legs.length);
+        op: g.agencyName || "", stops: walk ? [] : (g.intermediateStops || []).map(x => ({ n: x.name, t: x.departure || x.arrival || x.scheduledDeparture || x.scheduledArrival, c: cc(x.lat, x.lon) })), warn: moAlerts(g.alerts), x: !!g.cancelled,
+        oc: cc((g.from || {}).lat, (g.from || {}).lon), dc: cc((g.to || {}).lat, (g.to || {}).lon), pts: g.legGeometry && g.legGeometry.points ? thin(unpoly(g.legGeometry.points, g.legGeometry.precision || 6)) : null }; }) })).filter(j => j.legs.length);
   }
 };
 
@@ -77,7 +82,8 @@ const HAFAS = {
     return (Array.isArray(r) ? r : (r && r.departures) || []).map(d => ({ when: d.when || d.plannedWhen, plan: d.plannedWhen || d.when, rt: d.delay != null, delay: d.delay, pl: d.platform || d.plannedPlatform || "", spl: d.plannedPlatform && d.platform && d.plannedPlatform !== d.platform ? d.plannedPlatform : "", dir: d.direction || "", line: haLine(d.line), op: (d.line && d.line.operator && d.line.operator.name) || "", warn: haWarn(d.remarks), x: !!d.cancelled })); },
   async trips(a, b) { const r = await ha("/journeys", Object.assign(haWhere(a, "from"), haWhere(b, "to"), { results: 5, stopovers: "true", remarks: "true", tickets: "false", polylines: "false", scheduledDays: "false" }));
     return ((r && r.journeys) || []).map(j => ({ legs: (j.legs || []).map(g => ({ o: g.origin && g.origin.name, dst: g.destination && g.destination.name, dep: g.departure || g.plannedDeparture, dd: g.departureDelay, arr: g.arrival || g.plannedArrival, ad: g.arrivalDelay, rt: g.departureDelay != null, pl: g.departurePlatform || g.plannedDeparturePlatform || "", apl: g.arrivalPlatform || g.plannedArrivalPlatform || "", line: haLine(g.line), dir: g.direction || "", walk: !!g.walking, m: g.distance || null,
-      op: (g.line && g.line.operator && g.line.operator.name) || "", stops: (g.stopovers || []).slice(1, -1).map(x => ({ n: x.stop && x.stop.name, t: x.departure || x.arrival || x.plannedDeparture || x.plannedArrival })).filter(x => x.n), warn: haWarn(g.remarks), x: !!g.cancelled })) })); }
+      op: (g.line && g.line.operator && g.line.operator.name) || "", stops: (g.stopovers || []).slice(1, -1).map(x => ({ n: x.stop && x.stop.name, t: x.departure || x.arrival || x.plannedDeparture || x.plannedArrival, c: x.stop && x.stop.location ? cc(x.stop.location.latitude, x.stop.location.longitude) : null })).filter(x => x.n), warn: haWarn(g.remarks), x: !!g.cancelled,
+      oc: g.origin && g.origin.location ? cc(g.origin.location.latitude, g.origin.location.longitude) : null, dc: g.destination && g.destination.location ? cc(g.destination.location.latitude, g.destination.location.longitude) : null, pts: null })) })); }
 };
 /* erst Transitous, dann ÖBB; wer zuletzt geklappt hat, kommt zuerst dran */
 let good = "mo";
@@ -185,12 +191,12 @@ function heroHTML(j, r) {
     <div class="tr-hl"><div class="tr-big tab" data-cd>${esc(inTxt(mins(dep)))}</div><div class="tr-go" data-lv>${lm == null ? "" : lm <= 0 ? "Jetzt losgehen!" : "Losgehen " + inTxt(lm)}</div>${lv ? `<small class="muted tab">spätestens ${hm(lv)} los</small>` : ""}</div>
     <div class="tr-hr">${legsHTML(j)}<div class="tr-tm tab"><b>${hm(dep)}</b> ${delayTxt(f.dd)} <span class="tr-arrow">→</span> <b>${hm(arr)}</b> ${f.pl ? `<span class="chip">Steig ${esc(f.pl)}</span>` : ""}</div>
       <small class="muted">${esc(f.o || "")}${f.dir ? " · Richtung " + esc(f.dir) : ""}</small>${factsHTML(j)}${by}</div></div>
-    <details class="tr-jd tr-hd" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary>Alle Details zur Fahrt</summary>${detailHTML(j)}</details>`;
+    <div class="row tr-acts"><details class="tr-jd tr-hd" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary>Alle Details zur Fahrt</summary>${detailHTML(j)}</details><button type="button" class="btn sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div>`;
 }
 function rowJ(j) {
   const L = realLegs(j), f = L[0] || j.legs[0], dep = jDep(j), arr = jArr(j), k = jKey(j);
   return `<details class="tr-jd" data-dep="${dep ? dep.getTime() : ""}" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary class="tr-row"><b class="tr-min tab" data-cd>${esc(inTxt(mins(dep)))}</b>${legsHTML(j)}<span class="tr-tm tab">${hm(dep)} ${delayTxt(f.dd)} → ${hm(arr)}</span><small class="muted">${Math.max(0, L.length - 1) ? (L.length - 1) + "× um" : "direkt"} ▾</small></summary>
-    <div class="tr-jb">${factsHTML(j)}${detailHTML(j)}</div></details>`;
+    <div class="tr-jb">${factsHTML(j)}${detailHTML(j)}<div class="row tr-acts"><button type="button" class="btn ghost sm" data-map="${esc(k)}">🗺 Auf der Karte</button><button type="button" class="btn sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div></div></details>`;
 }
 function rowD(d) {
   const w = T(d.when), m = mins(w);
@@ -214,24 +220,157 @@ function tick(root) {
 }
 
 /* ---------- Haltestelle suchen ---------- */
-function stopPicker(host, cur, onPick) {
-  host.innerHTML = `<div class="tr-pick"><input type="search" class="tr-q" placeholder="Haltestelle suchen, z. B. Jakominiplatz" autocomplete="off" value="${esc(cur ? cur.name : "")}" aria-label="Haltestelle suchen"><button type="button" class="btn ghost sm tr-here" title="Haltestellen in meiner Nähe">📍 Hier</button><div class="tr-sug" role="listbox" hidden></div></div>`;
-  const q = $(".tr-q", host), sug = $(".tr-sug", host); let t = null, n = 0;
-  const show = (list, msg) => { sug.hidden = false; sug.innerHTML = msg ? `<div class="tr-sm muted">${esc(msg)}</div>` : list.map((x, i) => `<button type="button" role="option" data-i="${i}"><span><b>${esc(x.name)}</b>${x.area && !x.name.includes(x.area) ? ` <small>${esc(x.area)}</small>` : ""}</span>${x.distance != null ? `<small>${x.distance} m</small>` : ""}</button>`).join("") || `<div class="tr-sm muted">Nichts gefunden.</div>`; sug._l = list; };
-  q.addEventListener("input", () => { clearTimeout(t); const v = q.value.trim(); if (v.length < 2) { sug.hidden = true; return; } t = setTimeout(async () => { const my = ++n; show([], "Suche …"); try { const l = await findStops(v); if (my === n) show(l); } catch (e) { if (my === n) { show([], "Der Fahrplan antwortet gerade nicht."); sug.insertAdjacentHTML("beforeend", `<button type="button" data-raw>„${esc(v)}“ trotzdem übernehmen</button>`); } } }, 280); });
-  $(".tr-here", host).addEventListener("click", () => {
+/* Suche: am Laptop eine Liste unter dem Feld, am Handy ein eigenes Fenster über die ganze Höhe mit „Fertig“ (4.48).
+   Beide schließen mit ✕, Escape, Tippen daneben oder nach der Auswahl. */
+const phone = () => matchMedia("(max-width: 640px)").matches;
+function searchBox(q, here, sug, onPick, onClose) {
+  let t = null, n = 0;
+  const show = (list, msg) => { sug.hidden = false; sug.innerHTML = (msg ? `<div class="tr-sm muted">${esc(msg)}</div>` : list.map((x, i) => `<button type="button" role="option" data-i="${i}"><span><b>${esc(x.name)}</b>${x.area && !x.name.includes(x.area) ? ` <small>${esc(x.area)}</small>` : ""}</span>${x.distance != null ? `<small>${x.distance} m</small>` : ""}</button>`).join("") || `<div class="tr-sm muted">Nichts gefunden.</div>`); sug._l = list; };
+  q.addEventListener("input", () => { clearTimeout(t); const v = q.value.trim(); if (v.length < 2) { sug.hidden = true; sug.innerHTML = ""; return; } t = setTimeout(async () => { const my = ++n; show([], "Suche …"); try { const l = await findStops(v); if (my === n) show(l); } catch (e) { if (my === n) { show([], "Der Fahrplan antwortet gerade nicht."); sug.insertAdjacentHTML("beforeend", `<button type="button" data-raw>„${esc(v)}“ trotzdem übernehmen</button>`); } } }, 280); });
+  here.addEventListener("click", () => {
     if (!navigator.geolocation) return show([], "Dein Browser kann den Standort nicht bestimmen.");
     show([], "Bestimme Standort …");
     navigator.geolocation.getCurrentPosition(async p => { try { show(await nearStops(p.coords.latitude, p.coords.longitude)); } catch (e) { show([], "Der Fahrplan antwortet gerade nicht. Such die Haltestelle über den Namen."); } }, () => show([], "Standort nicht freigegeben."), { timeout: 10000, maximumAge: 120000 });
   });
-  sug.addEventListener("click", e => { if (e.target.closest("[data-raw]")) { const v = q.value.trim(); sug.hidden = true; if (v) onPick({ id: null, name: v, lat: null, lon: null, src: null }); return; }
-    const b = e.target.closest("[data-i]"); if (!b) return; const x = sug._l[+b.dataset.i]; q.value = x.name; sug.hidden = true; onPick({ id: x.id, name: x.name, lat: x.lat, lon: x.lon, src: x.src }); });
-  q.addEventListener("keydown", e => { if (e.key === "Enter") { const b = $("[data-i]", sug); if (b && !sug.hidden) { e.preventDefault(); b.click(); } } });
+  sug.addEventListener("click", e => {
+    if (e.target.closest("[data-raw]")) { const v = q.value.trim(); if (v) onPick({ id: null, name: v, lat: null, lon: null, src: null }); onClose(); return; }
+    const b = e.target.closest("[data-i]"); if (!b) return; const x = sug._l[+b.dataset.i]; onPick({ id: x.id, name: x.name, lat: x.lat, lon: x.lon, src: x.src }); onClose(); });
+  q.addEventListener("keydown", e => { if (e.key === "Enter") { const b = $("[data-i]", sug); if (b && !sug.hidden) { e.preventDefault(); b.click(); } } if (e.key === "Escape") onClose(); });
 }
+function stopPicker(host, cur, onPick, title) {
+  host.innerHTML = `<div class="tr-pick"><input type="search" class="tr-q" placeholder="Haltestelle suchen, z. B. Jakominiplatz" autocomplete="off" enterkeyhint="search" value="${esc(cur ? cur.name : "")}" aria-label="Haltestelle suchen"><button type="button" class="btn ghost sm tr-here" title="Haltestellen in meiner Nähe">📍 Hier</button><div class="tr-sug" role="listbox" hidden></div></div>`;
+  const q = $(".tr-q", host), sug = $(".tr-sug", host);
+  const pick = st => { q.value = st.name; onPick(st); };
+  /* Laptop: Liste unter dem Feld */
+  const close = () => { sug.hidden = true; };
+  searchBox(q, $(".tr-here", host), sug, pick, close);
+  const outside = e => { if (!host.contains(e.target)) close(); };
+  document.addEventListener("pointerdown", outside, true);
+  new MutationObserver((m, o) => { if (!host.isConnected) { document.removeEventListener("pointerdown", outside, true); o.disconnect(); } }).observe(document.body, { childList: true, subtree: true });
+  /* Handy: eigenes Fenster */
+  const sheet = () => {
+    const sh = document.createElement("div"); sh.className = "tr-sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-modal", "true");
+    sh.innerHTML = `<div class="tr-shead"><b>${esc(title || "Haltestelle")}</b><button type="button" class="btn sm tr-done">Fertig</button></div>
+      <div class="tr-sbar"><input type="search" class="tr-q2" placeholder="Haltestelle suchen" autocomplete="off" enterkeyhint="search" value="${esc(q.value)}" aria-label="Haltestelle suchen"></div>
+      <button type="button" class="tr-shere">📍 Haltestellen in meiner Nähe</button><div class="tr-slist" role="listbox"></div>`;
+    document.body.appendChild(sh); document.documentElement.classList.add("tr-noscroll");
+    const q2 = $(".tr-q2", sh), done = () => { sh.remove(); document.documentElement.classList.remove("tr-noscroll"); };
+    searchBox(q2, $(".tr-shere", sh), $(".tr-slist", sh), pick, done);
+    $(".tr-done", sh).addEventListener("click", done);
+    setTimeout(() => { q2.focus(); q2.select(); if (q2.value.trim().length >= 2) q2.dispatchEvent(new Event("input")); }, 30);
+  };
+  q.addEventListener("focus", () => { if (phone()) { q.blur(); sheet(); } });
+  $(".tr-here", host).addEventListener("click", e => { if (phone()) { e.stopImmediatePropagation(); close(); sheet(); setTimeout(() => { const b = $(".tr-sheet .tr-shere"); b && b.click(); }, 60); } }, true);
+}
+
+/* ---------- Karte und „Ich fahre mit“ (4.48) ----------
+   Karte mit Leaflet (lädt erst, wenn sie gebraucht wird) und Kartenbildern von CARTO auf OpenStreetMap-Daten.
+   Wo Bus oder Zug gerade ist, wird aus Fahrplan und Live-Verspätung geschätzt: zwischen zwei Halten nach der Uhrzeit. */
+const LEAF = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/";
+let leafP = null;
+function leaflet() {
+  if (window.L && window.L.map) return Promise.resolve(window.L);
+  if (leafP) return leafP;
+  leafP = new Promise((ok, no) => {
+    const c = document.createElement("link"); c.rel = "stylesheet"; c.href = LEAF + "leaflet.css"; c.crossOrigin = ""; document.head.appendChild(c);
+    const sc = document.createElement("script"); sc.src = LEAF + "leaflet.js"; sc.crossOrigin = ""; sc.onload = () => ok(window.L); sc.onerror = () => { leafP = null; no(new Error("map")); }; document.head.appendChild(sc);
+  });
+  return leafP;
+}
+const legPath = g => (g.pts && g.pts.length > 1 ? g.pts : [g.oc, ...(g.stops || []).map(x => x.c), g.dc]).filter(Boolean);
+const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+function along(path, f) { if (path.length < 2) return path[0] || null; const d = []; let tot = 0; for (let i = 1; i < path.length; i++) { const x = Math.hypot(path[i][0] - path[i - 1][0], (path[i][1] - path[i - 1][1]) * 0.68); d.push(x); tot += x; } let goal = tot * Math.max(0, Math.min(1, f)); for (let i = 0; i < d.length; i++) { if (goal <= d[i]) return lerp(path[i], path[i + 1], d[i] ? goal / d[i] : 0); goal -= d[i]; } return path[path.length - 1]; }
+/* Wo ist die Fahrt gerade? state: wait (vor Abfahrt), ride (im Fahrzeug), walk, change (beim Umsteigen), done */
+function whereNow(j, now = Date.now()) {
+  const legs = j.legs, first = legs.find(g => !g.walk) || legs[0];
+  if (now < T(legs[0].dep)) return { state: "wait", leg: first, c: first.oc || legPath(first)[0], next: first.o, nextT: first.dep };
+  for (let i = 0; i < legs.length; i++) {
+    const g = legs[i], a = T(g.dep), b = T(g.arr);
+    if (now < a) return { state: "change", leg: g, c: g.oc || legPath(g)[0], next: g.o, nextT: g.dep, i };
+    if (now <= b) {
+      if (g.walk) return { state: "walk", leg: g, c: along(legPath(g), (now - a) / Math.max(1, b - a)), next: g.dst, nextT: g.arr, i };
+      const tp = [{ t: a, c: g.oc, n: g.o }, ...(g.stops || []).map(x => ({ t: T(x.t), c: x.c, n: x.n })), { t: b, c: g.dc, n: g.dst }].filter(x => x.t && x.c);
+      for (let k = 1; k < tp.length; k++) if (now <= tp[k].t) { const f = (now - tp[k - 1].t) / Math.max(1, tp[k].t - tp[k - 1].t); return { state: "ride", leg: g, c: lerp(tp[k - 1].c, tp[k].c, f), next: tp[k].n, nextT: tp[k].t.toISOString(), i, left: tp.length - k - 1 }; }
+      return { state: "ride", leg: g, c: along(legPath(g), (now - a) / Math.max(1, b - a)), next: g.dst, nextT: g.arr, i, left: 0 };
+    }
+  }
+  const last = legs[legs.length - 1]; return { state: "done", leg: last, c: last.dc || legPath(last).slice(-1)[0], next: last.dst, nextT: last.arr };
+}
+/* „Ich fahre mit“: diese Verbindung wird bis zur Ankunft oben gezeigt und auf der Karte verfolgt */
+const RK = "studyos.transit.ride";
+let ride = null; try { ride = JSON.parse(localStorage.getItem(RK) || "null"); } catch (e) {}
+const rideOn = () => ride && ride.j && jArr(ride.j) && jArr(ride.j) - Date.now() > -5 * 60000 ? ride : null;
+const setRide = j => { ride = j ? { j, at: Date.now() } : null; try { if (ride) localStorage.setItem(RK, JSON.stringify(ride)); else localStorage.removeItem(RK); } catch (e) {} };
+/* die gemerkte Fahrt mit frischen Daten (Verspätung) auffrischen, wenn dieselbe Verbindung wieder geliefert wird */
+function freshRide(x) { const R = rideOn(); if (!R) return null; const k = jKey(R.j), hit = (x && x.j || []).find(j => jKey(j) === k || (realLegs(j)[0] && realLegs(R.j)[0] && realLegs(j)[0].line && realLegs(R.j)[0].line && realLegs(j)[0].line.name === realLegs(R.j)[0].line.name && Math.abs(T(j.legs[j.legs.length - 1].arr) - T(R.j.legs[R.j.legs.length - 1].arr)) < 20 * 60000)); if (hit) setRide(hit); return rideOn(); }
+function rideHTML(j) {
+  const w = whereNow(j), arr = jArr(j), dep = jDep(j), pc = Math.round(100 * Math.max(0, Math.min(1, (Date.now() - T(j.legs[0].dep)) / Math.max(1, arr - T(j.legs[0].dep))))), g = w.leg || {};
+  const now = w.state === "wait" ? `Warte auf ${badge(g.line)} · Abfahrt <b class="tab">${hm(T(g.dep))}</b> (${inTxt(mins(T(g.dep)))})${g.pl ? ` · Steig ${esc(g.pl)}` : ""}`
+    : w.state === "ride" ? `Im ${badge(g.line)} ${g.dir ? "Richtung " + esc(g.dir) : ""}<br><small>Nächster Halt <b>${esc(w.next || "")}</b> um <span class="tab">${hm(T(w.nextT))}</span>${w.left ? ` · danach noch ${w.left} ${w.left === 1 ? "Halt" : "Halte"}` : ""}${g.dd >= 60 ? ` · <span class="tr-late">+${Math.round(g.dd / 60)} min</span>` : ""}</small>`
+    : w.state === "walk" ? `🚶 Zu Fuß bis <b>${esc(w.next || "")}</b>, ${inTxt(mins(T(w.nextT)))}`
+    : w.state === "change" ? `⇄ Umsteigen: ${badge(g.line)} fährt um <b class="tab">${hm(T(g.dep))}</b> (${inTxt(mins(T(g.dep)))})${g.pl ? ` · Steig ${esc(g.pl)}` : ""}`
+    : `✓ Angekommen in <b>${esc(w.next || "")}</b>`;
+  return `<div class="spread"><span class="eyebrow">Du fährst mit</span><button type="button" class="btn ghost sm" data-ride-end>Beenden</button></div>
+    <div class="tr-rnow">${now}</div>
+    <div class="tr-rbar" aria-hidden="true"><i style="width:${pc}%"></i></div>
+    <div class="spread tr-rft"><small class="tab">${hm(dep)} ${esc((realLegs(j)[0] || {}).o || "")}</small><small class="tab">Ankunft <b>${hm(arr)}</b>${arr - Date.now() > 0 ? " · " + inTxt(mins(arr)) : ""}</small></div>`;
+}
+let MAP = null; /* { m, grp, veh, me, watch, key } */
+const TILE = () => App.isDark && App.isDark() ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const pin = (L, cls, html) => L.divIcon({ className: "tr-pin " + cls, html, iconSize: null });
+function drawMap(box, j, title) {
+  const note = $(".tr-mapnote", box.closest(".tr-mapc")), head = $(".tr-mt", box.closest(".tr-mapc"));
+  if (head) head.textContent = title || "Karte";
+  return leaflet().then(L => {
+    if (!box.isConnected) return;
+    if (!MAP || MAP.box !== box) {
+      if (MAP && MAP.watch != null) navigator.geolocation.clearWatch(MAP.watch);
+      const m = L.map(box, { zoomControl: false, attributionControl: true, scrollWheelZoom: false, tap: true });
+      L.control.zoom({ position: "bottomright" }).addTo(m);
+      L.tileLayer(TILE(), { subdomains: "abcd", maxZoom: 19, detectRetina: true, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>' }).addTo(m);
+      MAP = { box, m, grp: L.layerGroup().addTo(m), veh: null, me: null, watch: null, key: null };
+      if (navigator.permissions && navigator.geolocation) navigator.permissions.query({ name: "geolocation" }).then(st => { if (st.state === "granted") showMe(false); }).catch(() => {});
+    }
+    const key = jKey(j) + "|" + j.legs.map(g => g.dep).join();
+    if (MAP.key !== key) {
+      MAP.key = key; MAP.grp.clearLayers(); MAP.veh = null;
+      const all = [];
+      j.legs.forEach(g => {
+        const path = legPath(g); if (path.length < 2) return; all.push(...path);
+        if (g.walk) L.polyline(path, { color: "#8a8f98", weight: 4, dashArray: "2 8", lineCap: "round" }).addTo(MAP.grp);
+        else { L.polyline(path, { color: "#fff", weight: 9, opacity: .9 }).addTo(MAP.grp); L.polyline(path, { color: lineCol(g.line), weight: 5 }).addTo(MAP.grp);
+          (g.stops || []).forEach(x => x.c && L.circleMarker(x.c, { radius: 3.5, color: lineCol(g.line), weight: 2, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(`${esc(x.n)}${x.t ? " · " + hm(T(x.t)) : ""}`).addTo(MAP.grp));
+          if (g.oc) L.circleMarker(g.oc, { radius: 6, color: lineCol(g.line), weight: 3, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(`${esc(g.o || "")} · ${hm(T(g.dep))}${g.pl ? " · Steig " + esc(g.pl) : ""}`).addTo(MAP.grp); }
+      });
+      const s0 = j.legs[0], s1 = j.legs[j.legs.length - 1], a0 = legPath(s0)[0], a1 = legPath(s1).slice(-1)[0];
+      if (a0) L.marker(a0, { icon: pin(L, "tr-pa", "A"), keyboard: false }).bindTooltip("Start: " + esc(s0.o || "")).addTo(MAP.grp);
+      if (a1) L.marker(a1, { icon: pin(L, "tr-pb", "B"), keyboard: false }).bindTooltip("Ziel: " + esc(s1.dst || "")).addTo(MAP.grp);
+      if (all.length) MAP.m.fitBounds(L.latLngBounds(all), { padding: [26, 26], maxZoom: 15 }); else MAP.m.setView([47.07, 15.44], 12);
+      if (note) note.textContent = all.length ? "" : "Für diese Verbindung liefert der Fahrplan keine Koordinaten.";
+    }
+    moveVeh(j);
+    setTimeout(() => MAP && MAP.m.invalidateSize(), 60);
+  }).catch(() => { if (note) note.textContent = "Die Karte konnte nicht geladen werden. Prüf dein Internet."; });
+}
+function moveVeh(j) {
+  if (!MAP || !window.L) return; const L = window.L, w = whereNow(j), note = $(".tr-mapnote", MAP.box.closest(".tr-mapc"));
+  if (!w.c) return;
+  const g = w.leg || {}, html = w.state === "walk" ? "🚶" : `<span class="tr-line" style="--lc:${lineCol(g.line)}">${esc(lineName(g.line))}</span>`;
+  if (!MAP.veh) MAP.veh = L.marker(w.c, { icon: pin(L, "tr-veh " + w.state, html), zIndexOffset: 1000, keyboard: false }).addTo(MAP.grp); else { MAP.veh.setLatLng(w.c); MAP.veh.setIcon(pin(L, "tr-veh " + w.state, html)); }
+  if (note) note.textContent = w.state === "ride" ? `${lineName(g.line)} ist ungefähr hier (geschätzt aus Fahrplan und Live-Verspätung). Nächster Halt: ${w.next || ""}.` : w.state === "wait" ? `Abfahrt ${hm(T(g.dep))} in ${g.o || ""}. Die Linie zeigt den Weg, die Punkte die Halte.` : w.state === "walk" ? "Fußweg, gestrichelt eingezeichnet." : w.state === "done" ? "Angekommen." : `Umsteigen in ${g.o || ""}.`;
+}
+function showMe(pan) {
+  if (!MAP || !navigator.geolocation) return;
+  if (MAP.watch != null) { if (pan && MAP.me) MAP.m.panTo(MAP.me.getLatLng()); return; }
+  MAP.watch = navigator.geolocation.watchPosition(p => { if (!MAP || !window.L) return; const c = [p.coords.latitude, p.coords.longitude];
+    if (!MAP.me) { MAP.me = window.L.marker(c, { icon: pin(window.L, "tr-me", "<i></i>"), zIndexOffset: 2000, keyboard: false }).bindTooltip("Du bist hier").addTo(MAP.m); if (pan) MAP.m.panTo(c); } else MAP.me.setLatLng(c); },
+    () => { const n = $(".tr-mapnote", MAP.box.closest(".tr-mapc")); if (n) n.textContent = "Standort nicht freigegeben. Erlaube ihn in den Browser-Einstellungen."; }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+}
+function dropMap() { if (MAP) { if (MAP.watch != null) navigator.geolocation.clearWatch(MAP.watch); try { MAP.m.remove(); } catch (e) {} MAP = null; } }
 
 /* ---------- Seite „Unterwegs“ ---------- */
 let timer = null;
-function stopTimer() { clearInterval(timer); timer = null; }
+function stopTimer() { clearInterval(timer); timer = null; dropMap(); }
 PAGES.transit = el => {
   stopTimer();
   if (!ready()) {
@@ -247,7 +386,9 @@ PAGES.transit = el => {
       <div class="tr-way"><span class="tr-pl"><small>${esc(labelOf(r.from))}</small><b>${esc(a.name)}</b></span><button type="button" class="tr-swap" id="tr-swap" title="Richtung tauschen" aria-label="Richtung tauschen">⇅</button><span class="tr-pl"><small>${esc(labelOf(r.to))}</small><b>${esc(b.name)}</b></span></div>
       <div class="tr-chips">${others.length > 2 || !r.auto ? `<button type="button" class="chip ${r.auto ? "acc" : ""}" data-auto>Automatisch</button>` : ""}${others.length > 2 ? others.filter(p => p[0] !== r.to).map(p => `<button type="button" class="chip" data-to="${p[0]}">${p[2]} Nach ${esc(p[1])}</button>`).join("") : ""}<button type="button" class="chip" id="tr-reload">↻ Aktualisieren</button><a class="chip" href="${esc(scotty(a, b))}" target="_blank" rel="noopener">In ÖBB Scotty öffnen ↗</a></div>
     </div>
+    <section class="card tr-ridec" hidden></section>
     <section class="card tr-main" aria-live="polite"><div class="tr-load">Lade Verbindungen …</div></section>
+    <section class="card tr-mapc"><div class="spread"><h3 class="tr-mt">Karte</h3><div class="row tr-mapb"><button type="button" class="chip" data-me>📍 Wo bin ich</button><button type="button" class="chip" data-big aria-label="Karte größer">⤢ Größer</button></div></div><div class="tr-map notranslate" translate="no" aria-label="Karte der Verbindung"></div><small class="muted tr-mapnote"></small></section>
     <section class="card tr-board"><div class="spread"><h3>Abfahrten ab ${esc(a.name)}</h3><small class="muted tr-stamp"></small></div><div class="tr-deps"></div></section>
     <p class="tr-foot muted"><button type="button" class="linkish" data-go="settings" data-p="wege">Orte ändern</button><br>Live-Fahrplan von <a href="https://transitous.org/sources/" target="_blank" rel="noopener">Transitous</a> (Daten der Verkehrsverbünde, © OpenStreetMap-Mitwirkende), ersatzweise ÖBB. Abfahrten aktualisieren sich jede Minute von selbst, Verbindungen alle 90 Sekunden.</p>
   </div>`;
@@ -259,14 +400,32 @@ PAGES.transit = el => {
     const dl = (x && x.d || []).filter(d => { const w = T(d.when); return w && w - Date.now() > -60000; }).slice(0, 10);
     deps.innerHTML = dl.length ? dl.map(rowD).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in der nächsten Zeit." : x && x.err ? "Gerade keine Live-Abfahrten." : "…"}</div>`;
     const st = $(".tr-stamp", el); if (st) st.textContent = stamp(x);
+    paintLive(x);
   };
+  /* oben „Du fährst mit“, darunter die Karte: zeigt die gemerkte Fahrt, sonst die gewählte oder die nächste Verbindung */
+  let mapK = null, lastX = null;
+  const paintLive = x => {
+    lastX = x || lastX; const R = freshRide(lastX), rc = $(".tr-ridec", el);
+    if (rc) { rc.hidden = !R; if (R) rc.innerHTML = rideHTML(R.j); }
+    const up = upcoming(lastX), j = R ? R.j : up.find(z => jKey(z) === mapK) || up[0];
+    const box = $(".tr-map", el); if (!box) return;
+    $(".tr-mapc", el).hidden = !j;
+    if (j) drawMap(box, j, R ? "Deine Fahrt" : mapK && jKey(j) === mapK ? "Gewählte Verbindung " + hm(jDep(j)) : "Nächste Verbindung " + hm(jDep(j)));
+  };
+  el.addEventListener("click", e => {
+    const mb = e.target.closest("[data-map]"); if (mb) { mapK = mb.dataset.map; paintLive(); $(".tr-mapc", el).scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    const rb = e.target.closest("[data-ride]"); if (rb) { const j = upcoming(lastX).find(z => jKey(z) === rb.dataset.ride); if (j) { setRide(j); App.toast("Gute Fahrt", "StudyOS verfolgt diese Verbindung bis zur Ankunft.", "🚌"); paintLive(); scrollTo({ top: 0, behavior: "smooth" }); } return; }
+    if (e.target.closest("[data-ride-end]")) { setRide(null); paintLive(); return; }
+    if (e.target.closest("[data-me]")) { showMe(true); return; }
+    if (e.target.closest("[data-big]")) { const c = $(".tr-mapc", el); c.classList.toggle("big"); e.target.closest("[data-big]").textContent = c.classList.contains("big") ? "⤡ Kleiner" : "⤢ Größer"; setTimeout(() => MAP && MAP.m.invalidateSize(), 250); }
+  });
   /* aufgeklappte Fahrten bleiben beim Aktualisieren offen */
   el.addEventListener("toggle", e => { const d = e.target; if (!d.matches || !d.matches("details.tr-jd[data-k]")) return; if (d.open) openJ.add(d.dataset.k); else openJ.delete(d.dataset.k); }, true);
   const k = keyOf(a, b); if (data[k]) paint(data[k]);
   const refresh = force => load(r, force, 85000).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });
   refresh(false);
   let n = 0;
-  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return; tick(el); if (++n % 4 === 0) refresh(false); /* Abfahrten jede Minute, Verbindungen alle 90 s (siehe load), damit Verspätungen stimmen */
+  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return; tick(el); { const R = rideOn(), rc = $(".tr-ridec", el); if (R && rc && !rc.hidden) rc.innerHTML = rideHTML(R.j); const up = upcoming(lastX), j = R ? R.j : up.find(z => jKey(z) === mapK) || up[0]; if (j) moveVeh(j); } if (++n % 4 === 0) refresh(false); /* Abfahrten jede Minute, Verbindungen alle 90 s (siehe load), damit Verspätungen stimmen */
     const now = route(); if (now.auto && (now.from !== r.from || now.to !== r.to)) App.softRender(); }, 15000);
   $("#tr-swap", el).addEventListener("click", () => { pick = { from: r.to, to: r.from }; App.render(); });
   $("#tr-reload", el).addEventListener("click", () => { $(".tr-main", el).classList.add("tr-busy"); refresh("all").then(() => { const m = $(".tr-main", el); m && m.classList.remove("tr-busy"); }); });
@@ -292,7 +451,7 @@ function bindPlaces(card, onDone) {
   const setFor = (k, v) => { if (k === "home" || k === "uni") c[k] = v; else c.more[+k.slice(1)] = v; };
   $$(".tr-place", card).forEach(pl => {
     const k = pl.dataset.k;
-    stopPicker($(".tr-ps", pl), objFor(k), st => { const o = objFor(k) || {}; setFor(k, Object.assign({}, o, st, { label: o.label })); App.save(); App.toast("Gespeichert", labelOf(k) + ": " + st.name, "✓"); if (ready() && onDone) onDone(); });
+    stopPicker($(".tr-ps", pl), objFor(k), st => { const o = objFor(k) || {}; setFor(k, Object.assign({}, o, st, { label: o.label })); App.save(); App.toast("Gespeichert", labelOf(k) + ": " + st.name, "✓"); if (ready() && onDone) onDone(); }, labelOf(k) + " wählen");
     $(".tr-walkin", pl).addEventListener("change", e => { const o = objFor(k); const v = Math.max(0, Math.min(30, Math.round(+e.target.value || 0))); if (o) { o.walk = v; App.save(); } else e.target.value = 0; });
     const lb = $(".tr-lbl", pl); if (lb) lb.addEventListener("change", () => { const o = objFor(k) || {}; o.label = lb.value.trim().slice(0, 24) || "Ort"; setFor(k, o); App.save(); });
     const del = $(".tr-del", pl); if (del) del.addEventListener("click", () => { c.more.splice(+k.slice(1), 1); App.save(); App.render(); });

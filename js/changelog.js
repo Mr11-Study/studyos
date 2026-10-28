@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.48.0", d: "2026-10-28", t: "Unterwegs: Karte und „Ich fahre mit“", items: [
+    "Neue Karte unter den Verbindungen: die ganze Strecke in den Linienfarben, alle Halte, Fußwege gestrichelt, Start A und Ziel B. Mit „📍 Wo bin ich“ siehst du dich als blauen Punkt, „⤢ Größer“ macht die Karte groß.",
+    "„▶ Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft. Oben steht, in welcher Linie du sitzt, der nächste Halt mit Uhrzeit, wie viele Halte noch kommen, die Verspätung und ein Fortschrittsbalken bis zur Ankunft.",
+    "Auf der Karte wandert die Linie mit: Ihre Position wird aus Fahrplan und Live-Verspätung zwischen den Halten geschätzt.",
+    "Jede Verbindung hat jetzt „🗺 Auf der Karte“.",
+    "Handy: Die Haltestellensuche öffnet sich als eigenes Fenster mit „Fertig“ und lässt sich jederzeit schließen. Am Laptop schließt die Liste beim Klick daneben oder mit Escape."
+  ] },
   { v: "4.47.0", d: "2026-10-28", t: "Unterwegs: alle Details zu jeder Fahrt", items: [
     "Jede Verbindung lässt sich antippen: jede Teilstrecke mit Abfahrt, Ankunft und Steig, Linie mit Richtung und Betreiber, alle Zwischenhalte, Umsteigezeit (mit Hinweis, wenn es knapp wird) und Fußweg.",
     "Verspätungen stehen bei jeder Abfahrt und Ankunft, mit der planmäßigen Zeit daneben. „● live“ zeigt, wo Echtzeitdaten dabei sind. Hinweise wie Ersatzverkehr erscheinen direkt bei der Fahrt.",

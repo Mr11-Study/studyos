@@ -1123,3 +1123,35 @@ html.no-anim *,html.no-anim *::before,html.no-anim *::after{animation:none!impor
 .tr-warn{margin:0;padding:6px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px}
 .tr-dinfo{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}.tr-dinfo .tr-warn{flex-basis:100%}
 @media (max-width:560px){.tr-ride,.tr-mid{padding-left:0}}
+/* 4.48: Haltestellensuche am Handy als eigenes Fenster */
+html.tr-noscroll,html.tr-noscroll body{overflow:hidden}
+.tr-sheet{position:fixed;inset:0;z-index:9600;display:flex;flex-direction:column;background:var(--bg);padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 10px);animation:rise .2s both}
+.tr-shead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0 10px}.tr-shead b{font:700 18px var(--f-display)}
+.tr-sbar input{width:100%;font-size:17px;padding:12px 14px;border-radius:12px}
+.tr-shere{margin:10px 0 4px;align-self:flex-start;border:1px solid var(--line2);background:var(--card);color:var(--acc);border-radius:999px;padding:8px 14px;font:600 14px var(--f-body);cursor:pointer}
+.tr-slist{flex:1;overflow-y:auto;display:flex;flex-direction:column;margin-top:6px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.tr-slist:empty{display:none}
+.tr-slist button{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;padding:14px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);font:inherit;font-size:16px;cursor:pointer}
+.tr-slist button:active{background:var(--acc-soft)}.tr-slist small{color:var(--muted)}.tr-slist .tr-sm{padding:14px}
+@media (max-width:640px){.tr-pick .tr-q{font-size:16px}.tr-sug{display:none!important}}
+/* 4.48: Karte und „Ich fahre mit“ */
+.tr-mapc{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.tr-mapb{gap:6px}.tr-mapb .chip{cursor:pointer;border-color:var(--line)}
+.tr-map{height:300px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--card2);z-index:0}
+.tr-mapc.big .tr-map{height:min(72vh,640px)}
+@media (min-width:900px){.tr-map{height:380px}}
+.tr-mapnote{font-size:12px;min-height:1em}
+.tr-pin{background:none;border:0}
+.tr-pin.tr-pa,.tr-pin.tr-pb{width:26px!important;height:26px!important;margin:-13px 0 0 -13px!important;display:grid;place-items:center;border-radius:50%;font:800 12px var(--f-body);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid #fff}
+.tr-pin.tr-pa{background:#2F7D4F}.tr-pin.tr-pb{background:#D2232A}
+.tr-pin.tr-veh{transform:translate(-50%,-50%)}.tr-pin.tr-veh>*{box-shadow:0 0 0 3px #fff,0 4px 14px rgba(0,0,0,.4);animation:trpulse 1.8s ease-in-out infinite}
+.tr-pin.tr-veh.walk{font-size:20px}
+@keyframes trpulse{50%{transform:scale(1.12)}}
+.tr-pin.tr-me i{display:block;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#0A84FF;border:3px solid #fff;box-shadow:0 0 0 6px rgba(10,132,255,.25)}
+.leaflet-container{font-family:var(--f-body)}
+.tr-acts{gap:8px;align-items:flex-start;flex-wrap:wrap}.tr-acts .tr-hd{flex:1 1 100%}
+.tr-ridec{display:flex;flex-direction:column;gap:10px;border:2px solid var(--acc);background:linear-gradient(135deg,var(--acc-soft),var(--card) 70%)}
+.tr-rnow{font-size:16px;line-height:1.5}.tr-rnow small{font-size:14px;color:var(--muted)}
+.tr-rbar{height:8px;border-radius:8px;background:var(--card3);overflow:hidden}.tr-rbar i{display:block;height:100%;background:var(--acc);transition:width .5s}
+.tr-rft small{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.tr-pin.tr-veh>*{animation:none}}
