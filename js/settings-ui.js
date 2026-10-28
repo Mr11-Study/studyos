@@ -57,6 +57,7 @@ const SECTIONS = [
   ["konto", "Profil & Konto", "◉", ["Profil", "Profile auf diesem Gerät", "Benachrichtigungen (Chat)", "Sprache"], "Name, Profilbild, Tagesziel und Sprache"],
   ["look", "Darstellung", "◈", ["Darstellung", "Start"], "Farben, Schriftgröße und Startseite"],
   ["lernen", "Lernen", "↻", ["Lernen", "· Fragen"], "Wiederholen, Schwierigkeit und Fragen"],
+  ["wege", "Wege & Öffis", "⇆", ["Wege & Öffis"], "Wohnort, Studienort und nächste Öffis"],
   ["sicher", "Sicherheit", "⛨", ["Sperre (PIN)", "Schutz & Tempo"], "PIN-Sperre und Schutz der App"],
   ["daten", "Sync & Daten", "⇅", ["Sync zwischen Handy und Laptop", "Speicher & Daten"], "Geräte verbinden, Speicher und Updates"],
   ["app", "App", "▣", ["App installieren", "KI-Assistent (optional)", "Über"], "Installieren, KI-Assistent und Infos"],
@@ -122,8 +123,8 @@ function bindGuard(card) {
 /* ---------- Seite ---------- */
 const inner = PAGES.settings;
 let query = "", mView = "list";
-const ICOL = { konto: "#0A84FF", look: "#5E5CE6", lernen: "#FF9F0A", sicher: "#34C759", daten: "#32ADE6", app: "#8E8E93", reset: "#FF3B30" };
-const GROUPS = [["look", "lernen"], ["sicher", "daten"], ["app"], ["reset"]];
+const ICOL = { konto: "#0A84FF", look: "#5E5CE6", lernen: "#FF9F0A", wege: "#30B0C7", sicher: "#34C759", daten: "#32ADE6", app: "#8E8E93", reset: "#FF3B30" };
+const GROUPS = [["look", "lernen", "wege"], ["sicher", "daten"], ["app"], ["reset"]];
 PAGES.settings = (el, p) => {
   inner(el, p);
   const pg = $(".page", el); if (!pg) return;
@@ -146,7 +147,7 @@ PAGES.settings = (el, p) => {
   const installed = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const synced = App.secrets && App.secrets().ghToken;
   /* wie am iPhone: links (am Handy zuerst) eine Liste mit farbigen Symbolen, rechts (am Handy nach dem Antippen) der Bereich */
-  const val = { look: { system: "System", light: "Hell", dark: "Dunkel" }[UI.scheme || "system"], sicher: pr.pinHash ? "PIN an" : "Aus", daten: synced ? "Sync an" : "Sync aus", app: installed ? "Installiert" : "v" + (App.VERSION || "") };
+  const val = { look: { system: "System", light: "Hell", dark: "Dunkel" }[UI.scheme || "system"], wege: App.transit && App.transit.ready() ? "Eingerichtet" : "Aus", sicher: pr.pinHash ? "PIN an" : "Aus", daten: synced ? "Sync an" : "Sync aus", app: installed ? "Installiert" : "v" + (App.VERSION || "") };
   const row = id => { const x = SECTIONS.find(z => z[0] === id); return x && by[id] && by[id].length ? `<button type="button" class="st-row" data-sec="${id}"><span class="st-ic" style="--ic:${ICOL[id]}" aria-hidden="true">${x[2]}</span><span class="st-rt"><b>${x[1]}</b><small>${x[4]}</small></span>${val[id] ? `<span class="st-val">${esc(val[id])}</span>` : ""}<span class="st-chev" aria-hidden="true">›</span></button>` : ""; };
   const side = document.createElement("aside"); side.className = "st-side";
   side.innerHTML = `<div class="st-top"><h1>Einstellungen</h1><label class="st-search"><span aria-hidden="true">⌕</span><input type="search" id="st-q" placeholder="Suchen" autocomplete="off" aria-label="Einstellungen durchsuchen"><kbd class="kbd">/</kbd></label></div>

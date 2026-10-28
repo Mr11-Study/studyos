@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.45.0", d: "2026-10-28", t: "Unterwegs: nächster Bus, Bim und Zug", items: [
+    "Neu in den Einstellungen: „Wege & Öffis“. Dort legst du Wohnort und Studienort fest (Haltestelle suchen oder „📍 Hier“), dazu bis zu vier weitere Orte und den Fußweg zur Haltestelle.",
+    "Neue Seite „Unterwegs“ (im Menü unter Planen): die nächste Verbindung groß mit Countdown, „Losgehen in …“, Linien, Steig, Verspätung und Umstiegen, darunter die nächsten Verbindungen und ein Abfahrtsmonitor wie bei BusBahnBim.",
+    "Die Richtung passt sich von selbst an: vor deiner ersten Vorlesung zur FH, danach nach Hause. Mit ⇅ drehst du sie um.",
+    "Alles aktualisiert sich jede Minute von selbst, der Countdown läuft live mit. Auf „Heute“ zeigt eine kleine Karte die nächste Verbindung.",
+    "Fahrplandaten der ÖBB für alle Öffis in Österreich, auch Graz Linien."
+  ] },
   { v: "4.44.0", d: "2026-10-28", t: "Ladebildschirm beim Seitenwechsel", items: [
     "Wenn StudyOS in einer anderen Sprache läuft und du eine neue Seite öffnest (z. B. ein Skript), zeigt ein kurzer Ladebildschirm, dass die Seite gerade übersetzt wird.",
     "Sobald alles übersetzt ist, erscheint kurz „Seite übersetzt“ mit Häkchen und der Bildschirm verschwindet von selbst.",

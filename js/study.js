@@ -45,7 +45,7 @@ App.streak = () => { let n = 0; const d = new Date(); if (!activeDay(S().days[to
 /* ================= Navigation ================= */
 const NAVG = [
   ["Lernen", [["dash", "Heute", "◐"], ["courses", "Kurse", "▤"], ["skript", "Skript lesen", "❡"], ["review", "Wiederholen", "↻"], ["prep", "Prüfung üben", "✎"]]],
-  ["Planen", [["calendar", "Kalender", "▦"]]],
+  ["Planen", [["calendar", "Kalender", "▦"], ["transit", "Unterwegs", "⇆"]]],
   ["Werkzeuge", [["practice", "Übungen", "λ"], ["ktlab", "Kotlin-Labor", "K"], ["gitlab", "Git-Labor", "⑂"], ["resources", "Material", "⎘"], ["bookmarks", "Merkliste", "★"]]]
 ];
 App.NAV = NAVG.flatMap(g => g[1]);

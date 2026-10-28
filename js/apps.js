@@ -7,7 +7,7 @@ if ((window.STUDYOS_TRACK || "uni") !== "uni") return;
 const { $, $$, esc, PAGES, CBY, COURSES, TOPICS, LBYID } = App;
 const S = () => App.S();
 
-const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback", "together"]);
+const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback", "together", "transit"]);
 const worldOf = id => { for (const c of COURSES) for (const w of c.worlds) if (w.id === id) return c.id; return null; };
 const app = () => S().app && CBY[S().app] ? S().app : null;
 function setApp(v, p) {
@@ -48,7 +48,7 @@ function appNav(c) {
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
-  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
+  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"], ["transit", "", "Unterwegs", "⇆"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
 const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
 
