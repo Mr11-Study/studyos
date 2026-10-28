@@ -13,8 +13,10 @@ const loadBase = () => { try { return JSON.parse(localStorage.getItem(KEY()) || 
 const saveBase = b => { try { localStorage.setItem(KEY(), JSON.stringify(b)); } catch (e) {} };
 
 /* ---------- Was synchronisiert wird ---------- */
-const local = () => ({ events: (S().events || []).filter(e => e && e.id), tt: { timetable: S().timetable || [], ttSource: S().ttSource ? Object.assign({}, S().ttSource, { tried: undefined }) : null, ttFH: S().ttFH || null } });
-const byId = list => { const m = {}; (list || []).forEach(e => { if (e && e.id) m[e.id] = JSON.stringify(e); }); return m; };
+const local = () => ({ events: (S().events || []).filter(e => e && e.id), tt: { timetable: S().timetable || [], ttSource: S().ttSource ? Object.assign({}, S().ttSource, { tried: undefined, at: undefined }) : null, ttFH: S().ttFH || null } });
+/* nach ID sortiert: dieselben Termine ergeben auf jedem Gerät denselben Stand, egal in welcher Reihenfolge sie liegen.
+   Sonst hielten sich zwei Geräte gegenseitig für geändert und zeichneten sich ständig neu (4.46). */
+const byId = list => { const m = {}; (list || []).filter(e => e && e.id).sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach(e => { m[e.id] = JSON.stringify(e); }); return m; };
 const sig = d => JSON.stringify([byId(d.events), d.tt]);
 function merge(L, R, B, localNewer) {
   const l = byId(L.events), r = byId(R.events), b = (B && B.events) || {}, out = [];
@@ -23,6 +25,7 @@ function merge(L, R, B, localNewer) {
     if (x === y) v = x; else if (x === z) v = y; else if (y === z) v = x; else v = localNewer ? (x || y) : (y || x);
     if (v) out.push(JSON.parse(v));
   });
+  out.sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const lt = JSON.stringify(L.tt), rt = JSON.stringify(R.tt), bt = B ? B.tt : null;
   const none = t => !((t || {}).timetable || []).length && !(t || {}).ttSource;
   /* erster Abgleich auf einem Gerät (kein gemeinsamer Stand): ein leerer Stundenplan überschreibt nie einen vorhandenen */
@@ -39,7 +42,7 @@ async function session() {
 }
 function apply(d) {
   const before = sig(local());
-  S().events = d.events; S().timetable = d.tt.timetable || []; S().ttSource = d.tt.ttSource || null; S().ttFH = d.tt.ttFH || null;
+  S().events = d.events; S().timetable = d.tt.timetable || []; const was = S().ttSource || {}; S().ttSource = d.tt.ttSource ? Object.assign({}, d.tt.ttSource, { at: was.at, tried: was.tried }) : null; /* wann zuletzt geladen bleibt pro Gerät */ S().ttFH = d.tt.ttFH || null;
   if (sig(local()) === before) return false;
   lastSig = sig(local()); App.save(); App.syncReminders && App.syncReminders();
   if (App.route && ["calendar", "dash"].includes(App.route().v)) App.softRender(); else App.renderSide && App.renderSide();

@@ -1,29 +1,84 @@
 /* StudyOS · Unterwegs (4.45): nächster Bus, nächste Bim, nächster Zug zwischen Wohnort und Studienort
    Vorbild BusBahnBim: große Abfahrtszeit mit Countdown, Linien-Symbole, Verspätung live, Abfahrtsmonitor der Haltestelle.
-   Daten: ÖBB-Fahrplan (deckt alle Öffis in Österreich ab, auch Graz Linien) über die freie transport.rest-Schnittstelle.
+   Daten: Transitous (Fahrpläne der österreichischen Verkehrsverbünde und der ÖBB), ersatzweise ÖBB über transport.rest (4.46).
    Die Richtung passt sich der Uhrzeit und dem Stundenplan an: vor der ersten Einheit zur FH, danach nach Hause.
    Muss vor apps.js geladen werden (Hub-Seite) und vor settings-ui.js (Karte in den Einstellungen). */
 (function () {
 const { $, $$, esc, PAGES } = App;
 const S = () => App.S();
-const API = "https://v6.oebb.transport.rest";
 const cfg = () => { const s = S().settings || (S().settings = {}); return s.transit || (s.transit = { home: null, uni: null, more: [], dash: true }); };
 const PLACES = () => { const c = cfg(); return [["home", "Wohnort", "⌂", c.home], ["uni", "Studienort", "🎓", c.uni], ...(c.more || []).map((m, i) => ["m" + i, m.label || "Ort " + (i + 1), "★", m])]; };
-const placeOf = k => { const x = (PLACES().find(p => p[0] === k) || [])[3]; return x && x.id ? x : null; };
+const placeOf = k => { const x = (PLACES().find(p => p[0] === k) || [])[3]; return x && x.name ? x : null; };
 const labelOf = k => (PLACES().find(p => p[0] === k) || [])[1] || "";
 const ready = () => !!(placeOf("home") && placeOf("uni"));
 
-/* ---------- Schnittstelle ---------- */
-async function get(path, q) {
-  const u = new URL(API + path); Object.entries(q || {}).forEach(([k, v]) => v != null && u.searchParams.set(k, v));
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
-  try { const r = await fetch(u, { signal: ctl.signal }); if (!r.ok) throw new Error(r.status === 429 ? "busy" : "http " + r.status); return await r.json(); }
+/* ---------- Schnittstellen ----------
+   1. Transitous (freier Fahrplan mit den Daten der österreichischen Verkehrsverbünde, auch Steirischer Verkehrsverbund
+      und ÖBB) – Hauptquelle, im Browser direkt nutzbar.
+   2. ÖBB-Fahrplan über transport.rest – Ersatz, falls Transitous gerade nicht antwortet.
+   Beide liefern hier dasselbe schlanke Format: Haltestelle {id, name, lat, lon, src, area}, Verbindung {legs[]}, Abfahrt {when, …}. */
+async function getJSON(url) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 12000);
+  try { const r = await fetch(url, { signal: ctl.signal, referrerPolicy: "strict-origin-when-cross-origin" }); if (!r.ok) { const e = new Error(r.status === 429 ? "busy" : "http"); e.status = r.status; throw e; } return await r.json(); }
   finally { clearTimeout(t); }
 }
-const findStops = q => get("/locations", { query: q, results: 7, stops: "true", addresses: "false", poi: "false", linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id && (x.type === "stop" || x.type === "station")));
-const nearStops = (lat, lon) => get("/locations/nearby", { latitude: lat, longitude: lon, results: 6, distance: 1200, linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id));
-const departures = id => get("/stops/" + encodeURIComponent(id) + "/departures", { duration: 90, results: 12, remarks: "false", linesOfStops: "false" }).then(r => Array.isArray(r) ? r : (r && r.departures) || []);
-const journeys = (from, to) => get("/journeys", { from, to, results: 5, stopovers: "false", remarks: "false", tickets: "false", polylines: "false", scheduledDays: "false" }).then(r => (r && r.journeys) || []);
+const qs = q => Object.entries(q).filter(([, v]) => v != null && v !== "").map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
+const iso = d => new Date(d).toISOString();
+const MODE = { TRAM: "tram", BUS: "bus", COACH: "bus", ODM: "onCall", FLEX: "onCall", SUBURBAN: "suburban", SUBWAY: "subway", METRO: "suburban", RAIL: "regional", REGIONAL_RAIL: "regional", REGIONAL_FAST_RAIL: "regionalExp", HIGHSPEED_RAIL: "nationalExpress", LONG_DISTANCE: "national", NIGHT_RAIL: "national", FERRY: "ferry", FUNICULAR: "tram", AERIAL_LIFT: "tram", CABLE_CAR: "tram" };
+const hex = c => c && /^#?[0-9a-f]{6}$/i.test(c) ? (c[0] === "#" ? c : "#" + c) : null;
+const dist = (a, b, c, d) => { const R = 6371e3, r = Math.PI / 180, x = (c - a) * r, y = (d - b) * r * Math.cos((a + c) / 2 * r); return Math.round(R * Math.hypot(x, y)); };
+
+/* Transitous (MOTIS). Die Versionsnummer im Pfad ändert sich mit der Zeit: die erste, die antwortet, wird gemerkt. */
+const MO = "https://api.transitous.org";
+const VER = (() => { try { return JSON.parse(localStorage.getItem("studyos.transit.ver") || "{}"); } catch (e) { return {}; } })();
+async function mo(name, q, vers) {
+  const list = VER[name] ? [VER[name], ...vers.filter(v => v !== VER[name])] : vers;
+  let last;
+  for (const v of list) {
+    try { const r = await getJSON(`${MO}/api/${v}/${name}?${qs(q)}`); if (VER[name] !== v) { VER[name] = v; try { localStorage.setItem("studyos.transit.ver", JSON.stringify(VER)); } catch (e) {} } return r; }
+    catch (e) { last = e; if (e.status !== 404 && e.status !== 400) throw e; }
+  }
+  throw last || new Error("http");
+}
+const moStop = m => ({ id: String(m.id), name: m.name, lat: m.lat, lon: m.lon, src: "mo", area: ((m.areas || []).find(x => x.default) || (m.areas || [])[0] || {}).name || "" });
+const moLine = g => ({ name: g.routeShortName || g.displayName || g.tripShortName || "", product: MODE[g.mode] || "bus", color: hex(g.routeColor) });
+const moWhere = p => p.src === "mo" && p.id ? p.id : p.lat != null ? p.lat + "," + p.lon : null;
+const MOTIS = {
+  find: q => mo("geocode", { text: q, type: "STOP", numResults: 8, language: "de" }, ["v1"]).then(a => (a || []).filter(m => m && m.id && m.type === "STOP").map(moStop)),
+  near: (lat, lon) => mo("reverse-geocode", { place: lat + "," + lon, type: "STOP", numResults: 8 }, ["v1"]).then(a => (a || []).filter(m => m && m.id).map(m => Object.assign(moStop(m), { distance: dist(lat, lon, m.lat, m.lon) })).sort((x, y) => x.distance - y.distance)),
+  async deps(p) {
+    const q = p.src === "mo" && p.id ? { stopId: p.id } : { center: p.lat + "," + p.lon, radius: 150 };
+    const r = await mo("stoptimes", Object.assign(q, { n: 14, time: iso(Date.now() - 60000), language: "de" }), ["v6", "v5", "v4", "v1"]);
+    return (r.stopTimes || []).map(st => { const pl = st.place || {}, w = pl.departure || pl.scheduledDeparture; return { when: w, delay: st.realTime && pl.departure && pl.scheduledDeparture ? (T(pl.departure) - T(pl.scheduledDeparture)) / 1000 : null, pl: pl.track || pl.scheduledTrack || "", dir: st.headsign || "", line: moLine(st), x: !!(st.cancelled || st.tripCancelled) }; }).filter(d => d.when);
+  },
+  async trips(a, b) {
+    const from = moWhere(a), to = moWhere(b); if (!from || !to) throw new Error("http");
+    const r = await mo("plan", { fromPlace: from, toPlace: to, time: iso(Date.now()), numItineraries: 5, detailedTransfers: "false", timetableView: "true", language: "de" }, ["v5", "v6", "v4", "v3", "v2", "v1"]);
+    return (r.itineraries || []).map(it => ({ legs: (it.legs || []).map(g => { const walk = g.mode === "WALK" || g.mode === "BIKE" || g.mode === "CAR"; const dep = g.startTime || (g.from || {}).departure, sdep = g.scheduledStartTime || (g.from || {}).scheduledDeparture;
+      return { o: (g.from || {}).name, dst: (g.to || {}).name, dep, dd: g.realTime && dep && sdep ? (T(dep) - T(sdep)) / 1000 : null, arr: g.endTime || (g.to || {}).arrival, pl: (g.from || {}).track || (g.from || {}).scheduledTrack || "", line: walk ? null : moLine(g), dir: g.headsign || "", walk, x: !!g.cancelled }; }) })).filter(j => j.legs.length);
+  }
+};
+
+/* ÖBB über transport.rest (Ersatz) */
+const HA = "https://v6.oebb.transport.rest";
+const ha = (path, q) => getJSON(HA + path + "?" + qs(q));
+const haStop = x => ({ id: String(x.id), name: x.name, lat: x.location && x.location.latitude, lon: x.location && x.location.longitude, src: "ha", area: "" });
+const haLine = l => l ? { name: String(l.name || l.fahrtNr || "").replace(/^(Tram|Str|Bus|STR)\s+/i, ""), product: l.product, color: null } : null;
+const haWhere = (p, k) => p.src === "ha" && p.id ? { [k]: p.id } : { [k + ".latitude"]: p.lat, [k + ".longitude"]: p.lon, [k + ".address"]: p.name };
+const HAFAS = {
+  find: q => ha("/locations", { query: q, results: 8, stops: "true", addresses: "false", poi: "false", linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id && (x.type === "stop" || x.type === "station")).map(haStop)),
+  near: (lat, lon) => ha("/locations/nearby", { latitude: lat, longitude: lon, results: 8, distance: 1200, linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id).map(x => Object.assign(haStop(x), { distance: x.distance }))),
+  async deps(p) { if (p.src !== "ha") throw new Error("http"); const r = await ha("/stops/" + encodeURIComponent(p.id) + "/departures", { duration: 90, results: 14, remarks: "false", linesOfStops: "false" });
+    return (Array.isArray(r) ? r : (r && r.departures) || []).map(d => ({ when: d.when || d.plannedWhen, delay: d.delay, pl: d.platform || d.plannedPlatform || "", dir: d.direction || "", line: haLine(d.line), x: !!d.cancelled })); },
+  async trips(a, b) { const r = await ha("/journeys", Object.assign(haWhere(a, "from"), haWhere(b, "to"), { results: 5, stopovers: "false", remarks: "false", tickets: "false", polylines: "false", scheduledDays: "false" }));
+    return ((r && r.journeys) || []).map(j => ({ legs: (j.legs || []).map(g => ({ o: g.origin && g.origin.name, dst: g.destination && g.destination.name, dep: g.departure || g.plannedDeparture, dd: g.departureDelay, arr: g.arrival || g.plannedArrival, pl: g.departurePlatform || g.plannedDeparturePlatform || "", line: haLine(g.line), dir: g.direction || "", walk: !!g.walking, x: !!g.cancelled })) })); }
+};
+/* erst Transitous, dann ÖBB; wer zuletzt geklappt hat, kommt zuerst dran */
+let good = "mo";
+const SRCS = () => good === "ha" ? [["ha", HAFAS], ["mo", MOTIS]] : [["mo", MOTIS], ["ha", HAFAS]];
+async function any(fn) { let last; for (const [k, src] of SRCS()) { try { const r = await fn(src, k); good = k; return r; } catch (e) { last = e; } } throw last || new Error("http"); }
+const findStops = q => any(s => s.find(q));
+const nearStops = (lat, lon) => any(s => s.near(lat, lon));
 
 /* ---------- Zeit ---------- */
 const T = x => x ? new Date(x) : null;
@@ -35,8 +90,8 @@ const delayTxt = s => s == null ? "" : s >= 60 ? `<span class="tr-late">+${Math.
 
 /* ---------- Linien wie im BusBahnBim: farbige Kästchen ---------- */
 const PROD = { tram: ["Bim", "#D2232A"], bus: ["Bus", "#0065B3"], suburban: ["S", "#00A0E1"], subway: ["U", "#7B3F98"], regional: ["R", "#E2001A"], regionalExp: ["REX", "#E2001A"], interregional: ["IR", "#5A5A5A"], national: ["Zug", "#2B2B2B"], nationalExpress: ["Zug", "#2B2B2B"], ferry: ["Schiff", "#00838F"], onCall: ["Ruf", "#8E6E00"] };
-const lineCol = l => (PROD[(l && l.product) || ""] || [, "#6B7280"])[1];
-const lineName = l => { if (!l) return "?"; let n = String(l.name || l.fahrtNr || "?").replace(/^(Tram|Str|Bus|STR)\s+/i, "").trim(); return n.length > 9 ? n.slice(0, 9) : n; };
+const lineCol = l => (l && l.color) || (PROD[(l && l.product) || ""] || [, "#6B7280"])[1];
+const lineName = l => { if (!l) return "?"; let n = String(l.name || (PROD[l.product] || ["?"])[0]).replace(/^(Tram|Str|Bus|STR)\s+/i, "").trim(); return n.length > 9 ? n.slice(0, 9) : n; };
 const badge = l => `<span class="tr-line notranslate" translate="no" style="--lc:${lineCol(l)}" title="${esc((PROD[(l && l.product) || ""] || ["Linie"])[0] + " " + ((l && l.name) || ""))}">${esc(lineName(l))}</span>`;
 const walkB = m => `<span class="tr-walk" title="${m} min zu Fuß">🚶${m ? `<small>${m}′</small>` : ""}</span>`;
 
@@ -62,23 +117,26 @@ const data = {}; /* key -> { at, j, d, err } */
 const LS = "studyos.transit";
 try { Object.assign(data, JSON.parse(localStorage.getItem(LS) || "{}")); } catch (e) {}
 const persist = () => { try { localStorage.setItem(LS, JSON.stringify(data)); } catch (e) {} };
-const keyOf = (a, b) => a.id + ">" + b.id;
+const keyOf = (a, b) => (a.id || a.name) + ">" + (b.id || b.name);
 const busy = new Set();
-async function load(r, force) {
+/* Ort ohne Haltestellen-ID (Name von Hand übernommen): einmal im Fahrplan nachschlagen und merken */
+async function resolve(p) { if (p.id && !p.src) p.src = "ha"; /* aus 4.45 */ if (p.id || p.lat != null) return p; const hit = (await findStops(p.name))[0]; if (!hit) throw new Error("nostop"); Object.assign(p, hit, { label: p.label, walk: p.walk }); App.save(); return p; }
+/* Abfahrten jede Minute, Verbindungen seltener (die freien Fahrpläne bitten um sparsame Abfragen) */
+async function load(r, force, jEvery) {
   const a = placeOf(r.from), b = placeOf(r.to); if (!a || !b) return null;
-  const k = keyOf(a, b), cur = data[k];
-  if (!force && cur && Date.now() - cur.at < 45000 && !cur.err) return cur;
+  const k = keyOf(a, b), cur = data[k] || { j: [], d: [], at: 0, jAt: 0 };
+  const needD = force || Date.now() - (cur.at || 0) > 45000 || cur.err, needJ = force === "all" || !cur.j.length || Date.now() - (cur.jAt || 0) > (jEvery || 170000) || cur.err;
+  if (!needD && !needJ) return cur;
   if (busy.has(k)) return cur; busy.add(k);
   try {
-    const [j, d] = await Promise.all([journeys(a.id, b.id), departures(a.id).catch(() => [])]);
-    data[k] = { at: Date.now(), j: j.map(slimJ), d: d.map(slimD) }; persist();
-  } catch (e) { data[k] = Object.assign({}, cur || { j: [], d: [] }, { err: e.message === "busy" ? "busy" : navigator.onLine ? "down" : "offline", errAt: Date.now(), at: (cur && cur.at) || 0 }); }
+    await resolve(a); await resolve(b);
+    const [j, d] = await Promise.all([needJ ? any(s => s.trips(a, b)) : null, any(s => s.deps(a)).catch(() => null)]);
+    if (needJ && j == null) throw new Error("http");
+    data[k] = { at: Date.now(), jAt: needJ ? Date.now() : cur.jAt, j: needJ ? j : cur.j, d: d || cur.d, src: good }; persist();
+  } catch (e) { data[k] = Object.assign({}, cur, { err: e.message === "busy" ? "busy" : e.message === "nostop" ? "nostop" : navigator.onLine ? "down" : "offline", errAt: Date.now() }); }
   finally { busy.delete(k); }
   return data[k];
 }
-const slimL = l => l ? { name: l.name, product: l.product } : null;
-const slimJ = j => ({ legs: (j.legs || []).map(g => ({ o: g.origin && g.origin.name, dst: g.destination && g.destination.name, dep: g.departure || g.plannedDeparture, pdep: g.plannedDeparture, dd: g.departureDelay, arr: g.arrival || g.plannedArrival, ad: g.arrivalDelay, pl: g.departurePlatform || g.plannedDeparturePlatform, line: slimL(g.line), dir: g.direction, walk: !!g.walking, x: !!g.cancelled })) });
-const slimD = d => ({ when: d.when || d.plannedWhen, delay: d.delay, pl: d.platform || d.plannedPlatform, dir: d.direction, line: slimL(d.line), x: !!d.cancelled });
 const realLegs = j => j.legs.filter(g => !g.walk);
 const jDep = j => T((realLegs(j)[0] || j.legs[0] || {}).dep), jArr = j => T((j.legs[j.legs.length - 1] || {}).arr);
 const upcoming = x => (x && x.j || []).filter(j => { const d = jDep(j); return d && d - Date.now() > -60000 && !j.legs.some(g => g.x); });
@@ -105,7 +163,9 @@ function rowD(d) {
   return `<div class="tr-row tr-mon ${d.x ? "tr-x" : ""}" data-dep="${w ? w.getTime() : ""}">${badge(d.line)}<span class="tr-dir">${esc(d.dir || "")}</span>${d.pl ? `<small class="muted">Steig ${esc(d.pl)}</small>` : "<small></small>"}<b class="tr-min tab" data-cd data-short>${d.x ? "fällt aus" : m != null && m < 60 ? (m <= 0 ? "jetzt" : m + "′") : hm(w)}</b>${d.x ? "" : delayTxt(d.delay)}</div>`;
 }
 const stamp = x => x && x.at ? `Stand ${hm(new Date(x.at))}` : "";
-const errTxt = x => !x || !x.err ? "" : x.err === "offline" ? "Kein Internet. Du siehst den letzten Stand." : x.err === "busy" ? "Der Fahrplan ist gerade überlastet, gleich nochmal." : "Der Fahrplan antwortet gerade nicht. Ich versuche es automatisch weiter.";
+const errTxt = x => !x || !x.err ? "" : x.err === "offline" ? "Kein Internet. Du siehst den letzten Stand." : x.err === "busy" ? "Der Fahrplan ist gerade überlastet, gleich nochmal." : x.err === "nostop" ? "Eine deiner Haltestellen wurde im Fahrplan nicht gefunden. Wähl sie unter „Orte ändern“ aus der Liste." : "Der Live-Fahrplan antwortet gerade nicht. Ich versuche es automatisch weiter. Bis dahin hilft der Knopf „In ÖBB Scotty öffnen“.";
+/* klappt immer: dieselbe Strecke in der Fahrplanauskunft der ÖBB (zeigt auch Bus und Bim der Verbünde) */
+const scotty = (a, b) => `https://fahrplan.oebb.at/bin/query.exe/dn?S=${encodeURIComponent(a.name)}&Z=${encodeURIComponent(b.name)}&start=1`;
 
 /* Countdown läuft ohne neues Laden weiter */
 function tick(root) {
@@ -121,14 +181,15 @@ function tick(root) {
 function stopPicker(host, cur, onPick) {
   host.innerHTML = `<div class="tr-pick"><input type="search" class="tr-q" placeholder="Haltestelle suchen, z. B. Jakominiplatz" autocomplete="off" value="${esc(cur ? cur.name : "")}" aria-label="Haltestelle suchen"><button type="button" class="btn ghost sm tr-here" title="Haltestellen in meiner Nähe">📍 Hier</button><div class="tr-sug" role="listbox" hidden></div></div>`;
   const q = $(".tr-q", host), sug = $(".tr-sug", host); let t = null, n = 0;
-  const show = (list, msg) => { sug.hidden = false; sug.innerHTML = msg ? `<div class="tr-sm muted">${esc(msg)}</div>` : list.map((x, i) => `<button type="button" role="option" data-i="${i}"><b>${esc(x.name)}</b>${x.distance != null ? `<small>${x.distance} m</small>` : ""}</button>`).join("") || `<div class="tr-sm muted">Nichts gefunden.</div>`; sug._l = list; };
-  q.addEventListener("input", () => { clearTimeout(t); const v = q.value.trim(); if (v.length < 2) { sug.hidden = true; return; } t = setTimeout(async () => { const my = ++n; show([], "Suche …"); try { const l = await findStops(v); if (my === n) show(l); } catch (e) { if (my === n) show([], "Fahrplan nicht erreichbar. Prüf dein Internet."); } }, 280); });
+  const show = (list, msg) => { sug.hidden = false; sug.innerHTML = msg ? `<div class="tr-sm muted">${esc(msg)}</div>` : list.map((x, i) => `<button type="button" role="option" data-i="${i}"><span><b>${esc(x.name)}</b>${x.area && !x.name.includes(x.area) ? ` <small>${esc(x.area)}</small>` : ""}</span>${x.distance != null ? `<small>${x.distance} m</small>` : ""}</button>`).join("") || `<div class="tr-sm muted">Nichts gefunden.</div>`; sug._l = list; };
+  q.addEventListener("input", () => { clearTimeout(t); const v = q.value.trim(); if (v.length < 2) { sug.hidden = true; return; } t = setTimeout(async () => { const my = ++n; show([], "Suche …"); try { const l = await findStops(v); if (my === n) show(l); } catch (e) { if (my === n) { show([], "Der Fahrplan antwortet gerade nicht."); sug.insertAdjacentHTML("beforeend", `<button type="button" data-raw>„${esc(v)}“ trotzdem übernehmen</button>`); } } }, 280); });
   $(".tr-here", host).addEventListener("click", () => {
     if (!navigator.geolocation) return show([], "Dein Browser kann den Standort nicht bestimmen.");
     show([], "Bestimme Standort …");
-    navigator.geolocation.getCurrentPosition(async p => { try { show(await nearStops(p.coords.latitude, p.coords.longitude)); } catch (e) { show([], "Fahrplan nicht erreichbar."); } }, () => show([], "Standort nicht freigegeben."), { timeout: 10000, maximumAge: 120000 });
+    navigator.geolocation.getCurrentPosition(async p => { try { show(await nearStops(p.coords.latitude, p.coords.longitude)); } catch (e) { show([], "Der Fahrplan antwortet gerade nicht. Such die Haltestelle über den Namen."); } }, () => show([], "Standort nicht freigegeben."), { timeout: 10000, maximumAge: 120000 });
   });
-  sug.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; const x = sug._l[+b.dataset.i]; q.value = x.name; sug.hidden = true; onPick({ id: String(x.id), name: x.name }); });
+  sug.addEventListener("click", e => { if (e.target.closest("[data-raw]")) { const v = q.value.trim(); sug.hidden = true; if (v) onPick({ id: null, name: v, lat: null, lon: null, src: null }); return; }
+    const b = e.target.closest("[data-i]"); if (!b) return; const x = sug._l[+b.dataset.i]; q.value = x.name; sug.hidden = true; onPick({ id: x.id, name: x.name, lat: x.lat, lon: x.lon, src: x.src }); });
   q.addEventListener("keydown", e => { if (e.key === "Enter") { const b = $("[data-i]", sug); if (b && !sug.hidden) { e.preventDefault(); b.click(); } } });
 }
 
@@ -148,11 +209,11 @@ PAGES.transit = el => {
     <header class="tr-head"><span class="eyebrow">Öffis · live</span><h1>${r.to === "home" ? "Nach Hause" : r.to === "uni" ? "Zur FH" : "Nach " + esc(labelOf(r.to))}</h1><p class="muted">${esc(r.why)}${r.auto ? " · Richtung wählt sich automatisch" : ""}</p></header>
     <div class="tr-ways">
       <div class="tr-way"><span class="tr-pl"><small>${esc(labelOf(r.from))}</small><b>${esc(a.name)}</b></span><button type="button" class="tr-swap" id="tr-swap" title="Richtung tauschen" aria-label="Richtung tauschen">⇅</button><span class="tr-pl"><small>${esc(labelOf(r.to))}</small><b>${esc(b.name)}</b></span></div>
-      <div class="tr-chips">${others.length > 2 || !r.auto ? `<button type="button" class="chip ${r.auto ? "acc" : ""}" data-auto>Automatisch</button>` : ""}${others.length > 2 ? others.filter(p => p[0] !== r.to).map(p => `<button type="button" class="chip" data-to="${p[0]}">${p[2]} Nach ${esc(p[1])}</button>`).join("") : ""}<button type="button" class="chip" id="tr-reload">↻ Aktualisieren</button></div>
+      <div class="tr-chips">${others.length > 2 || !r.auto ? `<button type="button" class="chip ${r.auto ? "acc" : ""}" data-auto>Automatisch</button>` : ""}${others.length > 2 ? others.filter(p => p[0] !== r.to).map(p => `<button type="button" class="chip" data-to="${p[0]}">${p[2]} Nach ${esc(p[1])}</button>`).join("") : ""}<button type="button" class="chip" id="tr-reload">↻ Aktualisieren</button><a class="chip" href="${esc(scotty(a, b))}" target="_blank" rel="noopener">In ÖBB Scotty öffnen ↗</a></div>
     </div>
     <section class="card tr-main" aria-live="polite"><div class="tr-load">Lade Verbindungen …</div></section>
     <section class="card tr-board"><div class="spread"><h3>Abfahrten ab ${esc(a.name)}</h3><small class="muted tr-stamp"></small></div><div class="tr-deps"></div></section>
-    <p class="tr-foot muted">Fahrplandaten der ÖBB (alle Öffis in Österreich) über transport.rest, inoffiziell. Aktualisiert sich jede Minute von selbst. <button type="button" class="linkish" data-go="settings" data-p="wege">Orte ändern</button></p>
+    <p class="tr-foot muted"><button type="button" class="linkish" data-go="settings" data-p="wege">Orte ändern</button><br>Live-Fahrplan von <a href="https://transitous.org/sources/" target="_blank" rel="noopener">Transitous</a> (Daten der Verkehrsverbünde, © OpenStreetMap-Mitwirkende), ersatzweise ÖBB. Abfahrten aktualisieren sich jede Minute von selbst, Verbindungen alle paar Minuten.</p>
   </div>`;
   const paint = x => {
     const main = $(".tr-main", el), deps = $(".tr-deps", el); if (!main) return;
@@ -160,17 +221,17 @@ PAGES.transit = el => {
     main.innerHTML = up.length ? heroHTML(up[0], r) + (up.length > 1 ? `<div class="tr-list"><span class="eyebrow">Danach</span>${up.slice(1, 5).map(rowJ).join("")}</div>` : "") + (err ? `<p class="tr-err">${esc(err)}</p>` : "")
       : x && x.at ? `<div class="empty">Gerade keine Verbindung gefunden.${err ? " " + esc(err) : ""}</div>` : `<div class="empty">${esc(err || "Lade Verbindungen …")}</div>`;
     const dl = (x && x.d || []).filter(d => { const w = T(d.when); return w && w - Date.now() > -60000; }).slice(0, 10);
-    deps.innerHTML = dl.length ? dl.map(rowD).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in der nächsten Zeit." : "…"}</div>`;
+    deps.innerHTML = dl.length ? dl.map(rowD).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in der nächsten Zeit." : x && x.err ? "Gerade keine Live-Abfahrten." : "…"}</div>`;
     const st = $(".tr-stamp", el); if (st) st.textContent = stamp(x);
   };
   const k = keyOf(a, b); if (data[k]) paint(data[k]);
   const refresh = force => load(r, force).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });
   refresh(false);
   let n = 0;
-  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return; tick(el); if (++n % 4 === 0) refresh(true); /* alle 60 s neu */
+  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return; tick(el); if (++n % 4 === 0) refresh(false); /* Abfahrten jede Minute, Verbindungen alle 3 min (siehe load) */
     const now = route(); if (now.auto && (now.from !== r.from || now.to !== r.to)) App.softRender(); }, 15000);
   $("#tr-swap", el).addEventListener("click", () => { pick = { from: r.to, to: r.from }; App.render(); });
-  $("#tr-reload", el).addEventListener("click", () => { $(".tr-main", el).classList.add("tr-busy"); refresh(true).then(() => { const m = $(".tr-main", el); m && m.classList.remove("tr-busy"); }); });
+  $("#tr-reload", el).addEventListener("click", () => { $(".tr-main", el).classList.add("tr-busy"); refresh("all").then(() => { const m = $(".tr-main", el); m && m.classList.remove("tr-busy"); }); });
   const au = $("[data-auto]", el); if (au) au.addEventListener("click", () => { pick = null; App.render(); });
   $$("[data-to]", el).forEach(c => c.addEventListener("click", () => { pick = { from: r.from === c.dataset.to ? r.to : r.from, to: c.dataset.to }; App.render(); }));
 };
@@ -229,9 +290,9 @@ PAGES.dash = (el, p) => {
   };
   const k = keyOf(a, b); fill(data[k]);
   grid.appendChild(card);
-  load(r, false).then(x => { if (card.isConnected) fill(x); });
+  load(r, false, 300000).then(x => { if (card.isConnected) fill(x); });
   let n = 0;
-  dashT = setInterval(() => { if (!card.isConnected) { clearInterval(dashT); dashT = null; return; } if (document.hidden) return; tick(card); if (++n % 8 === 0) load(r, true).then(x => card.isConnected && fill(x)); }, 15000);
+  dashT = setInterval(() => { if (!card.isConnected) { clearInterval(dashT); dashT = null; return; } if (document.hidden) return; tick(card); if (++n % 8 === 0) load(r, false, 300000).then(x => card.isConnected && fill(x)); }, 15000);
 };
 
 App.transit = { cfg, plan, route, load, ready };

@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.46.0", d: "2026-10-28", t: "Fahrplan repariert, kein ständiges Neuladen mehr", items: [
+    "Unterwegs holt den Live-Fahrplan jetzt von Transitous (Fahrpläne der österreichischen Verkehrsverbünde und der ÖBB). Antwortet das nicht, springt automatisch der ÖBB-Fahrplan ein.",
+    "Haltestellensuche und „📍 Hier“ zeigen jetzt auch den Ort dazu, z. B. „Weiz“. Klappt die Suche gerade nicht, kannst du den Namen trotzdem übernehmen.",
+    "Neuer Knopf „In ÖBB Scotty öffnen“: zeigt dieselbe Strecke in der Fahrplanauskunft der ÖBB, das geht immer.",
+    "Behoben: Waren Handy und Laptop mit dem Konto verbunden, hielten sie den Kalender gegenseitig für geändert, und Heute und Kalender zeichneten sich ständig neu. Jetzt passiert das nur noch bei echten Änderungen."
+  ] },
   { v: "4.45.0", d: "2026-10-28", t: "Unterwegs: nächster Bus, Bim und Zug", items: [
     "Neu in den Einstellungen: „Wege & Öffis“. Dort legst du Wohnort und Studienort fest (Haltestelle suchen oder „📍 Hier“), dazu bis zu vier weitere Orte und den Fußweg zur Haltestelle.",
     "Neue Seite „Unterwegs“ (im Menü unter Planen): die nächste Verbindung groß mit Countdown, „Losgehen in …“, Linien, Steig, Verspätung und Umstiegen, darunter die nächsten Verbindungen und ein Abfahrtsmonitor wie bei BusBahnBim.",
