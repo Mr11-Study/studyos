@@ -351,8 +351,8 @@ let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredPrompt = e; });
 const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 /* Updates: Eine neue Version wird im Hintergrund geladen und erst übernommen, wenn es nicht stört:
-   direkt beim Start (bevor man etwas anfasst), nach längerer Pause im Hintergrund oder auf Tipp auf „Neu laden“.
-   Nach Updates wird höchstens alle 30 Minuten gesucht. */
+   direkt beim Start (bevor man etwas anfasst), nach mehr als einer Minute im Hintergrund oder auf Tipp auf „Neu laden“.
+   Solange StudyOS offen ist, wird alle 2 Minuten und beim Zurückkehren in die App nachgesehen (eine kleine Anfrage). */
 const bootAt = Date.now();
 function registerSW() {
   if (!("serviceWorker" in navigator) || !/^https?:/.test(location.protocol)) return;
@@ -362,13 +362,13 @@ function registerSW() {
     const fresh = () => Date.now() - bootAt < 4000 && !document.querySelector(".modal-back");
     const apply = () => { if (reg.waiting) reg.waiting.postMessage("skip-waiting"); };
     const offer = () => { if (!reg.waiting || !navigator.serviceWorker.controller) return; if (fresh()) return apply(); if (toastShown) return; toastShown = true;
-      const t = document.createElement("div"); t.className = "toast ach"; t.innerHTML = `<div class="ti">↻</div><div><div class="eyebrow">Update bereit</div><div>Wird beim nächsten Öffnen übernommen.</div></div><button class="btn sm pri">Jetzt neu laden</button>`;
-      $("button", t).onclick = () => { t.remove(); apply(); }; $("#toasts").appendChild(t); setTimeout(() => t.remove(), 12000); };
-    const check = () => { if (Date.now() - lastCheck < 30 * 60e3) return; lastCheck = Date.now(); reg.update().catch(() => {}); };
-    check(); offer();
+      const t = document.createElement("div"); t.className = "toast ach"; t.innerHTML = `<div class="ti">↻</div><div><div class="eyebrow">Update bereit</div><div>Neue Version von StudyOS ist da.</div></div><button class="btn sm pri">Jetzt neu laden</button>`;
+      $("button", t).onclick = () => { t.remove(); apply(); }; $("#toasts").appendChild(t);  };
+    const check = () => { if (Date.now() - lastCheck < 60e3 || !navigator.onLine) return; lastCheck = Date.now(); reg.update().catch(() => {}); };
+    check(); offer(); setInterval(() => { if (document.visibilityState === "visible") check(); }, 2 * 60e3); addEventListener("focus", check); addEventListener("online", check);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") { hiddenSince = Date.now(); return; }
-      if (reg.waiting && hiddenSince && Date.now() - hiddenSince > 10 * 60e3 && !document.querySelector(".modal-back")) return apply();
+      if (reg.waiting && hiddenSince && Date.now() - hiddenSince > 60e3 && !document.querySelector(".modal-back")) return apply();
       check();
     });
     reg.addEventListener("updatefound", () => { const nw = reg.installing; nw && nw.addEventListener("statechange", () => { if (nw.state === "installed") offer(); }); });

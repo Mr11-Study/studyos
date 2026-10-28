@@ -34,8 +34,8 @@ async function trText(t) {
   return t.replace(core, out);
 }
 /* sichtbare Texte zuerst, mehrere gleichzeitig: so ist das, was man gerade sieht, schnell übersetzt */
-const POOL = 4;
-async function runPool(jobs) { let i = 0; await Promise.all(Array.from({ length: Math.min(POOL, jobs.length) }, async () => { while (i < jobs.length) await jobs[i++](); })); }
+const POOL = 4, POOL_ON = 200;
+async function runPool(jobs) { let i = 0; await Promise.all(Array.from({ length: Math.min(tr === online ? POOL_ON : POOL, jobs.length) }, async () => { while (i < jobs.length) await jobs[i++](); })); }
 const topOf = n => { const e = n.parentElement; if (!e) return 1e9; const r = e.getBoundingClientRect(); return r.bottom < 0 ? 1e6 + -r.bottom : r.top > innerHeight ? 1e6 + r.top : r.top; };
 async function walk(root) {
   if (!on || !root) return;
@@ -46,12 +46,45 @@ async function walk(root) {
   const quick = [], slow = [];
   todo.forEach(n => { const c = cache[n.data.trim()]; if (c !== undefined) { orig.set(n, n.data); n.data = n.data.replace(n.data.trim(), c); mine.set(n, n.data); } else slow.push(n); });
   slow.sort((a, b) => topOf(a) - topOf(b));
-  await runPool(slow.map(n => async () => { const src = n.data; orig.set(n, src); const out = await trText(src); if (n.data === src) { n.data = out; mine.set(n, out); } }));
+  const uniq = new Set(slow.map(n => n.data.trim()).filter(t => cache[t] === undefined)).size;
+  if (uniq) prog.add(uniq);
+  const counted = new Set();
+  await runPool(slow.map(n => async () => { const src = n.data, k = src.trim(); orig.set(n, src); const out = await trText(src); if (!counted.has(k)) { counted.add(k); prog.tick(); } if (n.data === src) { n.data = out; mine.set(n, out); } }));
+  prog.sync(counted.size, uniq);
   if (root.nodeType === 1) for (const el of root.querySelectorAll("[placeholder],[title]")) for (const a of ["placeholder", "title"]) {
     const v = el.getAttribute(a); if (!v || el.dataset["tr" + a] === v) continue;
     const out = await trText(v); el.setAttribute(a, out); el.dataset["tr" + a] = out;
   }
 }
+/* Abbrechen: zurück auf Deutsch. Was schon übersetzt wurde, bleibt im Cache und geht beim nächsten Mal sofort. */
+function stop() { on = false; if (obs) obs.disconnect(); S().settings.lang = "de"; App.save(); App.toast && App.toast("Übersetzung abgebrochen", "StudyOS zeigt wieder Deutsch. Unter Einstellungen › Sprache kannst du es erneut versuchen.", "文"); setTimeout(() => location.reload(), 600); }
+/* Ladeanzeige: beim ersten Übersetzen ein Ladebildschirm mit Fortschritt, danach bei neuen Seiten ein kleiner Hinweis oben */
+const NAME = () => (LANGS.find(x => x[0] === lang()) || [, lang()])[1];
+const prog = (() => {
+  let total = 0, done = 0, el = null, full = false, first = true, t = null, hideT = null;
+  const ui = () => {
+    if (!el) { el = document.createElement("div"); el.id = "tr-load"; el.setAttribute("translate", "no"); el.className = "notranslate"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite"); document.body.appendChild(el);
+      el.addEventListener("click", e => { if (e.target.closest("#tr-bg")) { full = false; paint(); } if (e.target.closest("#tr-stop")) stop(); }); }
+    return el; };
+  const paint = () => {
+    if (!el) return; const pct = total ? Math.min(100, Math.round(100 * done / total)) : 0, fin = done >= total;
+    el.className = "notranslate " + (full ? "full" : "pill") + (fin ? " fin" : "");
+    el.innerHTML = full
+      ? `<div class="trl-box"><div class="trl-ic" aria-hidden="true">文</div><b>${fin ? "Fertig übersetzt" : "StudyOS wird übersetzt"}</b><span class="trl-lang">Deutsch → ${esc(NAME())}</span>
+         <div class="trl-bar"><i style="width:${pct}%"></i></div><small>${fin ? "Alles bereit." : `${done} von ${total} Texten · ${pct} %`}</small>
+         ${fin ? "" : `<div class="trl-act"><button class="btn ghost sm" id="tr-stop">Abbrechen</button><button class="btn sm" id="tr-bg">Im Hintergrund weiter</button></div><small class="trl-note">Beim ersten Mal dauert es etwas. Danach merkt sich StudyOS die Übersetzungen.</small>`}</div>`
+      : `<span class="trl-ic" aria-hidden="true">${fin ? "✓" : "文"}</span><span>${fin ? "Übersetzt" : `Übersetze … ${pct} %`}</span><i class="trl-mini"><b style="width:${pct}%"></b></i>${fin ? "" : `<button class="trl-x" id="tr-stop" aria-label="Übersetzung abbrechen" title="Abbrechen, Deutsch anzeigen">✕</button>`}`;
+  };
+  const finish = () => { paint(); if (hideT) return; hideT = setTimeout(() => { hideT = null; if (done < total) return; el && el.classList.add("out"); setTimeout(() => { if (done >= total && el) { el.remove(); el = null; } total = done = 0; full = false; }, 350); }, full ? 700 : 900); first = false; };
+  return {
+    add(n) { clearTimeout(hideT); hideT = null; if (total === 0) done = 0; total += n;
+      if (first) { full = true; ui(); paint(); }
+      else if (!el && !t) t = setTimeout(() => { t = null; if (done < total) { ui(); paint(); } }, 350);
+      else if (el) paint(); },
+    tick() { done++; if (el) { if (done >= total) finish(); else paint(); } else if (done >= total) { first = false; total = done = 0; } },
+    sync() { if (total && done >= total) { if (el) finish(); else { first = false; total = done = 0; } } }
+  };
+})();
 function start() {
   on = true; document.documentElement.lang = lang(); loadCache();
   walk(document.body);
@@ -81,31 +114,40 @@ function gtCookie(v) {
   document.cookie = "googtrans=" + (v || "") + "; path=/" + end;
   if (location.hostname.includes(".")) document.cookie = "googtrans=" + (v || "") + "; path=/; domain=" + location.hostname + end;
 }
-function guard() { /* Code, Maple und Formeln vor dem Online-Übersetzer schützen */
-  const mark = r => r.querySelectorAll && r.querySelectorAll(SKIP).forEach(e => e.classList.add("notranslate"));
-  mark(document);
-  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches(SKIP)) n.classList.add("notranslate"); mark(n); } }))).observe(document.body, { childList: true, subtree: true });
+/* Online-Übersetzer: Google Übersetzer direkt abfragen (der alte Google-Baustein wurde am 1.10.2026 abgeschaltet).
+   Texte werden gesammelt und zeilenweise in wenigen Anfragen übersetzt; Ergebnisse landen im Cache, also nur einmal pro Text. */
+const GT = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=de&tl=";
+let gq = [], gT = null, gPause = 0;
+const flat = t => t.replace(/\s+/g, " ");
+async function gtBatch(items) {
+  const res = await fetch(GT + encodeURIComponent(gl(lang())) + "&q=" + encodeURIComponent(items.map(x => flat(x.t)).join("\n")), { cache: "no-store" });
+  if (res.status === 429) { gPause = Date.now() + 60e3; throw new Error("429"); }
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const d = await res.json(), out = (d[0] || []).map(x => x[0] || "").join("").split("\n");
+  if (out.length !== items.length) { if (items.length === 1) return items[0].ok(out.join(" ")); for (const x of items) await gtBatch([x]); return; }
+  items.forEach((x, i) => x.ok(out[i].trim() || x.t));
 }
-function useWidget() {
-  gtCookie("/de/" + gl(lang())); document.documentElement.lang = lang(); guard();
-  const d = document.createElement("div"); d.id = "gt-el"; d.style.display = "none"; document.body.appendChild(d);
-  window.studyosGT = () => { try { new google.translate.TranslateElement({ pageLanguage: "de", autoDisplay: false }, "gt-el"); } catch (e) {} };
-  const sc = document.createElement("script"); sc.src = "https://translate.google.com/translate_a/element.js?cb=studyosGT";
-  sc.onerror = () => App.toast("Sprache", "Die Übersetzung braucht eine Internetverbindung. Ohne Internet zeigt StudyOS den deutschen Text.", "文");
-  document.head.appendChild(sc);
+function gtFlush() {
+  gT = null; const all = gq; gq = [];
+  const batches = []; let cur = [], len = 0;
+  all.forEach(x => { const n = encodeURIComponent(flat(x.t)).length + 3; if (cur.length && (len + n > 4500 || cur.length >= 60)) { batches.push(cur); cur = []; len = 0; } cur.push(x); len += n; });
+  if (cur.length) batches.push(cur);
+  batches.forEach(bt => gtBatch(bt).catch(() => bt.forEach(x => x.no())));
 }
+const online = { translate: t => new Promise((ok, no) => { if (Date.now() < gPause || !navigator.onLine) return no(new Error("pause")); gq.push({ t, ok, no }); if (!gT) gT = setTimeout(gtFlush, 40); }) };
 const MSG = {
-  noapi: "Dieser Browser hat keinen eingebauten Übersetzer, darum übersetzt StudyOS hier online mit Google Übersetzer (Internet nötig).",
+  noapi: "Dieser Browser hat keinen eingebauten Übersetzer. Wähle „Online“, dann übersetzt Google Übersetzer (Internet nötig).",
   unavailable: "Für diese Sprache hat der Browser kein Sprachpaket. Bitte eine andere Sprache wählen.",
   error: "Das Sprachpaket konnte nicht geladen werden. Bitte mit Internet erneut versuchen.",
   "needs-click": "Zum Übersetzen einmal in den Einstellungen unter „Sprache“ auf „Übersetzen“ tippen. Dann lädt der Browser das Sprachpaket."
 };
 
 App.afterBoot.push(() => {
-  if (lang() === "de") { if (/googtrans=/.test(document.cookie)) gtCookie(null); return; }
-  const want = engine() === "device" || !navigator.onLine;
-  if (!want) return useWidget();
-  ready(false).then(r => { if (r === "ok") start(); else useWidget(); });
+  if (/googtrans=/.test(document.cookie)) gtCookie(null);
+  if (lang() === "de") return;
+  const goOnline = () => { tr = online; start(); };
+  if (engine() !== "device" && navigator.onLine) return goOnline();
+  ready(false).then(r => { if (r === "ok") start(); else if (navigator.onLine) goOnline(); else { App.toast("Sprache", "Ohne Internet und ohne Übersetzer im Browser zeigt StudyOS den deutschen Text.", "文"); addEventListener("online", goOnline, { once: true }); } });
 });
 
 /* Einstellungen: Sprachwahl ganz oben */
@@ -116,20 +158,19 @@ PAGES.settings = (el, p) => {
   const cur = lang(), api = hasAPI();
   card.innerHTML = `<h3>Sprache</h3><p class="muted" style="font-size:14px">StudyOS ist auf Deutsch geschrieben. Wähle eine andere Sprache, dann wird die ganze App übersetzt: am Laptop direkt auf dem Gerät, am Handy online mit Google Übersetzer. Code, Maple-Befehle und Formeln bleiben, wie sie sind.</p>
     <div class="row"><select id="lg-sel" aria-label="Sprache">${LANGS.map(([k, n]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${esc(n)}</option>`).join("")}</select><button class="btn pri sm" id="lg-go">${cur === "de" ? "Übernehmen" : "Übersetzen"}</button></div>
-    <div class="switch"><div><div>Übersetzer</div><small>Online mit Google versteht ganze Sätze und ist schneller. „Auf dem Gerät“ geht auch offline, übersetzt aber Satzteile einzeln.</small></div>
+    <div class="switch"><div><div>Übersetzer</div><small>„Online“ übersetzt mit Google Übersetzer, schnell und in allen Sprachen. „Auf dem Gerät“ nutzt den Übersetzer von Chrome oder Edge und geht auch offline.</small></div>
       <div class="lvl st-seg" role="radiogroup" id="lg-eng"><button role="radio" data-eng="google" class="${engine() === "google" ? "on" : ""}" aria-checked="${engine() === "google"}">Online</button><button role="radio" data-eng="device" class="${engine() === "device" ? "on" : ""}" aria-checked="${engine() === "device"}" ${api ? "" : "disabled title=\"In diesem Browser nicht verfügbar\""}>Auf dem Gerät</button></div></div>
     <small class="muted" id="lg-msg">${api || engine() !== "device" ? "" : esc(MSG.noapi)}</small>`;
   const h = pg.querySelector("h1"); const anchor = h ? h.closest(".page > *") : null;
   if (anchor && anchor.nextSibling) pg.insertBefore(card, anchor.nextSibling); else pg.prepend(card);
   card.querySelector(".row").setAttribute("translate", "no"); card.querySelector(".row").classList.add("notranslate");
   $("#lg-eng", card).onclick = e => { const b = e.target.closest("[data-eng]"); if (!b || b.disabled || b.dataset.eng === engine()) return; S().settings.trEngine = b.dataset.eng; App.save();
-    if (lang() !== "de") { if (b.dataset.eng === "device") gtCookie(null); location.reload(); } else $$("[data-eng]", card).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", x === b); }); };
+    if (lang() !== "de") location.reload(); else $$("[data-eng]", card).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", x === b); }); };
   $("#lg-go", card).onclick = async () => {
     const v = $("#lg-sel", card).value, msg = $("#lg-msg", card);
     if (v === "de") { if (cur !== "de") { S().settings.lang = "de"; App.save(); gtCookie(null); location.reload(); } return; }
     S().settings.lang = v; App.save();
     if (engine() !== "device") { location.reload(); return; }
-    gtCookie(null);
     msg.textContent = hasAPI() ? "Lade Sprachpaket …" : "Übersetze …";
     const r = await ready(true, x => { msg.textContent = "Lade Sprachpaket … " + Math.round(100 * x) + " %"; });
     if (r !== "ok") { location.reload(); return; } /* ohne eingebauten Übersetzer: nach dem Neuladen übersetzt Google online */
