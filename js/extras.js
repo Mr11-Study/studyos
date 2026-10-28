@@ -42,20 +42,18 @@ PAGES.feedback = el => {
 };
 
 /* ---------- Einstellungen: Profil mit Avatar, Farbe und Tagesziel ---------- */
-const AVATARS = ["", "🦊", "🦉", "🐼", "🐧", "🐙", "🐝", "🦁", "🐢", "🚀", "🎧", "📚", "☕", "🌱", "⚡", "🎯"];
 const settingsPage = PAGES.settings;
 PAGES.settings = (el, p) => {
   settingsPage(el, p);
   const name = $("#st-name", el), card = name && name.closest(".card"); if (!card) return;
-  const st = S().settings, init = (S().name || "?")[0].toUpperCase();
+  const st = S().settings;
   const box = document.createElement("div"); box.className = "col pf-more";
-  box.innerHTML = `<div class="pf-row"><span class="pf-l">Avatar</span><div class="pf-av">${AVATARS.map(a => `<button data-av="${esc(a)}" class="${(st.avatar || "") === a ? "on" : ""}" aria-label="${a ? "Avatar " + a : "Anfangsbuchstabe"}">${a || esc(init)}</button>`).join("")}</div></div>
+  box.innerHTML = `${App.avatar.rowHTML()}
     <div class="pf-row"><span class="pf-l">Farbe der App</span><div class="pf-acc">${ACCENTS.map(([k, t, c]) => `<button data-acc="${k}" class="${(st.accent && st.accent !== "gruen" ? st.accent : "fh") === k ? "on" : ""}" style="--sw:${c}" title="${t}" aria-label="Farbe ${t}"></button>`).join("")}</div></div>
     <label class="pf-row"><span class="pf-l">Tagesziel</span><span class="pf-goal"><input type="range" id="pf-goal" min="5" max="120" step="5" value="${st.goalMin || 20}"><b id="pf-goal-v">${st.goalMin || 20} min</b></span></label>
     <small class="muted pf-note">Das Tagesziel siehst du auf der Startseite.</small>`;
   card.appendChild(box);
   box.onclick = e => {
-    const a = e.target.closest("[data-av]"); if (a) { st.avatar = a.dataset.av; App.save(); $$("[data-av]", box).forEach(b => b.classList.toggle("on", b === a)); App.renderSide(); return; }
     const c = e.target.closest("[data-acc]"); if (c) { st.accent = c.dataset.acc; App.save(); applyAccent(); $$("[data-acc]", box).forEach(b => b.classList.toggle("on", b === c)); }
   };
   $("#pf-goal", box).oninput = e => { st.goalMin = +e.target.value; $("#pf-goal-v", box).textContent = st.goalMin + " min"; App.save(); };

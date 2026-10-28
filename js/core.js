@@ -68,7 +68,9 @@ App.S = () => S;
    außer man schaltet sie in den Einstellungen des Fachs dazu (S.settings.singles[kurs]). */
 const MTOP = new Set(QUESTIONS.filter(q => q.multi).map(q => q.topic));
 App.qAllowed = q => { const c = CBY[q.course]; return !c || !c.multiOnly || q.multi || !MTOP.has(q.topic) || !!(S.settings && S.settings.singles && S.settings.singles[c.id]); };
-App.replaceState = obj => { S = merge(DEFAULT(), obj); saveLocal(); App.renderSide(); App.render(); };
+/* opt.quiet (Sync im Hintergrund): Seite nur neu zeichnen, wenn sich etwas Sichtbares geändert hat, nicht bloß Zeitstempel oder Lernzeit */
+const sigOf = o => JSON.stringify(Object.assign({}, o, { updatedAt: 0, days: 0, sync: 0, notify: 0 }));
+App.replaceState = (obj, opt) => { const before = opt && opt.quiet ? sigOf(S) : null; S = merge(DEFAULT(), obj); saveLocal(); App.renderSide(); if (before === null) App.render(); else if (sigOf(S) !== before) App.softRender(); };
 let SEC = {}; try { SEC = JSON.parse(localStorage.getItem(SECRET_KEY) || "{}"); } catch (e) {}
 App.secrets = () => SEC;
 App.saveSecrets = () => { try { localStorage.setItem(SECRET_KEY, JSON.stringify(SEC)); } catch (e) {} };
@@ -188,9 +190,9 @@ Object.assign(App, { isBm, toggleBm, bmBtn });
 document.addEventListener("click", e => { const b = e.target.closest("[data-bm]"); if (!b) return; const [kind, id, title, ref] = b.dataset.bm.split("|"); const on = toggleBm(kind, id, title, ref); b.classList.toggle("on", on); b.textContent = on ? "★ Gemerkt" : "☆ Merken"; });
 
 /* ---------------- study time ---------------- */
-let lastAct = Date.now(), pendingSec = 0;
+let lastAct = Date.now(), pendingSec = 0, lastStreak = null;
 ["pointerdown", "keydown", "scroll", "wheel", "touchstart"].forEach(ev => window.addEventListener(ev, () => { lastAct = Date.now(); }, { passive: true, capture: true }));
-setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastAct < 120000 && !App.locked) { day().sec += 15; pendingSec += 15; if (pendingSec >= 60) { pendingSec = 0; save(); renderSide(); } } }, 15000);
+setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastAct < 120000 && !App.locked) { day().sec += 15; pendingSec += 15; if (pendingSec >= 60) { pendingSec = 0; const s0 = App.streak(); save(); if (s0 !== lastStreak) { lastStreak = s0; renderSide(); } } } }, 15000);
 
 /* ---------------- routing ---------------- */
 let R = { v: "dash", p: null };
@@ -221,7 +223,7 @@ function renderSide() {
       <button data-go="profile" class="${R.v === "profile" ? "on" : ""}"><span class="ni">◉</span>Profil & Erfolge</button>
     </nav>
     <div class="me">
-      <div class="me-top"><div class="avatar">${esc((S.name || "?")[0].toUpperCase())}</div><div><div class="me-name">${esc(S.name)}</div><div class="me-lvl tab">Level ${L} · ${S.xp.toLocaleString("de-AT")} XP</div></div></div>
+      <div class="me-top">${App.avatar ? App.avatar.html("avatar") : `<div class="avatar">${esc((S.name || "?")[0].toUpperCase())}</div>`}<div><div class="me-name">${esc(S.name)}</div><div class="me-lvl tab">Level ${L} · ${S.xp.toLocaleString("de-AT")} XP</div></div></div>
       <div class="bar thin"><i style="width:${pct}%"></i></div>
       <div class="spread"><span class="streak"><i class="flame ${st ? "" : "off"}"></i>${st} ${st === 1 ? "Tag" : "Tage"}</span><small class="tab">${hi - S.xp} XP bis L${L + 1}</small></div>
       ${window.StudyProfiles ? `<button class="me-switch" id="pswitch" title="Profile">${StudyProfiles.list().length > 1 ? `⇄ Profil wechseln <small>(${StudyProfiles.list().length})</small>` : "＋ Profil hinzufügen"}</button>` : ""}
@@ -243,6 +245,14 @@ function render() {
   requestAnimationFrame(() => $$(".bar>i[data-w]", el).forEach(i => i.style.width = i.dataset.w + "%"));
 }
 App.render = render;
+/* Neu zeichnen, ohne zu stören: nicht während ein Dialog offen ist oder jemand tippt, Scroll-Position bleibt, keine Einblend-Animationen */
+const busyUI = () => document.querySelector(".modal-back") || (document.activeElement && document.activeElement.matches && document.activeElement.matches("input,textarea,select,[contenteditable]"));
+let softWait = null;
+App.softRender = () => {
+  if (busyUI()) { if (!softWait) softWait = setInterval(() => { if (busyUI()) return; clearInterval(softWait); softWait = null; App.softRender(); }, 1500); return; }
+  const y = scrollY, h = document.documentElement; h.classList.add("no-anim"); render(); scrollTo(0, y);
+  requestAnimationFrame(() => requestAnimationFrame(() => h.classList.remove("no-anim")));
+};
 const bar = (pct, cls = "", color) => `<div class="bar ${cls}"><i data-w="${clamp(pct, 0, 100)}" ${color ? `style="background:${color}"` : ""}></i></div>`;
 function ring(pct, size = 74, stroke = 7, color = "var(--acc)") { const r = (size - stroke) / 2, c = 2 * Math.PI * r, off = c * (1 - clamp(pct, 0, 100) / 100); return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--card3)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${size / 2} ${size / 2})" style="transition:stroke-dashoffset .9s"/></svg>`; }
 Object.assign(App, { bar, ring });

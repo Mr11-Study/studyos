@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.41.0", d: "2026-10-28", t: "Profilbild, neue Einstellungen, weniger Neuladen", items: [
+    "Eigenes Foto als Profilbild: hochladen, zurechtziehen und zoomen. Oder ein Emoji aus über 250 Avataren in Kategorien wie Katzen, Hunde, Tiere, Essen oder Sport.",
+    "In der Profil-Karte stehen nur ein paar Vorschläge, „Mehr“ öffnet alle. Dazu Hintergrundfarben für Emoji und Buchstabe.",
+    "Einstellungen neu gestaltet im Stil der Startseite: immer nur ein Bereich auf einmal, mit Beschreibung, die Suche findet alles.",
+    "Die App lädt sich nicht mehr ständig neu: Sync im Hintergrund zeichnet die Seite nur bei echten Änderungen neu und nie, während du tippst oder ein Fenster offen ist.",
+    "Updates werden beim Öffnen übernommen oder per Tipp auf „Jetzt neu laden“, nicht mehr mitten in der Nutzung."
+  ] },
   { v: "4.40.0", d: "2026-10-28", t: "Lehrende im Kalender", items: [
     "Neuer Knopf „Lehrende“ im Kalender: Name eintragen und sehen, was die Person gerade und in den nächsten Wochen unterrichtet.",
     "Mit Studiengang (z. B. IMA oder DAT) nur die Fächer dort, ohne Studiengang alle Fächer, die sie unterrichtet.",

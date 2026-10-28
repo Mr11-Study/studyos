@@ -42,7 +42,7 @@ function apply(d) {
   S().events = d.events; S().timetable = d.tt.timetable || []; S().ttSource = d.tt.ttSource || null; S().ttFH = d.tt.ttFH || null;
   if (sig(local()) === before) return false;
   lastSig = sig(local()); App.save(); App.syncReminders && App.syncReminders();
-  if (App.route && /^calendar/.test(App.route())) App.render(); else App.renderSide && App.renderSide();
+  if (App.route && ["calendar", "dash"].includes(App.route().v)) App.softRender(); else App.renderSide && App.renderSide();
   return true;
 }
 async function sync(reason) {

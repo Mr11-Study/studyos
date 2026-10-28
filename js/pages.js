@@ -302,7 +302,7 @@ PAGES.bookmarks = el => {
 /* ================= Profile ================= */
 PAGES.profile = el => {
   const s = S(), L = App.levelOf(s.xp), lo = App.xpFor(L), hi = App.xpFor(L + 1);
-  el.innerHTML = `<div class="page"><div class="card row" style="gap:20px"><div class="avatar" style="width:64px;height:64px;font-size:26px">${esc((s.name || "?")[0].toUpperCase())}</div>
+  el.innerHTML = `<div class="page"><div class="card row" style="gap:20px">${App.avatar.html("avatar", 'style="width:64px;height:64px;font-size:26px"')}
     <div class="col" style="gap:6px;flex:1;min-width:220px"><h1>${esc(s.name)}</h1><small>Wirtschaftsinformatik · FH JOANNEUM · WINF 2025</small>${App.bar(100 * (s.xp - lo) / (hi - lo))}<small class="tab">Level ${L} · ${s.xp} XP · noch ${hi - s.xp} XP bis Level ${L + 1}</small></div>
     <div class="row" style="gap:24px"><div class="stat"><b>${App.streak()}</b><span>Serie</span></div><div class="stat"><b>${App.longestStreak()}</b><span>Rekord</span></div></div></div>
    <div class="grid g4">${COURSES.map(c => `<div class="card stat" style="border-top:3px solid ${c.color}"><b>${App.courseMastery(c.id)} %</b><span>${esc(c.title)} · Mastery</span></div>`).join("")}</div>
