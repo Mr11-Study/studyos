@@ -1029,3 +1029,12 @@ html.no-anim *,html.no-anim *::before,html.no-anim *::after{animation:none!impor
 #tr-load .trl-act{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 #tr-load .trl-x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 2px;margin-left:2px}
 #tr-load .trl-x:hover{color:var(--bad)}
+/* 4.44: kurzer Ladebildschirm beim Seitenwechsel, solange die neue Seite übersetzt wird */
+#tr-load.page{inset:0;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--bg) 62%,transparent);backdrop-filter:blur(8px);animation:trlfade .15s both}
+#tr-load.page .trl-box{width:min(300px,100%);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:20px 20px 16px;border-radius:18px;background:var(--card);border:1px solid var(--line);box-shadow:0 24px 50px -28px rgba(0,0,0,.6);animation:rise .2s both}
+#tr-load.page .trl-box b{font:700 16px var(--f-display)}
+#tr-load.page .trl-box .trl-ic{width:44px;height:44px;font-size:22px;border-radius:14px}
+#tr-load.page.fin .trl-box .trl-ic{background:color-mix(in srgb,var(--good,#34C759) 18%,transparent);color:var(--good,#34C759)}
+#tr-load.page .trl-bar{height:6px}
+#tr-load.page .trl-x{font-size:12px;margin:2px 0 0}
+@keyframes trlfade{from{opacity:0}}
