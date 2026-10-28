@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.42.2", d: "2026-10-28", t: "Übersetzung repariert", items: [
+    "Übersetzen funktioniert wieder: Google hat seinen Übersetzer-Baustein für Webseiten am 1. Oktober 2026 abgeschaltet. StudyOS fragt Google Übersetzer jetzt direkt ab, in wenigen gesammelten Anfragen.",
+    "Gilt auch am Handy. Bereits übersetzte Texte merkt sich StudyOS, Seitenwechsel sind danach sofort übersetzt.",
+    "Ohne Internet übersetzt der Browser auf dem Gerät, falls er das kann (Chrome, Edge)."
+  ] },
   { v: "4.42.1", d: "2026-10-28", t: "Bessere Übersetzung", items: [
     "Übersetzt wird jetzt standardmäßig online mit Google: ganze Sätze statt einzelner Satzteile, dadurch genauer (z. B. Ukrainisch) und deutlich schneller.",
     "Unter Einstellungen › Profil & Konto › Sprache kannst du „Auf dem Gerät“ wählen, das geht auch offline. Ohne Internet schaltet StudyOS automatisch darauf um.",
