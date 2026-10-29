@@ -51,14 +51,14 @@ const moWhere = p => p.src === "mo" && p.id ? p.id : p.lat != null ? p.lat + ","
 const MOTIS = {
   find: q => mo("geocode", { text: q, type: "STOP", numResults: 8, language: "de" }, ["v1"]).then(a => (a || []).filter(m => m && m.id && m.type === "STOP").map(moStop)),
   near: (lat, lon) => mo("reverse-geocode", { place: lat + "," + lon, type: "STOP", numResults: 8 }, ["v1"]).then(a => (a || []).filter(m => m && m.id).map(m => Object.assign(moStop(m), { distance: dist(lat, lon, m.lat, m.lon) })).sort((x, y) => x.distance - y.distance)),
-  async deps(p) {
+  async deps(p, w) {
     const q = p.src === "mo" && p.id ? { stopId: p.id } : { center: p.lat + "," + p.lon, radius: 150 };
-    const r = await mo("stoptimes", Object.assign(q, { n: 14, time: iso(Date.now() - 60000), language: "de" }), ["v6", "v5", "v4", "v1"]);
+    const r = await mo("stoptimes", Object.assign(q, { n: 14, time: iso(w ? w.t : Date.now() - 60000), language: "de" }), ["v6", "v5", "v4", "v1"]);
     return (r.stopTimes || []).map(st => { const pl = st.place || {}, w = pl.departure || pl.scheduledDeparture; return { when: w, plan: pl.scheduledDeparture || w, rt: !!st.realTime, delay: st.realTime && pl.departure && pl.scheduledDeparture ? (T(pl.departure) - T(pl.scheduledDeparture)) / 1000 : null, pl: pl.track || pl.scheduledTrack || "", spl: pl.scheduledTrack && pl.track && pl.scheduledTrack !== pl.track ? pl.scheduledTrack : "", dir: st.headsign || "", line: moLine(st), op: st.agencyName || "", warn: moAlerts(st.place && st.place.alerts || st.alerts), x: !!(st.cancelled || st.tripCancelled) }; }).filter(d => d.when);
   },
-  async trips(a, b) {
+  async trips(a, b, w) {
     const from = moWhere(a), to = moWhere(b); if (!from || !to) throw new Error("http");
-    const r = await mo("plan", { fromPlace: from, toPlace: to, time: iso(Date.now()), numItineraries: 5, detailedTransfers: "false", timetableView: "true", language: "de" }, ["v5", "v6", "v4", "v3", "v2", "v1"]);
+    const r = await mo("plan", { fromPlace: from, toPlace: to, time: iso(w ? w.t : Date.now()), arriveBy: w && w.arr ? "true" : null, numItineraries: 5, detailedTransfers: "false", timetableView: "true", language: "de" }, ["v5", "v6", "v4", "v3", "v2", "v1"]);
     return (r.itineraries || []).map(it => ({ legs: (it.legs || []).map(g => { const walk = g.mode === "WALK" || g.mode === "BIKE" || g.mode === "CAR"; const dep = g.startTime || (g.from || {}).departure, sdep = g.scheduledStartTime || (g.from || {}).scheduledDeparture;
       const arr = g.endTime || (g.to || {}).arrival, sarr = g.scheduledEndTime || (g.to || {}).scheduledArrival;
       return { o: (g.from || {}).name, dst: (g.to || {}).name, dep, dd: g.realTime && dep && sdep ? (T(dep) - T(sdep)) / 1000 : null, arr, ad: g.realTime && arr && sarr ? (T(arr) - T(sarr)) / 1000 : null, rt: !!g.realTime,
@@ -78,9 +78,9 @@ const haWhere = (p, k) => p.src === "ha" && p.id ? { [k]: p.id } : { [k + ".lati
 const HAFAS = {
   find: q => ha("/locations", { query: q, results: 8, stops: "true", addresses: "false", poi: "false", linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id && (x.type === "stop" || x.type === "station")).map(haStop)),
   near: (lat, lon) => ha("/locations/nearby", { latitude: lat, longitude: lon, results: 8, distance: 1200, linesOfStops: "false" }).then(a => (a || []).filter(x => x && x.id).map(x => Object.assign(haStop(x), { distance: x.distance }))),
-  async deps(p) { if (p.src !== "ha") throw new Error("http"); const r = await ha("/stops/" + encodeURIComponent(p.id) + "/departures", { duration: 90, results: 14, remarks: "true", linesOfStops: "false" });
+  async deps(p, w) { if (p.src !== "ha") throw new Error("http"); const r = await ha("/stops/" + encodeURIComponent(p.id) + "/departures", { when: w ? iso(w.t) : null, duration: 90, results: 14, remarks: "true", linesOfStops: "false" });
     return (Array.isArray(r) ? r : (r && r.departures) || []).map(d => ({ when: d.when || d.plannedWhen, plan: d.plannedWhen || d.when, rt: d.delay != null, delay: d.delay, pl: d.platform || d.plannedPlatform || "", spl: d.plannedPlatform && d.platform && d.plannedPlatform !== d.platform ? d.plannedPlatform : "", dir: d.direction || "", line: haLine(d.line), op: (d.line && d.line.operator && d.line.operator.name) || "", warn: haWarn(d.remarks), x: !!d.cancelled })); },
-  async trips(a, b) { const r = await ha("/journeys", Object.assign(haWhere(a, "from"), haWhere(b, "to"), { results: 5, stopovers: "true", remarks: "true", tickets: "false", polylines: "false", scheduledDays: "false" }));
+  async trips(a, b, w) { const r = await ha("/journeys", Object.assign(haWhere(a, "from"), haWhere(b, "to"), w ? { [w.arr ? "arrival" : "departure"]: iso(w.t) } : {}, { results: 5, stopovers: "true", remarks: "true", tickets: "false", polylines: "false", scheduledDays: "false" }));
     return ((r && r.journeys) || []).map(j => ({ legs: (j.legs || []).map(g => ({ o: g.origin && g.origin.name, dst: g.destination && g.destination.name, dep: g.departure || g.plannedDeparture, dd: g.departureDelay, arr: g.arrival || g.plannedArrival, ad: g.arrivalDelay, rt: g.departureDelay != null, pl: g.departurePlatform || g.plannedDeparturePlatform || "", apl: g.arrivalPlatform || g.plannedArrivalPlatform || "", line: haLine(g.line), dir: g.direction || "", walk: !!g.walking, m: g.distance || null,
       op: (g.line && g.line.operator && g.line.operator.name) || "", stops: (g.stopovers || []).slice(1, -1).map(x => ({ n: x.stop && x.stop.name, t: x.departure || x.arrival || x.plannedDeparture || x.plannedArrival, c: x.stop && x.stop.location ? cc(x.stop.location.latitude, x.stop.location.longitude) : null })).filter(x => x.n), warn: haWarn(g.remarks), x: !!g.cancelled,
       oc: g.origin && g.origin.location ? cc(g.origin.location.latitude, g.origin.location.longitude) : null, dc: g.destination && g.destination.location ? cc(g.destination.location.latitude, g.destination.location.longitude) : null, pts: null })) })); }
@@ -125,7 +125,7 @@ let pick = null; /* gewählte Richtung auf der Seite, sonst automatisch */
 const route = () => { const p = plan(); if (pick && placeOf(pick.from) && placeOf(pick.to)) return Object.assign({}, pick, { auto: false, why: "Selbst gewählt", by: null }); return Object.assign(p, { auto: true }); };
 
 /* ---------- Daten holen, merken, regelmäßig neu ---------- */
-const data = {}; /* key -> { at, j, d, err } */
+const DATA = {}, data = DATA; /* key -> { at, j, d, err } */
 const LS = "studyos.transit";
 try { Object.assign(data, JSON.parse(localStorage.getItem(LS) || "{}")); } catch (e) {}
 const persist = () => { try { localStorage.setItem(LS, JSON.stringify(data)); } catch (e) {} };
@@ -134,25 +134,29 @@ const busy = new Set();
 /* Ort ohne Haltestellen-ID (Name von Hand übernommen): einmal im Fahrplan nachschlagen und merken */
 async function resolve(p) { if (p.id && !p.src) p.src = "ha"; /* aus 4.45 */ if (p.id || p.lat != null) return p; const hit = (await findStops(p.name))[0]; if (!hit) throw new Error("nostop"); Object.assign(p, hit, { label: p.label, walk: p.walk }); App.save(); return p; }
 /* Abfahrten jede Minute, Verbindungen seltener (die freien Fahrpläne bitten um sparsame Abfragen) */
-async function load(r, force, jEvery) {
-  const a = placeOf(r.from), b = placeOf(r.to); if (!a || !b) return null;
-  const k = keyOf(a, b), cur = data[k] || { j: [], d: [], at: 0, jAt: 0 };
+/* w = { t, arr }: Verbindungen zu einer gewählten Zeit (Abfahrt oder Ankunft); die landen nur im Speicher, nicht im Gerät */
+const tmp = {};
+const load = (r, force, jEvery) => loadAB(placeOf(r.from), placeOf(r.to), force, jEvery, null);
+async function loadAB(a, b, force, jEvery, w) {
+  if (!a || !b) return null;
+  const data = w ? tmp : DATA;
+  const k = keyOf(a, b) + (w ? "@" + w.t + (w.arr ? "a" : "d") : ""), cur = data[k] || { j: [], d: [], at: 0, jAt: 0 };
   const needD = force || Date.now() - (cur.at || 0) > 45000 || cur.err, needJ = force === "all" || !cur.j.length || Date.now() - (cur.jAt || 0) > (jEvery || 170000) || cur.err;
   if (!needD && !needJ) return cur;
   if (busy.has(k)) return cur; busy.add(k);
   try {
     await resolve(a); await resolve(b);
-    const [j, d] = await Promise.all([needJ ? any(s => s.trips(a, b)) : null, any(s => s.deps(a)).catch(() => null)]);
+    const [j, d] = await Promise.all([needJ ? any(s => s.trips(a, b, w)) : null, any(s => s.deps(a, w)).catch(() => null)]);
     if (needJ && j == null) throw new Error("http");
-    data[k] = { at: Date.now(), jAt: needJ ? Date.now() : cur.jAt, j: needJ ? j : cur.j, d: d || cur.d, src: good }; persist();
+    data[k] = { at: Date.now(), jAt: needJ ? Date.now() : cur.jAt, j: needJ ? j : cur.j, d: d || cur.d, src: good }; if (!w) persist();
   } catch (e) { data[k] = Object.assign({}, cur, { err: e.message === "busy" ? "busy" : e.message === "nostop" ? "nostop" : navigator.onLine ? "down" : "offline", errAt: Date.now() }); }
   finally { busy.delete(k); }
   return data[k];
 }
 const realLegs = j => j.legs.filter(g => !g.walk);
 const jDep = j => T((realLegs(j)[0] || j.legs[0] || {}).dep), jArr = j => T((j.legs[j.legs.length - 1] || {}).arr);
-const upcoming = x => (x && x.j || []).filter(j => { const d = jDep(j); return d && d - Date.now() > -60000 && !j.legs.some(g => g.x); }).sort((a, b) => jDep(a) - jDep(b) || jArr(a) - jArr(b));
-const walkMin = r => +((placeOf(r.from) || {}).walk || 0);
+const upcoming = (x, all) => (x && x.j || []).filter(j => { const d = jDep(j); return d && (all || d - Date.now() > -60000) && !j.legs.some(g => g.x); }).sort((a, b) => jDep(a) - jDep(b) || jArr(a) - jArr(b));
+const walkMin = r => +((r.a || placeOf(r.from) || {}).walk || 0);
 const firstWalk = j => j.legs[0] && j.legs[0].walk ? Math.max(1, Math.round((T(j.legs[0].arr) - T(j.legs[0].dep)) / 60000)) : 0;
 const leaveAt = (j, r) => { const d = jDep(j); return d ? new Date(d - (walkMin(r) + firstWalk(j)) * 60000) : null; };
 
@@ -163,7 +167,6 @@ const mm = (a, b) => Math.max(0, Math.round((T(b) - T(a)) / 60000));
 const dl = (s, plan) => s == null ? "" : s >= 60 ? `<span class="tr-late">+${Math.round(s / 60)}</span>${plan ? ` <s class="tr-plan">${hm(T(plan))}</s>` : ""}` : `<span class="tr-ok">pünktlich</span>`;
 const walkTot = j => j.legs.filter(g => g.walk).reduce((s, g) => s + mm(g.dep, g.arr), 0);
 const jKey = j => { const f = realLegs(j)[0] || j.legs[0]; return (f.dep || "") + "|" + ((f.line && f.line.name) || ""); };
-const openJ = new Set();
 function factsHTML(j) {
   const L = realLegs(j), ch = Math.max(0, L.length - 1), w = walkTot(j), rt = L.some(g => g.rt), stops = L.reduce((s, g) => s + (g.stops || []).length + 1, 0);
   return `<span class="tr-facts">${[dur(jDep(j), jArr(j)), ch ? ch + (ch === 1 ? " Umstieg" : " Umstiege") : "direkt", stops ? stops + " Halte" : "", w ? w + " min zu Fuß" : "", rt ? `<span class="tr-rt" title="Mit Live-Daten">● live</span>` : `<span class="muted" title="Nur Fahrplan, keine Live-Daten">Fahrplan</span>`].filter(Boolean).join(" · ")}</span>`;
@@ -184,25 +187,43 @@ function detailHTML(j) {
   });
   return `<ol class="tr-tl">${out.join("")}</ol>`;
 }
-function heroHTML(j, r) {
+/* Uhrzeit mit Tag, wenn es nicht heute ist (für gesuchte Zeiten) */
+const dayTxt = d => { if (!d) return ""; const t = new Date(), x = new Date(d); const n = Math.round((new Date(x.getFullYear(), x.getMonth(), x.getDate()) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+  return n === 0 ? "Heute" : n === 1 ? "Morgen" : n === -1 ? "Gestern" : x.toLocaleDateString("de-AT", { weekday: "short", day: "numeric", month: "numeric" }); };
+const whenTxt = d => d ? (dayTxt(d) === "Heute" ? "" : dayTxt(d) + " ") + hm(d) : "–";
+const soon = j => { const d = jDep(j); return d && d - Date.now() < 90 * 60000 && jArr(j) - Date.now() > 0; };
+const RIDEHINT = `<small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small>`;
+/* oben die nächste Verbindung: die ganze Karte ist antippbar und öffnet die Detailansicht */
+function heroHTML(j, r, live) {
   const L = realLegs(j), f = L[0] || j.legs[0], dep = jDep(j), arr = jArr(j), lv = leaveAt(j, r), lm = mins(lv), k = jKey(j);
-  const by = r.by && arr ? (hm(arr) <= r.by ? `<span class="chip good">✓ rechtzeitig für ${r.by}${(() => { const [h, m] = r.by.split(":").map(Number), d = new Date(arr); const x = h * 60 + m - (d.getHours() * 60 + d.getMinutes()); return x > 0 ? `, ${x} min Puffer` : ""; })()}</span>` : `<span class="chip warn">zu spät für ${r.by}</span>`) : "";
-  return `<div class="tr-hero" data-dep="${dep ? dep.getTime() : ""}" data-leave="${lv ? lv.getTime() : ""}">
-    <div class="tr-hl"><div class="tr-big tab" data-cd>${esc(inTxt(mins(dep)))}</div><div class="tr-go" data-lv>${lm == null ? "" : lm <= 0 ? "Jetzt losgehen!" : "Losgehen " + inTxt(lm)}</div>${lv ? `<small class="muted tab">spätestens ${hm(lv)} los</small>` : ""}</div>
+  const by = live && r.by && arr ? (hm(arr) <= r.by ? `<span class="chip good">✓ rechtzeitig für ${r.by}${(() => { const [h, m] = r.by.split(":").map(Number), d = new Date(arr); const x = h * 60 + m - (d.getHours() * 60 + d.getMinutes()); return x > 0 ? `, ${x} min Puffer` : ""; })()}</span>` : `<span class="chip warn">zu spät für ${r.by}</span>`) : "";
+  return `<div class="tr-hero tr-tap" role="button" tabindex="0" data-open-j="${esc(k)}" aria-label="Details zur Verbindung um ${hm(dep)}" data-dep="${dep ? dep.getTime() : ""}" data-leave="${lv && live ? lv.getTime() : ""}">
+    <div class="tr-hl">${live ? `<div class="tr-big tab" data-cd>${esc(inTxt(mins(dep)))}</div><div class="tr-go" data-lv>${lm == null ? "" : lm <= 0 ? "Jetzt losgehen!" : "Losgehen " + inTxt(lm)}</div>${lv ? `<small class="muted tab">spätestens ${hm(lv)} los</small>` : ""}`
+      : `<div class="tr-big tab">${hm(dep)}</div><div class="tr-go">${esc(dayTxt(dep))}</div>${lv ? `<small class="muted tab">losgehen ${hm(lv)}</small>` : ""}`}</div>
     <div class="tr-hr">${legsHTML(j)}<div class="tr-tm tab"><b>${hm(dep)}</b> ${delayTxt(f.dd)} <span class="tr-arrow">→</span> <b>${hm(arr)}</b> ${f.pl ? `<span class="chip">Steig ${esc(f.pl)}</span>` : ""}</div>
-      <small class="muted">${esc(f.o || "")}${f.dir ? " · Richtung " + esc(f.dir) : ""}</small>${factsHTML(j)}${by}</div></div>
-    <div class="row tr-acts"><button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button><details class="tr-jd tr-hd" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary>Halte, Steige & Karte</summary>${detailHTML(j)}</details></div><small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small>`;
+      <small class="muted">${esc(f.o || "")}${f.dir ? " · Richtung " + esc(f.dir) : ""}</small>${factsHTML(j)}${by}</div>
+    <span class="tr-chev" aria-hidden="true">›</span></div>
+    <div class="row tr-acts">${soon(j) ? `<button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button>` : ""}<button type="button" class="btn sm" data-open-j="${esc(k)}">Details & Karte ›</button></div>${soon(j) ? RIDEHINT : ""}`;
 }
-function rowJ(j) {
+/* weitere Verbindungen: jede Zeile ist ein Knopf mit Pfeil und öffnet ihre eigene Ansicht */
+function rowJ(j, live) {
   const L = realLegs(j), f = L[0] || j.legs[0], dep = jDep(j), arr = jArr(j), k = jKey(j);
-  return `<details class="tr-jd" data-dep="${dep ? dep.getTime() : ""}" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary class="tr-row"><b class="tr-min tab" data-cd>${esc(inTxt(mins(dep)))}</b>${legsHTML(j)}<span class="tr-tm tab">${hm(dep)} ${delayTxt(f.dd)} → ${hm(arr)}</span><small class="muted">${Math.max(0, L.length - 1) ? (L.length - 1) + "× um" : "direkt"} ▾</small></summary>
-    <div class="tr-jb">${factsHTML(j)}${detailHTML(j)}<div class="row tr-acts"><button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button></div><small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small></div></details>`;
+  return `<button type="button" class="tr-item tr-row" data-open-j="${esc(k)}" data-dep="${dep ? dep.getTime() : ""}" ${live ? "data-rm" : ""}>${live ? `<b class="tr-min tab" data-cd>${esc(inTxt(mins(dep)))}</b>` : `<b class="tr-min tab">${esc(whenTxt(dep))}</b>`}${legsHTML(j)}<span class="tr-tm tab">${hm(dep)} ${delayTxt(f.dd)} → ${hm(arr)}</span><small class="muted">${Math.max(0, L.length - 1) ? (L.length - 1) + "× um" : "direkt"}</small><span class="tr-chev" aria-hidden="true">›</span></button>`;
 }
-function rowD(d) {
+const dKey = d => "d|" + (d.plan || d.when) + "|" + ((d.line && d.line.name) || "") + "|" + (d.dir || "");
+function rowD(d, live) {
   const w = T(d.when), m = mins(w);
-  const k = "d|" + (d.plan || d.when) + "|" + ((d.line && d.line.name) || "") + "|" + (d.dir || "");
-  return `<details class="tr-jd tr-dd" data-dep="${w ? w.getTime() : ""}" data-k="${esc(k)}" ${openJ.has(k) ? "open" : ""}><summary class="tr-row tr-mon ${d.x ? "tr-x" : ""}">${badge(d.line)}<span class="tr-dir">${esc(d.dir || "")}</span>${d.pl ? `<small class="muted">Steig ${esc(d.pl)}</small>` : "<small></small>"}<b class="tr-min tab" data-cd data-short>${d.x ? "fällt aus" : m != null && m < 60 ? (m <= 0 ? "jetzt" : m + "′") : hm(w)}</b>${d.x ? "<span></span>" : delayTxt(d.delay)}</summary>
-    <div class="tr-jb tr-dinfo"><span>Abfahrt <b class="tab">${hm(w)}</b>${d.delay >= 60 && d.plan ? ` statt <span class="tab">${hm(T(d.plan))}</span>` : ""}</span>${d.pl ? `<span>Steig ${esc(d.pl)}${d.spl ? ` (statt ${esc(d.spl)})` : ""}</span>` : ""}${d.op ? `<span>${esc(d.op)}</span>` : ""}<span>${d.rt ? `<span class="tr-rt">● live</span>` : "nur Fahrplan"}</span>${(d.warn || []).map(x => `<p class="tr-warn">⚠ ${esc(x)}</p>`).join("")}</div></details>`;
+  return `<button type="button" class="tr-item tr-row tr-mon ${d.x ? "tr-x" : ""}" data-open-d="${esc(dKey(d))}" data-dep="${w ? w.getTime() : ""}" ${live ? "data-rm" : ""}>${badge(d.line)}<span class="tr-dir">${esc(d.dir || "")}</span>${d.pl ? `<small class="muted">Steig ${esc(d.pl)}</small>` : "<small></small>"}<b class="tr-min tab" ${live ? "data-cd data-short" : ""}>${d.x ? "fällt aus" : live && m != null && m < 60 ? (m <= 0 ? "jetzt" : m + "′") : hm(w)}</b>${d.x ? "<span></span>" : delayTxt(d.delay)}<span class="tr-chev" aria-hidden="true">›</span></button>`;
+}
+function depHTML(d) {
+  const w = T(d.when), m = mins(w);
+  return `<div class="tr-dhero">${badge(d.line)}<div><b class="tr-dto">${d.dir ? "Richtung " + esc(d.dir) : "Abfahrt"}</b><small class="muted">${esc(d.op || "")}</small></div></div>
+    <div class="tr-dgrid"><div><small>Abfahrt</small><b class="tab">${whenTxt(w)}</b>${d.delay >= 60 && d.plan ? `<small>statt ${hm(T(d.plan))}</small>` : ""}</div>
+      <div><small>Noch</small><b class="tab" data-cd>${d.x ? "fällt aus" : esc(inTxt(m))}</b></div>
+      <div><small>Steig</small><b>${d.pl ? esc(d.pl) : "–"}</b>${d.spl ? `<small>statt ${esc(d.spl)}</small>` : ""}</div>
+      <div><small>Daten</small><b>${d.rt ? `<span class="tr-rt">● live</span>` : "Fahrplan"}</b></div></div>
+    ${(d.warn || []).map(x => `<p class="tr-warn">⚠ ${esc(x)}</p>`).join("")}
+    <p class="muted tr-hint">Das ist eine Abfahrt an deiner Haltestelle. Wann du damit ankommst, siehst du bei den Verbindungen oben.</p>`;
 }
 const stamp = x => x && x.at ? `Stand ${hm(new Date(x.at))}` : "";
 const errTxt = x => !x || !x.err ? "" : x.err === "offline" ? "Kein Internet. Du siehst den letzten Stand." : x.err === "busy" ? "Der Fahrplan ist gerade überlastet, gleich nochmal." : x.err === "nostop" ? "Eine deiner Haltestellen wurde im Fahrplan nicht gefunden. Wähl sie unter „Orte ändern“ aus der Liste." : "Der Live-Fahrplan antwortet gerade nicht. Ich versuche es automatisch weiter. Bis dahin hilft der Knopf „In ÖBB Scotty öffnen“.";
@@ -213,7 +234,7 @@ const scotty = (a, b) => `https://fahrplan.oebb.at/bin/query.exe/dn?S=${encodeUR
 function tick(root) {
   $$("[data-dep]", root).forEach(n => {
     const d = +n.dataset.dep; if (!d) return; const m = Math.round((d - Date.now()) / 60000);
-    if (m < -1 && n.matches(".tr-row,.tr-jd:not(.tr-hd)")) { n.remove(); return; }
+    if (m < -1 && n.hasAttribute("data-rm")) { n.remove(); return; }
     const cd = $("[data-cd]", n); if (cd && !n.classList.contains("tr-x")) cd.textContent = cd.hasAttribute("data-short") ? (m < 60 ? (m <= 0 ? "jetzt" : m + "′") : hm(new Date(d))) : inTxt(m);
     const lv = $("[data-lv]", n), l = +n.dataset.leave; if (lv && l) { const k = Math.round((l - Date.now()) / 60000); lv.textContent = k <= 0 ? "Jetzt losgehen!" : "Losgehen " + inTxt(k); lv.classList.toggle("now", k <= 1); }
   });
@@ -264,7 +285,7 @@ function stopPicker(host, cur, onPick, title) {
 }
 
 /* ---------- Karte und „Ich fahre mit“ (4.48) ----------
-   Karte mit Leaflet (lädt erst, wenn sie gebraucht wird) und Kartenbildern von CARTO auf OpenStreetMap-Daten.
+   Karte mit Leaflet (lädt erst, wenn sie gebraucht wird) und Kartenbildern von OpenStreetMap.
    Wo Bus oder Zug gerade ist, wird aus Fahrplan und Live-Verspätung geschätzt: zwischen zwei Halten nach der Uhrzeit. */
 const LEAF = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/";
 let leafP = null;
@@ -371,9 +392,51 @@ function showMe(pan) {
 }
 function dropMap() { if (MAP) { if (MAP.watch != null) navigator.geolocation.clearWatch(MAP.watch); try { MAP.m.remove(); } catch (e) {} MAP = null; } }
 
-/* ---------- Seite „Unterwegs“ ---------- */
+/* ---------- Seite „Unterwegs“ (4.50) ----------
+   Übersicht mit antippbaren Karten und Zeilen (immer mit Pfeil ›). Antippen öffnet eine eigene Ansicht mit „‹ Zurück“ oben;
+   raus kommt man über Zurück, die Zurück-Taste vom Handy/Browser oder Escape. Eigene Suche nach Strecke, Tag und Uhrzeit. */
 let timer = null;
+let SEARCH = null; /* { a, b, t (ms oder null = jetzt), arr } eigene Suche, sonst automatisch */
+let VIEW = null;   /* { t: "j"|"d"|"ride", k, j, d, y, pushed, R } */
+let closeView = null;
 function stopTimer() { clearInterval(timer); timer = null; dropMap(); }
+addEventListener("popstate", () => { if (VIEW && closeView) closeView(true); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && VIEW && closeView && !document.querySelector(".modal-back,.tr-sheet")) closeView(); });
+const sameP = (x, y) => x && y && (x.id || x.name) === (y.id || y.name);
+function findDialog(r, cur) {
+  const s = cur || {}, a0 = s.a || placeOf(r.from), b0 = s.b || placeOf(r.to), mine = PLACES().filter(p => p[3] && p[3].name);
+  let A = a0, B = b0, arr = !!s.arr;
+  const d0 = new Date(s.t || Date.now()), pad = n => String(n).padStart(2, "0"), ymd = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const quick = which => `<div class="tr-fq">${mine.map(p => `<button type="button" class="chip" data-q="${which}|${p[0]}">${p[2]} ${esc(p[1])}</button>`).join("")}</div>`;
+  const days = [0, 1, 2, 3, 4, 5, 6].map(n => { const d = new Date(); d.setDate(d.getDate() + n); return [ymd(d), n === 0 ? "Heute" : n === 1 ? "Morgen" : d.toLocaleDateString("de-AT", { weekday: "short", day: "numeric", month: "numeric" })]; });
+  App.modal(`<div class="tr-fd"><div class="spread"><h3>Verbindung suchen</h3><button type="button" class="btn ghost sm" data-close aria-label="Schließen">✕</button></div>
+    <p class="muted">Wähl Strecke, Tag und Uhrzeit. Danach siehst du, welche Busse, Bims und Züge fahren.</p>
+    <div class="tr-fs"><small class="tr-fl">Von</small><div class="tr-fa"></div>${quick("a")}</div>
+    <button type="button" class="chip tr-fswap">⇅ Tauschen</button>
+    <div class="tr-fs"><small class="tr-fl">Nach</small><div class="tr-fb"></div>${quick("b")}</div>
+    <div class="tr-fs"><small class="tr-fl">Wann</small>
+      <div class="so-seg" role="radiogroup"><button type="button" class="chip ${arr ? "" : "acc"}" data-arr="0">Abfahrt um</button><button type="button" class="chip ${arr ? "acc" : ""}" data-arr="1">Ankunft bis</button></div>
+      <div class="tr-fdays">${days.map(([v, t]) => `<button type="button" class="chip ${v === ymd(d0) ? "acc" : ""}" data-day="${v}">${esc(t)}</button>`).join("")}</div>
+      <div class="row tr-fwhen"><label class="fld">Tag<input type="date" id="tr-fdate" value="${ymd(d0)}"></label><label class="fld">Uhrzeit<input type="time" id="tr-ftime" value="${pad(d0.getHours())}:${pad(d0.getMinutes())}"></label></div>
+      <div class="tr-fq">${["07:00", "08:00", "12:00", "16:00", "18:00"].map(t => `<button type="button" class="chip" data-tm="${t}">${t}</button>`).join("")}</div></div>
+    <div class="row tr-fgo"><button type="button" class="btn ghost" id="tr-fnow">Jetzt fahren</button><span class="so-sp"></span><button type="button" class="btn pri" id="tr-fok">Verbindungen zeigen</button></div></div>`, (m, close) => {
+    const pa = () => stopPicker($(".tr-fa", m), A, st => { A = st; }, "Von"), pb = () => stopPicker($(".tr-fb", m), B, st => { B = st; }, "Nach");
+    pa(); pb();
+    $$("[data-q]", m).forEach(c => c.onclick = () => { const [w, k] = c.dataset.q.split("|"); if (w === "a") { A = placeOf(k); pa(); } else { B = placeOf(k); pb(); } });
+    $(".tr-fswap", m).onclick = () => { [A, B] = [B, A]; pa(); pb(); };
+    $$("[data-arr]", m).forEach(c => c.onclick = () => { arr = c.dataset.arr === "1"; $$("[data-arr]", m).forEach(x => x.classList.toggle("acc", x === c)); });
+    const dEl = $("#tr-fdate", m), tEl = $("#tr-ftime", m);
+    const marks = () => $$("[data-day]", m).forEach(x => x.classList.toggle("acc", x.dataset.day === dEl.value));
+    $$("[data-day]", m).forEach(c => c.onclick = () => { dEl.value = c.dataset.day; marks(); });
+    dEl.onchange = marks;
+    $$("[data-tm]", m).forEach(c => c.onclick = () => { tEl.value = c.dataset.tm; });
+    const go = t => { if (!A || !B) return App.toast("Strecke fehlt", "Wähl bei Von und Nach eine Haltestelle aus der Liste.", "⇆"); if (sameP(A, B)) return App.toast("Gleiche Haltestelle", "Von und Nach müssen verschieden sein.", "⇆");
+      const auto = !t && sameP(A, placeOf(r.from)) && sameP(B, placeOf(r.to));
+      SEARCH = auto ? null : { a: A, b: B, t, arr: !!t && arr }; close(); App.render(); };
+    $("#tr-fnow", m).onclick = () => go(null);
+    $("#tr-fok", m).onclick = () => { const [y, mo, da] = dEl.value.split("-").map(Number), [h, mi] = (tEl.value || "00:00").split(":").map(Number); const t = new Date(y, mo - 1, da, h, mi).getTime(); go(isFinite(t) && Math.abs(t - Date.now()) > 3 * 60000 ? t : null); };
+  });
+}
 PAGES.transit = el => {
   stopTimer();
   if (!ready()) {
@@ -382,61 +445,123 @@ PAGES.transit = el => {
     bindPlaces($(".tr-setup", el), () => App.render());
     return;
   }
-  const r = route(), a = placeOf(r.from), b = placeOf(r.to), others = PLACES().filter(p => p[3] && p[3].id);
+  if (VIEW && VIEW.R !== App.route()) VIEW = null; /* frisch über das Menü geöffnet: Übersicht */
+  const r0 = route(), S0 = SEARCH, live = !S0 || !S0.t, W = S0 && S0.t ? { t: S0.t, arr: S0.arr } : null;
+  const a = S0 ? S0.a : placeOf(r0.from), b = S0 ? S0.b : placeOf(r0.to);
+  const r = S0 ? { from: "", to: "", a, b, auto: false, why: "", by: null } : r0, others = PLACES().filter(p => p[3] && p[3].id);
+  const title = S0 ? "Nach " + esc(b.name) : r.to === "home" ? "Nach Hause" : r.to === "uni" ? "Zur FH" : "Nach " + esc(labelOf(r.to));
+  const whenLbl = W ? `${W.arr ? "Ankunft bis" : "Abfahrt ab"} ${dayTxt(W.t)}, ${hm(new Date(W.t))}` : "Jetzt";
   el.innerHTML = `<div class="page tr-page">
-    <header class="tr-head"><span class="eyebrow">Öffis · live</span><h1>${r.to === "home" ? "Nach Hause" : r.to === "uni" ? "Zur FH" : "Nach " + esc(labelOf(r.to))}</h1><p class="muted">${esc(r.why)}${r.auto ? " · Richtung wählt sich automatisch" : ""}</p></header>
+   <div class="tr-ov">
+    <header class="tr-head"><span class="eyebrow">${S0 ? "Deine Suche" : "Öffis · live"}</span><h1>${title}</h1><p class="muted">${S0 ? esc(whenLbl) : esc(r.why) + (r.auto ? " · Richtung wählt sich automatisch" : "")}</p></header>
     <div class="tr-ways">
-      <div class="tr-way"><span class="tr-pl"><small>${esc(labelOf(r.from))}</small><b>${esc(a.name)}</b></span><button type="button" class="tr-swap" id="tr-swap" title="Richtung tauschen" aria-label="Richtung tauschen">⇅</button><span class="tr-pl"><small>${esc(labelOf(r.to))}</small><b>${esc(b.name)}</b></span></div>
-      <div class="tr-chips">${others.length > 2 || !r.auto ? `<button type="button" class="chip ${r.auto ? "acc" : ""}" data-auto>Automatisch</button>` : ""}${others.length > 2 ? others.filter(p => p[0] !== r.to).map(p => `<button type="button" class="chip" data-to="${p[0]}">${p[2]} Nach ${esc(p[1])}</button>`).join("") : ""}<button type="button" class="chip" id="tr-reload">↻ Aktualisieren</button><a class="chip" href="${esc(scotty(a, b))}" target="_blank" rel="noopener">In ÖBB Scotty öffnen ↗</a></div>
+      <div class="tr-way"><span class="tr-pl"><small>${S0 ? "Von" : esc(labelOf(r.from))}</small><b>${esc(a.name)}</b></span><button type="button" class="tr-swap" id="tr-swap" title="Richtung tauschen" aria-label="Richtung tauschen">⇅</button><span class="tr-pl"><small>${S0 ? "Nach" : esc(labelOf(r.to))}</small><b>${esc(b.name)}</b></span></div>
+      <div class="tr-chips"><button type="button" class="chip acc tr-findc" id="tr-find">🕒 ${esc(whenLbl)} · Zeit oder Strecke ändern</button>${!S0 && (others.length > 2 || !r.auto) ? `<button type="button" class="chip ${r.auto ? "acc" : ""}" data-auto>Automatisch</button>` : ""}${!S0 && others.length > 2 ? others.filter(p => p[0] !== r.to).map(p => `<button type="button" class="chip" data-to="${p[0]}">${p[2]} Nach ${esc(p[1])}</button>`).join("") : ""}<button type="button" class="chip" id="tr-reload">↻ Aktualisieren</button><a class="chip" href="${esc(scotty(a, b))}" target="_blank" rel="noopener">In ÖBB Scotty öffnen ↗</a></div>
     </div>
-    <section class="card tr-ridec" hidden></section>
+    ${S0 ? `<div class="tr-sban"><span>🔎 Du siehst eine eigene Suche${W ? "" : " für jetzt"}.</span><button type="button" class="btn sm" data-clear>✕ Zurück zu jetzt & automatisch</button></div>` : ""}
+    <button type="button" class="tr-ridebar" data-open-ride hidden></button>
     <section class="card tr-main" aria-live="polite"><div class="tr-load">Lade Verbindungen …</div></section>
-    <section class="card tr-mapc" hidden><div class="spread"><h3 class="tr-mt">Karte</h3><div class="row tr-mapb"><button type="button" class="chip" data-me>📍 Wo bin ich</button><button type="button" class="chip" data-big aria-label="Karte größer">⤢ Größer</button></div></div><div class="tr-map notranslate" translate="no" aria-label="Karte der Verbindung"></div><small class="muted tr-mapnote"></small></section>
-    <section class="card tr-board"><div class="spread"><h3>Abfahrten ab ${esc(a.name)}</h3><small class="muted tr-stamp"></small></div><div class="tr-deps"></div></section>
+    <section class="card tr-board"><div class="spread"><h3>Abfahrten ab ${esc(a.name)}${W && !W.arr ? " · " + esc(whenTxt(new Date(W.t))) : ""}</h3><small class="muted tr-stamp"></small></div><small class="muted">Antippen für Steig und Details.</small><div class="tr-deps"></div></section>
     <p class="tr-foot muted"><button type="button" class="linkish" data-go="settings" data-p="wege">Orte ändern</button><br>Live-Fahrplan von <a href="https://transitous.org/sources/" target="_blank" rel="noopener">Transitous</a> (Daten der Verkehrsverbünde, © OpenStreetMap-Mitwirkende), ersatzweise ÖBB. Abfahrten aktualisieren sich jede Minute von selbst, Verbindungen alle 90 Sekunden.</p>
+   </div>
+   <div class="tr-view" hidden></div>
+   <div class="tr-hold" hidden><section class="card tr-mapc"><div class="spread"><h3 class="tr-mt">Karte</h3><div class="row tr-mapb"><button type="button" class="chip" data-me>📍 Wo bin ich</button><button type="button" class="chip" data-big aria-label="Karte größer">⤢ Größer</button></div></div><div class="tr-map notranslate" translate="no" aria-label="Karte der Verbindung"></div><small class="muted tr-mapnote"></small></section></div>
   </div>`;
+  let lastX = null;
+  const ups = () => upcoming(lastX, !live);
   const paint = x => {
+    lastX = x || lastX; x = lastX;
     const main = $(".tr-main", el), deps = $(".tr-deps", el); if (!main) return;
-    const mc = $(".tr-mapc", el); if (mc && main.contains(mc)) main.after(mc); /* Karte vor dem Neuzeichnen retten */
-    const up = upcoming(x), err = errTxt(x);
-    main.innerHTML = up.length ? heroHTML(up[0], r) + (up.length > 1 ? `<div class="tr-list"><div class="spread"><span class="eyebrow">Danach</span><small class="muted">Antippen für Halte, Steige und Karte</small></div>${up.slice(1, 5).map(rowJ).join("")}</div>` : "") + (err ? `<p class="tr-err">${esc(err)}</p>` : "")
-      : x && x.at ? `<div class="empty">Gerade keine Verbindung gefunden.${err ? " " + esc(err) : ""}</div>` : `<div class="empty">${esc(err || "Lade Verbindungen …")}</div>`;
-    const dl = (x && x.d || []).filter(d => { const w = T(d.when); return w && w - Date.now() > -60000; }).slice(0, 10);
-    deps.innerHTML = dl.length ? dl.map(rowD).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in der nächsten Zeit." : x && x.err ? "Gerade keine Live-Abfahrten." : "…"}</div>`;
+    const up = ups(), err = errTxt(x);
+    const pager = up.length ? `<div class="row tr-pager"><button type="button" class="btn ghost sm" data-page="-1">‹ Früher</button><button type="button" class="btn ghost sm" data-page="1">Später ›</button></div>` : "";
+    main.innerHTML = up.length ? `<span class="eyebrow">${live ? "Nächste Verbindung" : "Erste Verbindung"}</span>` + heroHTML(up[0], r, live) + (up.length > 1 ? `<div class="tr-list"><div class="spread"><span class="eyebrow">${live ? "Danach" : "Weitere"}</span><small class="muted">Antippen für Halte, Steige und Karte</small></div>${up.slice(1, 6).map(j => rowJ(j, live)).join("")}</div>` : "") + pager + (err ? `<p class="tr-err">${esc(err)}</p>` : "")
+      : x && x.at ? `<div class="empty">Keine Verbindung gefunden.${err ? " " + esc(err) : ""}</div>${pager}` : `<div class="empty">${esc(err || "Lade Verbindungen …")}</div>`;
+    const dl = (x && x.d || []).filter(d => { const w = T(d.when); return w && (!live || w - Date.now() > -60000); }).slice(0, 10);
+    deps.innerHTML = dl.length ? dl.map(d => rowD(d, live)).join("") : `<div class="tr-sm muted">${x && x.at ? "Keine Abfahrten in dieser Zeit." : x && x.err ? "Gerade keine Live-Abfahrten." : "…"}</div>`;
     const st = $(".tr-stamp", el); if (st) st.textContent = stamp(x);
-    paintLive(x);
+    paintRide();
+    if (VIEW) paintView();
   };
-  /* oben „Du fährst mit“, darunter die Karte: zeigt die gemerkte Fahrt, sonst die gewählte oder die nächste Verbindung */
-  let mapK = null, lastX = null;
-  const paintLive = x => {
-    lastX = x || lastX; const R = freshRide(lastX), rc = $(".tr-ridec", el);
-    if (rc) { rc.hidden = !R; if (R) rc.innerHTML = rideHTML(R.j); }
-    const up = upcoming(lastX), j = R ? R.j : mapK ? up.find(z => jKey(z) === mapK) : null; /* Karte nur für die aufgeklappte Verbindung oder die laufende Fahrt */
-    const box = $(".tr-map", el); if (!box) return;
-    const mc = $(".tr-mapc", el), open = mapK && !R && $$(`details.tr-jd:not(.tr-dd)[open]`, el).find(d => d.dataset.k === mapK);
-    const home = R ? $(".tr-ridec", el) : $(".tr-main", el);
-    if (open) { const at = open.querySelector(".tr-jb") || open, ref = at.querySelector(":scope > .tr-acts"); if (mc.parentNode !== at) at.insertBefore(mc, ref); } else if (mc.previousElementSibling !== home) home.after(mc);
-    mc.classList.toggle("tr-inl", !!open); mc.hidden = !j;
-    if (j) drawMap(box, j, R ? "Deine Fahrt auf der Karte" : "Karte dieser Verbindung");
+  /* Leiste „Du fährst mit“ in der Übersicht */
+  const paintRide = () => {
+    const R = freshRide(live ? lastX : null), rb = $(".tr-ridebar", el); if (!rb) return;
+    rb.hidden = !R; if (!R) return;
+    const w = whereNow(R.j), g = w.leg || {};
+    rb.innerHTML = `<span class="tr-rbi">${w.state === "walk" ? "🚶" : badge(g.line)}</span><span class="tr-rbt"><small class="eyebrow">Du fährst mit</small><b>${w.state === "ride" ? "Nächster Halt " + esc(w.next || "") : w.state === "wait" ? "Abfahrt " + hm(T(g.dep)) + (g.pl ? " · Steig " + esc(g.pl) : "") : w.state === "done" ? "Angekommen" : w.state === "walk" ? "Zu Fuß bis " + esc(w.next || "") : "Umsteigen in " + esc(g.o || "")}</b><small class="muted">Ankunft ${hm(jArr(R.j))} in ${esc((R.j.legs[R.j.legs.length - 1] || {}).dst || "")}</small></span><span class="tr-rbgo">Fahrt öffnen ›</span>`;
+  };
+  /* ---------- eigene Ansicht für eine Verbindung, eine Abfahrt oder die laufende Fahrt ---------- */
+  const view = $(".tr-view", el), ov = $(".tr-ov", el), mc = $(".tr-mapc", el), hold = $(".tr-hold", el);
+  const findJ = k => ups().find(z => jKey(z) === k);
+  const findD = k => ((lastX && lastX.d) || []).find(d => dKey(d) === k);
+  const paintView = () => {
+    if (!VIEW) return;
+    const R = rideOn();
+    if (VIEW.t === "ride" && !R) return closeView();
+    const j = VIEW.t === "ride" ? (freshRide(live ? lastX : null) || R).j : VIEW.t === "j" ? (findJ(VIEW.k) || VIEW.j) : null;
+    const d = VIEW.t === "d" ? (findD(VIEW.k) || VIEW.d) : null;
+    if (j) VIEW.j = j; if (d) VIEW.d = d;
+    const top = $(".tr-vtop", view), body = $(".tr-vbody", view), tt = $(".tr-vt", view); if (!top) return;
+    if (VIEW.t === "d" && d) {
+      tt.innerHTML = `<b>${esc(lineName(d.line))}${d.dir ? " · Richtung " + esc(d.dir) : ""}</b><small class="muted">Abfahrt ab ${esc(a.name)}</small>`;
+      top.dataset.dep = T(d.when) ? T(d.when).getTime() : ""; top.innerHTML = depHTML(d); body.innerHTML = ""; mc.hidden = true; return;
+    }
+    if (!j) { top.innerHTML = `<div class="empty">Diese Verbindung ist nicht mehr in der Liste.</div>`; mc.hidden = true; return; }
+    const k = jKey(j), riding = R && jKey(R.j) === k, f = realLegs(j)[0] || j.legs[0];
+    tt.innerHTML = VIEW.t === "ride" ? `<b>Deine Fahrt</b><small class="muted">${esc(f.o || "")} → ${esc((j.legs[j.legs.length - 1] || {}).dst || "")}</small>` : `<b>Verbindung ${whenTxt(jDep(j))} → ${hm(jArr(j))}</b><small class="muted">${esc(f.o || "")} → ${esc((j.legs[j.legs.length - 1] || {}).dst || "")}</small>`;
+    top.dataset.dep = jDep(j) ? jDep(j).getTime() : "";
+    top.innerHTML = VIEW.t === "ride" ? rideHTML(j)
+      : `<div class="tr-vsum">${legsHTML(j)}<div class="tr-tm tab"><b>${hm(jDep(j))}</b> ${delayTxt(f.dd)} <span class="tr-arrow">→</span> <b>${hm(jArr(j))}</b>${f.pl ? ` <span class="chip">Steig ${esc(f.pl)}</span>` : ""}</div>${factsHTML(j)}${live ? `<small class="muted">Abfahrt <b data-cd>${esc(inTxt(mins(jDep(j))))}</b>${leaveAt(j, r) ? ` · losgehen spätestens ${hm(leaveAt(j, r))}` : ""}</small>` : `<small class="muted">${esc(dayTxt(jDep(j)))}${leaveAt(j, r) ? ` · losgehen ${hm(leaveAt(j, r))}` : ""}</small>`}</div>
+        <div class="row tr-acts">${riding ? `<button type="button" class="btn pri sm" data-open-ride>Du fährst mit · Fahrt öffnen ›</button>` : soon(j) ? `<button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button>` : ""}</div>${!riding && soon(j) ? RIDEHINT : ""}`;
+    const open = [...body.querySelectorAll("details.tr-mid")].map(x => x.open);
+    body.innerHTML = `<section class="card"><h3>Halte & Steige</h3>${detailHTML(j)}</section>`;
+    body.querySelectorAll("details.tr-mid").forEach((x, i) => { if (open[i]) x.open = true; });
+    mc.hidden = false;
+    drawMap($(".tr-map", mc), j, VIEW.t === "ride" ? "Deine Fahrt auf der Karte" : "Karte dieser Verbindung");
+  };
+  const showView = () => {
+    const tb = $(".topbar"); el.style.setProperty("--tr-top", (tb && getComputedStyle(tb).display !== "none" ? tb.offsetHeight : 0) + "px");
+    ov.hidden = true; view.hidden = false;
+    view.innerHTML = `<div class="tr-vbar"><button type="button" class="tr-back" data-back aria-label="Zurück zur Übersicht">‹ Zurück</button><div class="tr-vt"></div></div><section class="card tr-vtop"></section><div class="tr-vbody"></div>`;
+    view.insertBefore(mc, $(".tr-vbody", view)); mc.classList.remove("big"); const bg = $("[data-big]", mc); if (bg) bg.textContent = "⤢ Größer";
+    paintView();
+  };
+  const openView = v => {
+    const was = VIEW; v.R = App.route(); v.y = was ? was.y : scrollY; v.pushed = was ? was.pushed : false; VIEW = v;
+    if (!v.pushed) { try { history.pushState({ tr: 1 }, "", location.href); v.pushed = true; } catch (e) {} }
+    showView(); scrollTo({ top: 0 });
+  };
+  closeView = fromPop => {
+    if (!VIEW) return; const v = VIEW; VIEW = null;
+    if (!el.isConnected) return;
+    dropMap(); mc.hidden = true; hold.appendChild(mc); view.hidden = true; view.innerHTML = ""; ov.hidden = false;
+    paint(); scrollTo({ top: v.y || 0 });
+    if (!fromPop && v.pushed) try { history.back(); } catch (e) {}
   };
   el.addEventListener("click", e => {
-    const mb = e.target.closest("[data-map]"); if (mb) { mapK = mb.dataset.map; paintLive(); $(".tr-mapc", el).scrollIntoView({ behavior: "smooth", block: "center" }); return; }
-    const rb = e.target.closest("[data-ride]"); if (rb) { const j = upcoming(lastX).find(z => jKey(z) === rb.dataset.ride); if (j) { setRide(j); App.toast("Gute Fahrt", "StudyOS verfolgt diese Verbindung bis zur Ankunft.", "🚌"); paintLive(); scrollTo({ top: 0, behavior: "smooth" }); } return; }
-    if (e.target.closest("[data-ride-end]")) { setRide(null); paintLive(); return; }
+    if (e.target.closest("[data-back]")) { closeView(); return; }
+    const rb = e.target.closest("[data-ride]"); if (rb) { const j = findJ(rb.dataset.ride) || (VIEW && VIEW.j); if (j) { setRide(j); App.toast("Gute Fahrt", "StudyOS begleitet dich bis zur Ankunft. Zurück kommst du oben links.", "🚌"); openView({ t: "ride" }); } return; }
+    if (e.target.closest("[data-ride-end]")) { setRide(null); if (VIEW && VIEW.t === "ride") closeView(); else paintRide(); return; }
+    if (e.target.closest("[data-open-ride]")) { openView({ t: "ride" }); return; }
+    const oj = e.target.closest("[data-open-j]"); if (oj) { const j = findJ(oj.dataset.openJ); if (j) openView({ t: "j", k: oj.dataset.openJ, j }); return; }
+    const od = e.target.closest("[data-open-d]"); if (od) { const d = findD(od.dataset.openD); if (d) openView({ t: "d", k: od.dataset.openD, d }); return; }
+    const pg = e.target.closest("[data-page]"); if (pg) { const up = ups(); if (!up.length) return; const t = pg.dataset.page === "1" ? jDep(up[up.length - 1]).getTime() + 60000 : jDep(up[0]).getTime() - 60 * 60000; SEARCH = { a, b, t, arr: false }; App.render(); return; }
+    if (e.target.closest("[data-clear]")) { SEARCH = null; App.render(); return; }
     if (e.target.closest("[data-me]")) { showMe(true); return; }
-    if (e.target.closest("[data-big]")) { const c = $(".tr-mapc", el); c.classList.toggle("big"); e.target.closest("[data-big]").textContent = c.classList.contains("big") ? "⤡ Kleiner" : "⤢ Größer"; setTimeout(() => MAP && MAP.m.invalidateSize(), 250); }
+    if (e.target.closest("[data-big]")) { mc.classList.toggle("big"); e.target.closest("[data-big]").textContent = mc.classList.contains("big") ? "⤡ Kleiner" : "⤢ Größer"; setTimeout(() => MAP && MAP.m.invalidateSize(), 250); }
   });
-  /* aufgeklappte Fahrten bleiben beim Aktualisieren offen */
-  el.addEventListener("toggle", e => { const d = e.target; if (!d.matches || !d.matches("details.tr-jd[data-k]")) return; if (d.open) openJ.add(d.dataset.k); else openJ.delete(d.dataset.k);
-    if (d.matches(".tr-dd")) return; /* Verbindung aufgeklappt: Karte dieser Fahrt direkt darin zeigen */
-    if (d.open) { mapK = d.dataset.k; paintLive(); } else if (mapK === d.dataset.k) { mapK = null; paintLive(); } }, true);
-  const k = keyOf(a, b); if (data[k]) paint(data[k]);
-  const refresh = force => load(r, force, 85000).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });
+  el.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".tr-tap")) { e.preventDefault(); e.target.click(); } });
+  const store = W ? tmp : data, k = keyOf(a, b) + (W ? "@" + W.t + (W.arr ? "a" : "d") : ""); if (store[k]) paint(store[k]);
+  if (VIEW) showView();
+  const refresh = force => loadAB(a, b, force, 85000, W).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });
   refresh(false);
   let n = 0;
-  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return; tick(el); { const R = rideOn(), rc = $(".tr-ridec", el); if (R && rc && !rc.hidden) rc.innerHTML = rideHTML(R.j); const up = upcoming(lastX), j = R ? R.j : up.find(z => jKey(z) === mapK) || up[0]; if (j) moveVeh(j); } if (++n % 4 === 0) refresh(false); /* Abfahrten jede Minute, Verbindungen alle 90 s (siehe load), damit Verspätungen stimmen */
-    const now = route(); if (now.auto && (now.from !== r.from || now.to !== r.to)) App.softRender(); }, 15000);
-  $("#tr-swap", el).addEventListener("click", () => { pick = { from: r.to, to: r.from }; App.render(); });
+  timer = setInterval(() => { if (!el.isConnected || App.route().v !== "transit") return stopTimer(); if (document.hidden) return;
+    tick(el); paintRide();
+    if (VIEW && VIEW.t === "ride") { const R = rideOn(), top = $(".tr-vtop", view); if (!R) closeView(); else { if (top) top.innerHTML = rideHTML(R.j); moveVeh(R.j); } } else if (VIEW && VIEW.j) moveVeh(VIEW.j);
+    if (live && ++n % 4 === 0) refresh(false); /* Abfahrten jede Minute, Verbindungen alle 90 s (siehe load), damit Verspätungen stimmen */
+    const now = route(); if (!S0 && !VIEW && now.auto && (now.from !== r.from || now.to !== r.to)) App.softRender(); }, 15000);
+  $("#tr-swap", el).addEventListener("click", () => { if (S0) SEARCH = Object.assign({}, S0, { a: S0.b, b: S0.a }); else pick = { from: r.to, to: r.from }; App.render(); });
+  $("#tr-find", el).addEventListener("click", () => findDialog(r0, S0 || { a, b }));
   $("#tr-reload", el).addEventListener("click", () => { $(".tr-main", el).classList.add("tr-busy"); refresh("all").then(() => { const m = $(".tr-main", el); m && m.classList.remove("tr-busy"); }); });
   const au = $("[data-auto]", el); if (au) au.addEventListener("click", () => { pick = null; App.render(); });
   $$("[data-to]", el).forEach(c => c.addEventListener("click", () => { pick = { from: r.from === c.dataset.to ? r.to : r.from, to: c.dataset.to }; App.render(); }));
