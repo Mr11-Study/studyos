@@ -271,11 +271,18 @@ function stopPicker(host, cur, onPick, title) {
   /* Handy: eigenes Fenster */
   const sheet = () => {
     const sh = document.createElement("div"); sh.className = "tr-sheet"; sh.setAttribute("role", "dialog"); sh.setAttribute("aria-modal", "true");
-    sh.innerHTML = `<div class="tr-shead"><b>${esc(title || "Haltestelle")}</b><button type="button" class="btn sm tr-done">Fertig</button></div>
+    sh.innerHTML = `<div class="tr-shead"><button type="button" class="tr-back tr-done" aria-label="Schließen">‹ Zurück</button><b>${esc(title || "Haltestelle")}</b></div>
       <div class="tr-sbar"><input type="search" class="tr-q2" placeholder="Haltestelle suchen" autocomplete="off" enterkeyhint="search" value="${esc(q.value)}" aria-label="Haltestelle suchen"></div>
       <button type="button" class="tr-shere">📍 Haltestellen in meiner Nähe</button><div class="tr-slist" role="listbox"></div>`;
     document.body.appendChild(sh); document.documentElement.classList.add("tr-noscroll");
-    const q2 = $(".tr-q2", sh), done = () => { sh.remove(); document.documentElement.classList.remove("tr-noscroll"); };
+    /* raus: „‹ Zurück“, Zurück-Taste vom Handy (eigener Verlaufseintrag), Escape oder Auswahl */
+    let pushed = false, gone = false;
+    const shut = () => { if (gone) return; gone = true; removeEventListener("popstate", onPop); sh.remove(); document.documentElement.classList.remove("tr-noscroll"); };
+    const onPop = () => shut();
+    const q2 = $(".tr-q2", sh), done = () => { if (gone) return; const p = pushed; shut(); if (p) try { history.back(); } catch (e) {} };
+    try { history.pushState({ trs: 1 }, "", location.href); pushed = true; } catch (e) {}
+    addEventListener("popstate", onPop);
+    sh.addEventListener("keydown", e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(); } });
     searchBox(q2, $(".tr-shere", sh), $(".tr-slist", sh), pick, done);
     $(".tr-done", sh).addEventListener("click", done);
     setTimeout(() => { q2.focus(); q2.select(); if (q2.value.trim().length >= 2) q2.dispatchEvent(new Event("input")); }, 30);

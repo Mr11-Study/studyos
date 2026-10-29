@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.50.2", d: "2026-10-29", t: "Haltestelle eingeben: einfach wieder raus", items: [
+    "Das Fenster zum Eintippen von Wohnort, Studienort und anderen Haltestellen hat jetzt oben links ein großes „‹ Zurück“, wie in Unterwegs.",
+    "Die Zurück-Taste vom Handy schließt nur das Fenster, du bleibst in den Einstellungen. Am Laptop geht auch Escape."] },
   { v: "4.50.1", d: "2026-10-29", t: "Unterwegs: Knöpfe reagieren nur noch einmal", items: [
     "Nach dem automatischen Aktualisieren reagierten Knöpfe in Unterwegs mehrfach, zum Beispiel kam „Gute Fahrt“ fünf- oder siebenmal. Jetzt zählt jeder Tipp genau einmal."] },
   { v: "4.50.0", d: "2026-10-29", t: "Unterwegs neu: klare Ansichten und Suche nach Tag und Uhrzeit", items: [
