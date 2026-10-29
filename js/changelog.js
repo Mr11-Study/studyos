@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.50.0", d: "2026-10-29", t: "Unterwegs neu: klare Ansichten und Suche nach Tag und Uhrzeit", items: [
+    "Alles, was man antippen kann, sieht jetzt gleich aus: eine Karte mit Rahmen und grünem Pfeil ›.",
+    "Eine Verbindung, eine Abfahrt oder deine laufende Fahrt öffnet sich als eigene Ansicht mit Zusammenfassung, Karte und allen Halten. Raus kommst du über „‹ Zurück“ oben, die Zurück-Taste vom Handy oder Escape.",
+    "Neu: „Zeit oder Strecke ändern“. Wähl Von und Nach (auch andere Haltestellen), den Tag, die Uhrzeit und ob du dann abfahren oder spätestens ankommen willst. Mit „‹ Früher“ und „Später ›“ blätterst du weiter.",
+    "Eine eigene Suche ist oben klar markiert, „✕ Zurück zu jetzt & automatisch“ bringt dich zurück.",
+    "Während du mitfährst, zeigt eine Leiste oben den nächsten Halt. Antippen öffnet deine Fahrt."] },
   { v: "4.49.1", d: "2026-10-28", t: "Unterwegs: Karte repariert und in der Verbindung", items: [
     "Die Karte zeigt wieder Straßen statt „API KEY REQUIRED“. Sie nutzt jetzt die freien OpenStreetMap-Karten, im Dunkelmodus abgedunkelt.",
     "Klappst du eine Verbindung auf, erscheint ihre Karte direkt darin. Klappst du sie zu, zeigt die Karte unten wieder die nächste Verbindung.",
