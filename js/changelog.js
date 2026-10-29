@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.50.3", d: "2026-10-29", t: "Unterwegs: jede Verbindung als Fahrt wählbar", items: [
+    "„▶ Ich fahre mit“ gibt es jetzt bei jeder Verbindung, die noch nicht angekommen ist, auch bei späteren und bei gesuchten. Bis zur Abfahrt zeigt die Fahrt, wie lange es noch dauert."] },
   { v: "4.50.2", d: "2026-10-29", t: "Haltestelle eingeben: einfach wieder raus", items: [
     "Das Fenster zum Eintippen von Wohnort, Studienort und anderen Haltestellen hat jetzt oben links ein großes „‹ Zurück“, wie in Unterwegs.",
     "Die Zurück-Taste vom Handy schließt nur das Fenster, du bleibst in den Einstellungen. Am Laptop geht auch Escape."] },

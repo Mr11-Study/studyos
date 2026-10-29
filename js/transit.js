@@ -191,7 +191,7 @@ function detailHTML(j) {
 const dayTxt = d => { if (!d) return ""; const t = new Date(), x = new Date(d); const n = Math.round((new Date(x.getFullYear(), x.getMonth(), x.getDate()) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
   return n === 0 ? "Heute" : n === 1 ? "Morgen" : n === -1 ? "Gestern" : x.toLocaleDateString("de-AT", { weekday: "short", day: "numeric", month: "numeric" }); };
 const whenTxt = d => d ? (dayTxt(d) === "Heute" ? "" : dayTxt(d) + " ") + hm(d) : "–";
-const soon = j => { const d = jDep(j); return d && d - Date.now() < 90 * 60000 && jArr(j) - Date.now() > 0; };
+const soon = j => { const a = jArr(j); return !!a && a - Date.now() > 0; }; /* jede Fahrt, die noch nicht angekommen ist, auch eine spätere oder gesuchte */
 const RIDEHINT = `<small class="muted tr-hint">„Ich fahre mit“: StudyOS begleitet dich bis zur Ankunft und zeigt live, wo du gerade bist und wann du aussteigst.</small>`;
 /* oben die nächste Verbindung: die ganze Karte ist antippbar und öffnet die Detailansicht */
 function heroHTML(j, r, live) {
