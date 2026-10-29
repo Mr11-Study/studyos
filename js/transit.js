@@ -437,8 +437,9 @@ function findDialog(r, cur) {
     $("#tr-fok", m).onclick = () => { const [y, mo, da] = dEl.value.split("-").map(Number), [h, mi] = (tEl.value || "00:00").split(":").map(Number); const t = new Date(y, mo - 1, da, h, mi).getTime(); go(isFinite(t) && Math.abs(t - Date.now()) > 3 * 60000 ? t : null); };
   });
 }
+let trAC = null; /* #page bleibt dasselbe Element: Klick-Handler der letzten Darstellung abmelden, sonst feuern sie mehrfach */
 PAGES.transit = el => {
-  stopTimer();
+  stopTimer(); if (trAC) trAC.abort(); trAC = new AbortController(); const once = { signal: trAC.signal };
   if (!ready()) {
     el.innerHTML = `<div class="page tr-page"><header><span class="eyebrow">Öffis</span><h1>Unterwegs</h1><p class="muted">Sag StudyOS, wo du wohnst und wo du studierst. Dann siehst du hier immer den nächsten Bus, die nächste Bim oder den nächsten Zug, passend zur Uhrzeit und zu deinem Stundenplan.</p></header>
       <div class="card col tr-setup">${placesHTML()}</div></div>`;
@@ -548,8 +549,8 @@ PAGES.transit = el => {
     if (e.target.closest("[data-clear]")) { SEARCH = null; App.render(); return; }
     if (e.target.closest("[data-me]")) { showMe(true); return; }
     if (e.target.closest("[data-big]")) { mc.classList.toggle("big"); e.target.closest("[data-big]").textContent = mc.classList.contains("big") ? "⤡ Kleiner" : "⤢ Größer"; setTimeout(() => MAP && MAP.m.invalidateSize(), 250); }
-  });
-  el.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".tr-tap")) { e.preventDefault(); e.target.click(); } });
+  }, once);
+  el.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".tr-tap")) { e.preventDefault(); e.target.click(); } }, once);
   const store = W ? tmp : data, k = keyOf(a, b) + (W ? "@" + W.t + (W.arr ? "a" : "d") : ""); if (store[k]) paint(store[k]);
   if (VIEW) showView();
   const refresh = force => loadAB(a, b, force, 85000, W).then(x => { if (el.isConnected && App.route().v === "transit") paint(x); });

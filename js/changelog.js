@@ -5,6 +5,8 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.50.1", d: "2026-10-29", t: "Unterwegs: Knöpfe reagieren nur noch einmal", items: [
+    "Nach dem automatischen Aktualisieren reagierten Knöpfe in Unterwegs mehrfach, zum Beispiel kam „Gute Fahrt“ fünf- oder siebenmal. Jetzt zählt jeder Tipp genau einmal."] },
   { v: "4.50.0", d: "2026-10-29", t: "Unterwegs neu: klare Ansichten und Suche nach Tag und Uhrzeit", items: [
     "Alles, was man antippen kann, sieht jetzt gleich aus: eine Karte mit Rahmen und grünem Pfeil ›.",
     "Eine Verbindung, eine Abfahrt oder deine laufende Fahrt öffnet sich als eigene Ansicht mit Zusammenfassung, Karte und allen Halten. Raus kommst du über „‹ Zurück“ oben, die Zurück-Taste vom Handy oder Escape.",
