@@ -1219,3 +1219,5 @@ html.tr-noscroll,html.tr-noscroll body{overflow:hidden}
   .tr-item.tr-mon{grid-template-columns:auto 1fr 44px auto 14px}.tr-item.tr-mon>small{display:none}
   .tr-dgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* 4.50.2 Haltestellen-Fenster am Handy: „‹ Zurück“ links wie in Unterwegs */
+.tr-shead{justify-content:flex-start;gap:12px}
