@@ -1269,3 +1269,21 @@ html.tr-noscroll,html.tr-noscroll body{overflow:hidden}
 .so-dbtn{color:var(--bad);border-color:var(--bad)}
 .so-admcard{border-color:var(--acc-line)}
 @media (max-width:640px){.so-urow{flex-wrap:wrap}.so-uact{width:100%}.so-stats{grid-template-columns:repeat(3,1fr);gap:6px}.so-st{padding:8px 9px}.so-st b{font-size:18px}.so-st small{font-size:11px;line-height:1.25;display:block}}
+
+/* 4.52 Likes und Profil antippen */
+.so-avb,.so-nmb{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:pointer;border-radius:50%}
+.so-nmb{border-radius:4px;font-weight:inherit}
+.so-nmb:hover{text-decoration:underline}
+.so-avb:hover .so-av,.so-avb:focus-visible .so-av{box-shadow:0 0 0 2px var(--acc)}
+.so-like{display:inline-flex;align-items:center;gap:3px;background:none;border:1px solid transparent;border-radius:20px;padding:1px 7px 1px 5px;margin-right:6px;font:inherit;color:inherit;cursor:pointer;line-height:1.4;opacity:.75}
+.so-like span{font-size:14px;line-height:1}
+.so-like b{font-weight:700}
+.so-like:hover{opacity:1;border-color:var(--line)}
+.so-like.has{opacity:1;border-color:var(--line);background:var(--card)}
+.so-like.on{opacity:1;color:#d6336c;border-color:color-mix(in srgb,#d6336c 45%,transparent);background:color-mix(in srgb,#d6336c 10%,transparent)}
+.so-m.mine .so-like{color:inherit}
+.so-m.mine .so-like.has,.so-m.mine .so-like.on{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35);color:inherit}
+.so-prof{text-align:center;display:grid;justify-items:center;gap:6px}
+.so-prof>.so-av{width:72px;height:72px;font-size:34px}
+.so-prof h2{margin:4px 0 0}
+.so-pact{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:6px}

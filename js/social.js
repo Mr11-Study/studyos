@@ -49,8 +49,8 @@ const nm = id => mask((names[id] && names[id].name) || "Unbekannt");
    Wer Admin ist, steht nur in der Tabelle admins; die App blendet die Admin-Knöpfe bloß ein. */
 let isAdmin = (() => { try { return !!st().admin; } catch (e) { return false; } })(), modOk = false, adminSet = new Set(), badRe = null, words = [], modCh = null, nameWarned = false, adminRedraw = null;
 App.ADMIN = isAdmin;
-const WORDS0 = ["arschloch", "arschgeige", "wichser", "wixer", "hurensohn", "hure", "fotze", "schlampe", "missgeburt", "spast", "mongo", "schwuchtel", "kanake", "neger", "fick", "scheiss", "scheiß", "miststück", "drecksau", "dreckssau", "vollidiot", "volltrottel", "pisser", "bastard", "fuck", "motherfucker", "shit", "bitch", "cunt", "asshole", "dickhead", "wanker", "whore", "slut", "faggot", "retard", "nigger", "nigga", "sieg heil", "heil hitler"];
-const okWord = w => /^[a-zäöüß0-9 ]{3,40}$/.test(w);
+const WORDS0 = ["a55hole", "aloch", "amk", "ananı sikeyim", "arrombado", "arsch", "arschgeige", "arschgesicht", "arschkriecher", "arschl0ch", "arschloch", "arsehole", "asozial", "asshole", "b1tch", "bakayaro", "bastard", "baszd", "batard", "bazdmeg", "behenchod", "beidl", "bhenchod", "bhosdi", "bhosdike", "biatch", "bitch", "blowjob", "blya", "blyad", "blyat", "blöde kuh", "blöde sau", "blödian", "blödmann", "bollocks", "bring dich um", "buceta", "bullshit", "bumsen", "bâtard", "cabron", "cabrón", "caralho", "cazzo", "chinga", "chingada", "chinks", "chuj", "chutiya", "cipa", "cocksucker", "coglione", "connard", "connasse", "coño", "culero", "cunt", "curak", "căcat", "damn", "depp", "dickhead", "dildo", "dipshit", "douchebag", "drecksack", "drecksau", "dreckskerl", "dreckssau", "drecksschwein", "dreckstück", "drkadžija", "dumbass", "dummbeutel", "dumme kuh", "dumme sau", "dummkopf", "dupek", "ebat", "eierlutscher", "encule", "enculé", "f1ck", "faggot", "faszfej", "faszom", "fetzenschädl", "fick", "fikk", "filho da puta", "fils de pute", "flittchen", "foda", "fodase", "fotze", "frocio", "fuck", "funsn", "gamoto", "gandon", "gfrast", "gilipollas", "godverdomme", "govno", "gschissener", "gschissn", "gtfo", "hackfresse", "halt dein maul", "halt die fresse", "halt die schnauze", "halts maul", "heil hitler", "hentai", "hijo de perra", "hijo de puta", "hirni", "hohlkopf", "hovno", "huevón", "huj", "hure", "huren", "hurens0hn", "hurensohn", "häng dich auf", "ibn el sharmouta", "ibne", "idiot", "jackass", "javla", "jebac", "jebać", "jebem", "jebem ti mater", "jebi", "jebo", "jebote", "joder", "jävla", "kack", "kacke", "kahpe", "kameltreiber", "kanacke", "kanake", "khuy", "kikes", "kill yourself", "kinderficker", "klootzak", "kokot", "kos omak", "kotzbrocken", "kreten", "kurcina", "kurva", "kurva anyád", "kurčina", "kusipää", "kutwijf", "kys", "leck mich", "madarchod", "malaka", "malakas", "malparido", "maricon", "maricón", "merda", "merde", "mierda", "milf", "minchia", "missgeburt", "mistgeburt", "mistkerl", "miststück", "mistvieh", "mongoloid", "mongool", "moron", "motherfucker", "mudak", "muie", "möse", "nahui", "nahuy", "neger", "nigga", "nigger", "nique ta mere", "nique ta mère", "niquer", "nutte", "oasch", "oaschloch", "omfg", "orospu", "pendejo", "penner", "perkele", "pezevenk", "phuck", "picsa", "pidar", "pidaras", "pidh", "pidor", "pierdol", "pimmel", "piss", "pisser", "pissnelke", "pizda", "pizdec", "pizdets", "piç", "pička", "pička ti materina", "pičku", "polacke", "porca puttana", "porn", "porno", "poutana", "prdel", "pussy", "puta madre", "putain", "puttana", "pédé", "píča", "retard", "saatana", "salopes", "sauhund", "saukerl", "sautrottel", "sch31ss", "scheiss", "scheiß", "schlampe", "schlitzauge", "schwachkopf", "schwachmat", "schwanzlutscher", "schwuchtel", "sh1t", "sharmoota", "sharmouta", "sharmuta", "shit", "sieg heil", "sikerim", "sikeyim", "sikiyim", "siktir", "skurwiel", "skurwysyn", "sluts", "slutty", "spacken", "spacko", "spast", "spierdalaj", "stfu", "stronza", "stronzo", "stupid", "suka", "supak", "ta gueule", "titte", "tranny", "troia", "trottel", "trottl", "tschusch", "tunte", "twat", "va te faire foutre", "vaffanculo", "verpiss", "verreck", "vittu", "vollasi", "vollhorst", "vollidiot", "vollkoffer", "vollpfosten", "vollspast", "volltrottel", "wanker", "wappler", "white power", "whore", "wichs", "wichser", "wichsvorlage", "wixer", "wixx", "wixxer", "wtf", "yarak", "yarrak", "yebat", "zalupa", "zigeuner", "zipfelklatscher", "zmrd", "čurák", "šupak", "γαμώτο", "μαλάκα", "πουτάνα", "бля", "блядь", "блять", "гандон", "долбоёб", "ебал", "ебать", "залупа", "мудак", "нахуй", "пидор", "пидорас", "пизда", "пиздец", "сука", "уёбок", "хуй", "хуйня", "ёбаный", "شرموطة", "قحبة", "منيوك", "他妈的", "操你妈", "王八蛋"];
+const okWord = w => /^[\p{L}\p{N} ]{3,40}$/u.test(w) && w === w.toLowerCase(); /* alle Schriften, aber keine Sonderzeichen */
 function setWords(ws) {
   words = [...new Set(ws.map(x => String(x).toLowerCase().trim()).filter(okWord))].sort();
   const alt = words.slice().sort((a, b) => b.length - a.length).join("|");
@@ -141,7 +141,39 @@ function shareDialog(title, text, url, code) {
 
 /* ---------- Chat (DM, Gruppe oder Fach) ---------- */
 let chan = null, curR = null;
-const drop = () => { if (chan && sb) { sb.removeChannel(chan); } chan = null; };
+const drop = () => { if (chan && sb) { sb.removeChannel(chan); } if (chanL && sb) sb.removeChannel(chanL); chan = null; chanL = null; };
+/* Likes (supabase-update-10.sql): Nachricht → Menge der Personen, die sie mögen */
+let chanL = null, likeOk = false; const likes = {};
+async function loadLikes(ids) {
+  const r = await settle(sb.from("message_likes").select("message_id,user_id").in("message_id", ids.length ? ids : [0]));
+  likeOk = !r.error; if (!likeOk) return;
+  ids.forEach(id => { likes[id] = new Set(); }); (r.data || []).forEach(l => (likes[l.message_id] || (likes[l.message_id] = new Set())).add(l.user_id));
+}
+const likeHTML = m => { if (!likeOk || m.pending) return ""; const L = likes[m.id], n = L ? L.size : 0, on = !!(L && L.has(me.id));
+  return `<button class="so-like${on ? " on" : ""}${n ? " has" : ""}" data-like="${m.id}" aria-pressed="${on}" aria-label="${on ? "Like zurücknehmen" : "Gefällt mir"}${n ? ", " + n + (n === 1 ? " Like" : " Likes") : ""}"><span aria-hidden="true">${on ? "♥" : "♡"}</span>${n ? `<b>${n}</b>` : ""}</button>`; };
+/* Profil antippen: Name, Status, Freund hinzufügen (Anfrage), für Admins Verwarnen und Stummschalten */
+async function profileDialog(uid) {
+  if (!uid || uid === me.id) return;
+  await loadNames([uid]).catch(() => {});
+  const fr = await friends().catch(() => ({ ok: [], inc: [], out: [] }));
+  const rel = fr.ok.includes(uid) ? "ok" : fr.inc.includes(uid) ? "inc" : fr.out.includes(uid) ? "out" : "";
+  const who = esc(nm(uid));
+  App.modal(`<div class="so-prof">${av(names[uid])}<h2>${who}${adminSet.has(uid) ? `<i class="so-adm">Admin</i>` : ""}</h2>
+    <p class="muted">${rel === "ok" ? "Ihr seid befreundet." : rel === "out" ? "Anfrage gesendet. Sobald sie angenommen wird, könnt ihr direkt schreiben." : rel === "inc" ? `${who} möchte mit dir befreundet sein.` : "Ihr seid noch nicht befreundet."}</p>
+    <div class="so-pact">${rel === "ok" ? `<button class="btn pri" data-pa="chat">Chat öffnen</button>` : rel === "inc" ? `<button class="btn pri" data-pa="acc">Anfrage annehmen</button>` : rel === "out" ? `<button class="btn" disabled>Anfrage gesendet</button>` : `<button class="btn pri" data-pa="add">＋ Freund hinzufügen</button>`}
+      ${isAdmin ? `<button class="btn sm" data-pa="warn">Verwarnen</button><button class="btn sm" data-pa="mute">Stummschalten</button>` : ""}<button class="btn ghost sm" data-close>Schließen</button></div></div>`, (m, close) => {
+    m.onclick = async e => {
+      const b = e.target.closest("[data-pa]"); if (!b) return; const a = b.dataset.pa;
+      try {
+        if (a === "chat") { close(); App.go("together", "dm:" + uid); }
+        else if (a === "acc") { await q(sb.from("friendships").update({ accepted: true }).eq("a", uid).eq("b", me.id)); close(); reqs = Math.max(0, reqs - 1); paintBadges(); App.toast("Ihr seid befreundet", `${nm(uid)} ist jetzt in deiner Freundesliste.`, "☺"); }
+        else if (a === "add") { b.disabled = true; const ok = await q(sb.rpc("request_friend", { uid })); close(); App.toast(ok ? "Ihr seid befreundet" : "Anfrage gesendet", ok ? `${nm(uid)} ist jetzt in deiner Freundesliste.` : `${nm(uid)} bekommt deine Anfrage und muss sie noch annehmen.`, "☺"); }
+        else if (a === "warn") { close(); warnDialog(uid); }
+        else if (a === "mute") { close(); muteDialog(uid); }
+      } catch (er) { b.disabled = false; App.toast("Nicht möglich", /PGRST202|request_friend/i.test(String(er && (er.message || er.code))) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-10.sql ausführen." : fail(er), "!"); }
+    };
+  });
+}
 const stale = () => App.route() !== curR; /* Seite inzwischen gewechselt: nichts mehr hineinschreiben */
 const time = t => { const d = new Date(t), today = new Date().toDateString() === d.toDateString(); return d.toLocaleString("de-AT", today ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
 const linkify = s => esc(s).replace(/https?:\/\/[^\s<]+/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u}</a>`);
@@ -180,8 +212,8 @@ function fileHTML(m) {
 }
 function msgHTML(m, prev) {
   const mine = m.sender === me.id, same = prev && prev.sender === m.sender && new Date(m.created_at) - new Date(prev.created_at) < 300000;
-  return `<div class="so-m ${mine ? "mine" : ""} ${same ? "cont" : ""} ${m.file ? "has-file" : ""}" data-mid="${m.id}">${mine || same ? "" : av(names[m.sender])}
-    <div class="so-b">${mine || same ? "" : `<b>${esc(nm(m.sender))}${adminSet.has(m.sender) ? `<i class="so-adm" title="Admin von StudyOS">Admin</i>` : ""}</b>`}${m.file ? fileHTML(m) : ""}${m.body ? `<p>${linkify(mask(m.body))}</p>` : ""}<small>${m.pending ? "wird gesendet …" : time(m.created_at)}${m.pending ? "" : mine ? ` · <button class="so-del" data-del="${m.id}" aria-label="Eigene Nachricht löschen">löschen</button>` : `${modOk ? ` · <button class="so-rep" data-rep="${m.id}" aria-label="Nachricht melden">melden</button>` : ""}${isAdmin ? ` · <button class="so-del so-adel" data-adel="${m.id}" aria-label="Nachricht als Admin löschen">löschen</button>` : ""}`}</small></div></div>`;
+  return `<div class="so-m ${mine ? "mine" : ""} ${same ? "cont" : ""} ${m.file ? "has-file" : ""}" data-mid="${m.id}">${mine || same ? "" : `<button class="so-avb" data-prof="${esc(m.sender)}" aria-label="Profil von ${esc(nm(m.sender))}">${av(names[m.sender])}</button>`}
+    <div class="so-b">${mine || same ? "" : `<b><button class="so-nmb" data-prof="${esc(m.sender)}">${esc(nm(m.sender))}</button>${adminSet.has(m.sender) ? `<i class="so-adm" title="Admin von StudyOS">Admin</i>` : ""}</b>`}${m.file ? fileHTML(m) : ""}${m.body ? `<p>${linkify(mask(m.body))}</p>` : ""}<small>${likeHTML(m)}${m.pending ? "wird gesendet …" : time(m.created_at)}${m.pending ? "" : mine ? ` · <button class="so-del" data-del="${m.id}" aria-label="Eigene Nachricht löschen">löschen</button>` : `${modOk ? ` · <button class="so-rep" data-rep="${m.id}" aria-label="Nachricht melden">melden</button>` : ""}${isAdmin ? ` · <button class="so-del so-adel" data-adel="${m.id}" aria-label="Nachricht als Admin löschen">löschen</button>` : ""}`}</small></div></div>`;
 }
 function viewImage(path, name) {
   App.modal(`<div class="so-view"><img src="${esc(urls[path])}" alt="${esc(name)}"></div><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><small class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</small><span class="row" style="gap:8px"><a class="btn sm" href="${esc(urls[path])}" download="${esc(name)}" target="_blank" rel="noopener">Herunterladen</a><button class="btn pri sm" data-close>Schließen</button></span></div>`);
@@ -198,6 +230,7 @@ async function chat(box, target, hint) {
   const fit = () => { if (!box.isConnected) return removeEventListener("resize", fit); const bn = $("#bnav"), nb = bn && getComputedStyle(bn).display !== "none" ? bn.offsetHeight : 0; wrap.style.height = Math.max(300, innerHeight - (wrap.getBoundingClientRect().top + scrollY) - nb - 16) + "px"; };
   fit(); addEventListener("resize", fit);
   let list = [];
+  const paintKeep = () => { const y = log.scrollTop, end = log.scrollHeight - y - log.clientHeight < 40; paint(); if (!end) log.scrollTop = y; };
   const paint = () => {
     log.innerHTML = list.length ? list.map((m, i) => msgHTML(m, list[i - 1])).join("") : `<div class="so-empty">Noch keine Nachrichten. Schreib die erste!</div>`;
     log.scrollTop = log.scrollHeight;
@@ -208,7 +241,7 @@ async function chat(box, target, hint) {
   if (key === "course") query = query.gt("created_at", new Date(Date.now() - DAY).toISOString()); /* offener Global-Chat zeigt nur die letzten 24 Stunden */
   const muted = mu => { if (!box.isConnected || $(".so-muted", box)) return; form.insertAdjacentHTML("beforebegin", `<div class="so-muted" role="status">${esc(muteTxt(mu))}</div>`); ta.disabled = true; ta.placeholder = "Stummgeschaltet"; };
   muteInfo().then(mu => { if (mu) muted(mu); }, () => {});
-  try { list = (await q(query)).reverse(); await Promise.all([loadNames(list.map(m => m.sender)), sign(list.filter(m => m.file && !expired(m)).map(m => m.file.path))]); if (!box.isConnected) return; paint(); }
+  try { list = (await q(query)).reverse(); await Promise.all([loadNames(list.map(m => m.sender)), sign(list.filter(m => m.file && !expired(m)).map(m => m.file.path)), loadLikes(list.map(m => m.id))]); if (!box.isConnected) return; paint(); }
   catch (e) { log.innerHTML = `<div class="so-empty">${esc(fail(e))}</div>`; return; }
   const add = async m => {
     if (!box.isConnected) return drop();
@@ -220,6 +253,13 @@ async function chat(box, target, hint) {
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: key === "to_user" ? `to_user=eq.${me.id}` : `${key}=eq.${val}` }, p => add(p.new))
     .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, p => { const n = list.length; list = list.filter(m => m.id !== p.old.id); if (list.length !== n) paint(); })
     .subscribe();
+  if (likeOk) {
+    const onLike = (p, add) => { const l = p.new && p.new.message_id ? p.new : p.old; if (!l || !list.some(m => m.id === l.message_id)) return; const L = likes[l.message_id] || (likes[l.message_id] = new Set()); const had = L.has(l.user_id); if (add) L.add(l.user_id); else L.delete(l.user_id); if (had !== add) paintKeep(); };
+    chanL = sb.channel("so-likes-" + Date.now())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "message_likes" }, p => onLike(p, true))
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "message_likes" }, p => onLike(p, false))
+      .subscribe();
+  }
   App.cleanup = drop;
   const send = async () => {
     const body = ta.value.trim(); if (!body) return;
@@ -259,6 +299,15 @@ async function chat(box, target, hint) {
   ta.oninput = () => { ta.style.height = ""; ta.style.height = Math.min(ta.scrollHeight, 160) + "px"; };
   log.onclick = async e => {
     const v = e.target.closest("[data-view]"); if (v) { const m = list.find(x => x.file && x.file.path === v.dataset.view); return viewImage(v.dataset.view, m ? m.file.name : ""); }
+    const pf = e.target.closest("[data-prof]"); if (pf) return profileDialog(pf.dataset.prof);
+    const lk = e.target.closest("[data-like]");
+    if (lk) {
+      const id = +lk.dataset.like, L = likes[id] || (likes[id] = new Set()), on = L.has(me.id);
+      if (on) L.delete(me.id); else L.add(me.id); paintKeep();
+      try { if (on) await q(sb.from("message_likes").delete().eq("message_id", id).eq("user_id", me.id)); else await q(sb.from("message_likes").insert({ message_id: id, user_id: me.id })); }
+      catch (er) { if (!/duplicate|23505/.test(String(er && (er.message || er.code)))) { if (on) L.add(me.id); else L.delete(me.id); paintKeep(); App.toast("Fehler", fail(er), "!"); } }
+      return;
+    }
     const rp = e.target.closest("[data-rep]"); if (rp) return reportDialog(+rp.dataset.rep);
     const ad = e.target.closest("[data-adel]");
     if (ad) {
@@ -663,13 +712,13 @@ async function adminPage(el) {
         const w = await q(sb.from("bad_words").select("word").order("word").limit(2000)); if (!alive()) return;
         setWords(w.map(x => x.word));
         body.innerHTML = `<section class="card"><h3>Gesperrte Wörter <span class="chip">${words.length}</span></h3>
-          <p class="muted">Ein Wort trifft auch längere Formen am Wortanfang („fick“ trifft „ficken“), aber nicht mitten im Wort („Marsch“ bleibt). Treffer werden zu ★★★. Nur Kleinbuchstaben, Ziffern und Leerzeichen, mindestens 3 Zeichen.</p>
+          <p class="muted">Ein Wort trifft auch längere Formen am Wortanfang („fick“ trifft „ficken“), aber nicht mitten im Wort („Marsch“ bleibt). Treffer werden zu ★★★. Jede Sprache und Schrift geht (auch é, ç, ł, Kyrillisch), aber nur Buchstaben, Ziffern und Leerzeichen, mindestens 3 Zeichen.</p>
           <form class="so-tools so-wadd"><input maxlength="40" placeholder="Wort hinzufügen" aria-label="Wort hinzufügen"><button class="btn pri sm">Hinzufügen</button></form>
           <div class="so-words">${words.map(x => `<span class="so-word">${esc(x)}<button data-wrm="${esc(x)}" aria-label="${esc(x)} entfernen">×</button></span>`).join("")}</div>
           <h3>Ausprobieren</h3><input class="so-wtest" placeholder="Satz eingeben, um den Filter zu testen" aria-label="Filter testen"><p class="so-wout muted"></p></section>`;
         $(".so-wadd", body).onsubmit = async e => {
-          e.preventDefault(); const v = $("input", e.target).value.toLowerCase().trim().replace(/\s+/g, " ");
-          if (!okWord(v)) return App.toast("Nicht möglich", "Nur Kleinbuchstaben (auch äöüß), Ziffern und Leerzeichen, 3 bis 40 Zeichen.", "!");
+          e.preventDefault(); const v = $("input", e.target).value.toLocaleLowerCase().trim().replace(/\s+/g, " ");
+          if (!okWord(v)) return App.toast("Nicht möglich", "Nur Buchstaben (jede Sprache und Schrift), Ziffern und Leerzeichen, 3 bis 40 Zeichen.", "!");
           try { await q(sb.from("bad_words").insert({ word: v })); paint(); } catch (er) { App.toast("Fehler", /duplicate|23505/.test(String(er.message || er.code)) ? "Das Wort steht schon auf der Liste." : modFail(er), "!"); }
         };
         const t = $(".so-wtest", body), out = $(".so-wout", body);

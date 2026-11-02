@@ -37,12 +37,15 @@ language sql stable security definer set search_path = public as
 $$ select user_id from public.admins $$;
 
 -- 2) Wortliste ---------------------------------------------------------------------------------------
--- Nur Kleinbuchstaben, Ziffern und Leerzeichen, damit ein Eintrag nie die Suche selbst verändern kann.
+-- Nur Buchstaben (jede Schrift, klein), Ziffern und Leerzeichen, damit ein Eintrag nie die Suche selbst verändern kann.
 -- Ein Wort trifft auch längere Formen am Wortanfang („fick“ trifft „ficken“), aber nicht mitten im Wort.
 create table if not exists public.bad_words (
-  word text primary key check (word ~ '^[a-zäöüß0-9 ]{3,40}$'),
+  word text primary key check (word ~ '^[[:alpha:][:digit:] ]{3,40}$' and word = lower(word)),
   created_at timestamptz not null default now()
 );
+-- ältere Fassung dieses Updates erlaubte nur a-z und äöüß: Regel auf jede Schrift erweitern
+alter table public.bad_words drop constraint if exists bad_words_word_check;
+alter table public.bad_words add constraint bad_words_word_check check (word ~ '^[[:alpha:][:digit:] ]{3,40}$' and word = lower(word));
 alter table public.bad_words enable row level security;
 drop policy if exists "wörter lesen" on public.bad_words;
 drop policy if exists "wörter admin anlegen" on public.bad_words;
@@ -54,11 +57,41 @@ revoke all on public.bad_words from anon, authenticated;
 grant select, insert, delete on public.bad_words to authenticated;
 
 insert into public.bad_words (word) values
-  ('arschloch'), ('arschgeige'), ('wichser'), ('wixer'), ('hurensohn'), ('hure'), ('fotze'), ('schlampe'),
-  ('missgeburt'), ('spast'), ('mongo'), ('schwuchtel'), ('kanake'), ('neger'), ('fick'), ('scheiss'), ('scheiß'),
-  ('miststück'), ('drecksau'), ('dreckssau'), ('vollidiot'), ('volltrottel'), ('pisser'), ('bastard'),
-  ('fuck'), ('motherfucker'), ('shit'), ('bitch'), ('cunt'), ('asshole'), ('dickhead'), ('wanker'),
-  ('whore'), ('slut'), ('faggot'), ('retard'), ('nigger'), ('nigga'), ('sieg heil'), ('heil hitler')
+  ('a55hole'), ('aloch'), ('amk'), ('ananı sikeyim'), ('arrombado'), ('arsch'), ('arschgeige'), ('arschgesicht'), ('arschkriecher'), ('arschl0ch'),
+  ('arschloch'), ('arsehole'), ('asozial'), ('asshole'), ('b1tch'), ('bakayaro'), ('bastard'), ('baszd'), ('batard'), ('bazdmeg'),
+  ('behenchod'), ('beidl'), ('bhenchod'), ('bhosdi'), ('bhosdike'), ('biatch'), ('bitch'), ('blowjob'), ('blya'), ('blyad'),
+  ('blyat'), ('blöde kuh'), ('blöde sau'), ('blödian'), ('blödmann'), ('bollocks'), ('bring dich um'), ('buceta'), ('bullshit'), ('bumsen'),
+  ('bâtard'), ('cabron'), ('cabrón'), ('caralho'), ('cazzo'), ('chinga'), ('chingada'), ('chinks'), ('chuj'), ('chutiya'),
+  ('cipa'), ('cocksucker'), ('coglione'), ('connard'), ('connasse'), ('coño'), ('culero'), ('cunt'), ('curak'), ('căcat'),
+  ('damn'), ('depp'), ('dickhead'), ('dildo'), ('dipshit'), ('douchebag'), ('drecksack'), ('drecksau'), ('dreckskerl'), ('dreckssau'),
+  ('drecksschwein'), ('dreckstück'), ('drkadžija'), ('dumbass'), ('dummbeutel'), ('dumme kuh'), ('dumme sau'), ('dummkopf'), ('dupek'), ('ebat'),
+  ('eierlutscher'), ('encule'), ('enculé'), ('f1ck'), ('faggot'), ('faszfej'), ('faszom'), ('fetzenschädl'), ('fick'), ('fikk'),
+  ('filho da puta'), ('fils de pute'), ('flittchen'), ('foda'), ('fodase'), ('fotze'), ('frocio'), ('fuck'), ('funsn'), ('gamoto'),
+  ('gandon'), ('gfrast'), ('gilipollas'), ('godverdomme'), ('govno'), ('gschissener'), ('gschissn'), ('gtfo'), ('hackfresse'), ('halt dein maul'),
+  ('halt die fresse'), ('halt die schnauze'), ('halts maul'), ('heil hitler'), ('hentai'), ('hijo de perra'), ('hijo de puta'), ('hirni'), ('hohlkopf'), ('hovno'),
+  ('huevón'), ('huj'), ('hure'), ('huren'), ('hurens0hn'), ('hurensohn'), ('häng dich auf'), ('ibn el sharmouta'), ('ibne'), ('idiot'),
+  ('jackass'), ('javla'), ('jebac'), ('jebać'), ('jebem'), ('jebem ti mater'), ('jebi'), ('jebo'), ('jebote'), ('joder'),
+  ('jävla'), ('kack'), ('kacke'), ('kahpe'), ('kameltreiber'), ('kanacke'), ('kanake'), ('khuy'), ('kikes'), ('kill yourself'),
+  ('kinderficker'), ('klootzak'), ('kokot'), ('kos omak'), ('kotzbrocken'), ('kreten'), ('kurcina'), ('kurva'), ('kurva anyád'), ('kurčina'),
+  ('kusipää'), ('kutwijf'), ('kys'), ('leck mich'), ('madarchod'), ('malaka'), ('malakas'), ('malparido'), ('maricon'), ('maricón'),
+  ('merda'), ('merde'), ('mierda'), ('milf'), ('minchia'), ('missgeburt'), ('mistgeburt'), ('mistkerl'), ('miststück'), ('mistvieh'),
+  ('mongoloid'), ('mongool'), ('moron'), ('motherfucker'), ('mudak'), ('muie'), ('möse'), ('nahui'), ('nahuy'), ('neger'),
+  ('nigga'), ('nigger'), ('nique ta mere'), ('nique ta mère'), ('niquer'), ('nutte'), ('oasch'), ('oaschloch'), ('omfg'), ('orospu'),
+  ('pendejo'), ('penner'), ('perkele'), ('pezevenk'), ('phuck'), ('picsa'), ('pidar'), ('pidaras'), ('pidh'), ('pidor'),
+  ('pierdol'), ('pimmel'), ('piss'), ('pisser'), ('pissnelke'), ('pizda'), ('pizdec'), ('pizdets'), ('piç'), ('pička'),
+  ('pička ti materina'), ('pičku'), ('polacke'), ('porca puttana'), ('porn'), ('porno'), ('poutana'), ('prdel'), ('pussy'), ('puta madre'),
+  ('putain'), ('puttana'), ('pédé'), ('píča'), ('retard'), ('saatana'), ('salopes'), ('sauhund'), ('saukerl'), ('sautrottel'),
+  ('sch31ss'), ('scheiss'), ('scheiß'), ('schlampe'), ('schlitzauge'), ('schwachkopf'), ('schwachmat'), ('schwanzlutscher'), ('schwuchtel'), ('sh1t'),
+  ('sharmoota'), ('sharmouta'), ('sharmuta'), ('shit'), ('sieg heil'), ('sikerim'), ('sikeyim'), ('sikiyim'), ('siktir'), ('skurwiel'),
+  ('skurwysyn'), ('sluts'), ('slutty'), ('spacken'), ('spacko'), ('spast'), ('spierdalaj'), ('stfu'), ('stronza'), ('stronzo'),
+  ('stupid'), ('suka'), ('supak'), ('ta gueule'), ('titte'), ('tranny'), ('troia'), ('trottel'), ('trottl'), ('tschusch'),
+  ('tunte'), ('twat'), ('va te faire foutre'), ('vaffanculo'), ('verpiss'), ('verreck'), ('vittu'), ('vollasi'), ('vollhorst'), ('vollidiot'),
+  ('vollkoffer'), ('vollpfosten'), ('vollspast'), ('volltrottel'), ('wanker'), ('wappler'), ('white power'), ('whore'), ('wichs'), ('wichser'),
+  ('wichsvorlage'), ('wixer'), ('wixx'), ('wixxer'), ('wtf'), ('yarak'), ('yarrak'), ('yebat'), ('zalupa'), ('zigeuner'),
+  ('zipfelklatscher'), ('zmrd'), ('čurák'), ('šupak'), ('γαμώτο'), ('μαλάκα'), ('πουτάνα'), ('бля'), ('блядь'), ('блять'),
+  ('гандон'), ('долбоёб'), ('ебал'), ('ебать'), ('залупа'), ('мудак'), ('нахуй'), ('пидор'), ('пидорас'), ('пизда'),
+  ('пиздец'), ('сука'), ('уёбок'), ('хуй'), ('хуйня'), ('ёбаный'), ('شرموطة'), ('قحبة'), ('منيوك'), ('他妈的'),
+  ('操你妈'), ('王八蛋')
 on conflict do nothing;
 
 create or replace function public.bad_pattern() returns text
