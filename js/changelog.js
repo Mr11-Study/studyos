@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.52.0", d: "2026-11-02", t: "Likes, Profile antippen und ein strengerer Filter", items: [
+    "Nachrichten kann man jetzt mit ♥ liken, im Global-Chat, in Gruppen und in Direktchats. Die Zahl aktualisiert sich live.",
+    "Profilbild oder Name im Chat antippen öffnet das Profil: dort direkt „Freund hinzufügen“, eine Anfrage annehmen oder den Chat öffnen.",
+    "Der Schimpfwort-Filter kennt jetzt rund 340 Wörter und Wendungen in über 20 Sprachen, von Deutsch, Österreichisch und Englisch über Türkisch, Bosnisch/Kroatisch/Serbisch, Polnisch und Russisch (auch Kyrillisch) bis Arabisch und Chinesisch. Normale Wörter wie MongoDB, Assistent, Nudeln oder putovanje bleiben unberührt.",
+    "In der Wortliste kann der Admin jetzt Wörter in jeder Sprache und Schrift eintragen."] },
   { v: "4.51.0", d: "2026-11-02", t: "Moderation: Schimpfwort-Filter, Melden und Admin", items: [
     "Schimpfwörter und Beleidigungen werden im Chat, in Namen und in Gruppennamen zu ★★★. Vor dem Senden fragt StudyOS nach, wenn ein solches Wort drinsteht.",
     "Fremde Nachrichten kann man jetzt melden (mit Grund). Die Meldung geht an den Admin, die Person erfährt nicht, wer gemeldet hat.",
