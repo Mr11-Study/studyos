@@ -48,7 +48,9 @@ function appNav(c) {
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
-  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"], ["transit", "", "Unterwegs", "⇆"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"], ["together", "global", "Global-Chat", "◌"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
+  ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"], ["transit", "", "Unterwegs", "⇆"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"], ["together", "global", "Global-Chat", "◌"], ["together", "admin", "Admin", "⚑", "admin"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
+/* Gemeinsam hat drei Einträge: Übersicht (""), Global-Chat und (nur für Admins) Admin */
+const togSub = p => /^(global|c:)/.test(String(p || "")) ? "global" : /^admin/.test(String(p || "")) ? "admin" : "";
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
 const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
 
@@ -65,7 +67,7 @@ App.SIDE = () => {
   } else {
     const due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0;
     side.innerHTML = `<div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
-      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0] && (x[0] !== "together" || (x[1] === "global") === /^(global|c:)/.test(String(R.p || ""))), x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("")).join("")}
+      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.filter(x => x[4] !== "admin" || App.ADMIN).map(x => btn(x, v === x[0] && (x[0] !== "together" || x[1] === togSub(R.p)), x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("")).join("")}
         <div class="eyebrow lbl">Deine Fächer</div><div class="hub-apps">${COURSES.map(x => `<button data-go="course" data-p="${x.id}" class="hd-${x.id}"><i></i>${esc(x.title)}</button>`).join("")}</div></nav>${meHTML}`;
   }
   /* Fach-Apps bekommen oben eine farbige App-Leiste, damit man sofort sieht: man ist in einem Fach, nicht in der Übersicht */

@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.51.0", d: "2026-11-02", t: "Moderation: Schimpfwort-Filter, Melden und Admin", items: [
+    "Schimpfwörter und Beleidigungen werden im Chat, in Namen und in Gruppennamen zu ★★★. Vor dem Senden fragt StudyOS nach, wenn ein solches Wort drinsteht.",
+    "Fremde Nachrichten kann man jetzt melden (mit Grund). Die Meldung geht an den Admin, die Person erfährt nicht, wer gemeldet hat.",
+    "Eigene Nachrichten löschen geht wie bisher über „löschen“ unter der Nachricht.",
+    "Neu für Admins: eine Admin-Seite mit Meldungen, Personen, Wortliste und Werkzeugen. Admins können jede Nachricht löschen, verwarnen, stummschalten, Namen zurücksetzen und den Global-Chat leeren. Alle anderen sehen davon nichts.",
+    "Wer verwarnt wurde, sieht den Hinweis beim nächsten Öffnen. Wer stummgeschaltet ist, kann bis zum angegebenen Zeitpunkt nichts schreiben."] },
   { v: "4.50.3", d: "2026-10-29", t: "Unterwegs: jede Verbindung als Fahrt wählbar", items: [
     "„▶ Ich fahre mit“ gibt es jetzt bei jeder Verbindung, die noch nicht angekommen ist, auch bei späteren und bei gesuchten. Bis zur Abfahrt zeigt die Fahrt, wie lange es noch dauert."] },
   { v: "4.50.2", d: "2026-10-29", t: "Haltestelle eingeben: einfach wieder raus", items: [

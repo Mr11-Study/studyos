@@ -32,6 +32,7 @@ async function connect() {
     me = r.data; names[me.id] = me;
     try { const c = await sb.rpc("my_code"); if (!c.error && c.data) me.code = c.data; } catch (e) {} /* ab Update 5 steht der Code nicht mehr im Profil */
     cleanOwn();
+    await modLoad().catch(() => {}); nameCheck(prof.name); notesCheck().catch(() => {}); startMod();
   })();
   try { await loading; } finally { loading = null; }
 }
@@ -42,7 +43,91 @@ const q = async p => { const r = await p; if (r.error) throw r.error; return r.d
 const names = {};
 async function loadNames(ids) { const miss = [...new Set(ids)].filter(id => id && !names[id]); if (miss.length) (await q(sb.from("profiles").select("id,name,avatar").in("id", miss))).forEach(p => { names[p.id] = p; }); }
 const av = p => `<span class="so-av" aria-hidden="true">${esc((p && p.avatar) || ((p && p.name) || "?")[0].toUpperCase())}</span>`;
-const nm = id => (names[id] && names[id].name) || "Unbekannt";
+const nm = id => mask((names[id] && names[id].name) || "Unbekannt");
+/* ---------- Moderation: Schimpfwort-Filter, Melden, Admin (supabase-update-9.sql) ----------
+   Die Datenbank verdeckt und meldet selbst (Trigger), die App warnt nur vorher und verdeckt alte Nachrichten.
+   Wer Admin ist, steht nur in der Tabelle admins; die App blendet die Admin-Knöpfe bloß ein. */
+let isAdmin = (() => { try { return !!st().admin; } catch (e) { return false; } })(), modOk = false, adminSet = new Set(), badRe = null, words = [], modCh = null, nameWarned = false, adminRedraw = null;
+App.ADMIN = isAdmin;
+const WORDS0 = ["arschloch", "arschgeige", "wichser", "wixer", "hurensohn", "hure", "fotze", "schlampe", "missgeburt", "spast", "mongo", "schwuchtel", "kanake", "neger", "fick", "scheiss", "scheiß", "miststück", "drecksau", "dreckssau", "vollidiot", "volltrottel", "pisser", "bastard", "fuck", "motherfucker", "shit", "bitch", "cunt", "asshole", "dickhead", "wanker", "whore", "slut", "faggot", "retard", "nigger", "nigga", "sieg heil", "heil hitler"];
+const okWord = w => /^[a-zäöüß0-9 ]{3,40}$/.test(w);
+function setWords(ws) {
+  words = [...new Set(ws.map(x => String(x).toLowerCase().trim()).filter(okWord))].sort();
+  const alt = words.slice().sort((a, b) => b.length - a.length).join("|");
+  badRe = alt ? new RegExp("(^|[^\\p{L}\\p{N}])(" + alt + ")[\\p{L}\\p{N}]*", "giu") : null;
+}
+setWords(WORDS0);
+const badHits = t => badRe && t ? [...new Set([...String(t).matchAll(badRe)].map(m => m[2].toLowerCase()))] : [];
+const mask = t => badRe && t ? String(t).replace(badRe, "$1★★★") : t;
+const modFail = e => /PGRST202|could not find the function|function .* does not exist|relation .*(reports|mutes|user_notes|bad_words|admins)/i.test(String((e && (e.message || e.code)) || e)) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-9.sql ausführen." : fail(e);
+const until = t => new Date(t).toLocaleString("de-AT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const settle = p => Promise.resolve(p).then(r => r, error => ({ error }));
+async function modLoad() {
+  const [a, ids, w] = await Promise.all([settle(sb.from("admins").select("user_id").eq("user_id", me.id)), settle(sb.rpc("admin_ids")), settle(sb.from("bad_words").select("word").limit(2000))]);
+  modOk = !a.error;
+  const was = isAdmin; isAdmin = modOk && !!(a.data || []).length; App.ADMIN = isAdmin;
+  if (!ids.error && Array.isArray(ids.data)) adminSet = new Set(ids.data.map(x => typeof x === "string" ? x : Object.values(x || {})[0]));
+  if (!w.error && w.data && w.data.length) setWords(w.data.map(x => x.word));
+  if (!!st().admin !== isAdmin) { if (isAdmin) st().admin = true; else delete st().admin; App.save(); }
+  if (was !== isAdmin) App.renderSide();
+}
+/* Name mit gesperrtem Wort: der Server zeigt „Studi“, die App sagt einmal Bescheid */
+function nameCheck(sent) {
+  if (nameWarned || !me || me.name === sent || !badHits(sent).length) return;
+  nameWarned = true;
+  App.toast("Name ausgeblendet", "Dein Name enthält ein gesperrtes Wort. Andere sehen dich als „Studi“. Ändern kannst du ihn in den Einstellungen.", "!");
+}
+/* Verwarnungen vom Admin: beim Öffnen und live */
+async function notesCheck() {
+  if (!modOk) return;
+  const r = await sb.from("user_notes").select("*").eq("user_id", me.id).eq("seen", false).order("created_at", { ascending: true }).limit(10);
+  if (!r.error && r.data && r.data.length) showNotes(r.data);
+}
+function showNotes(list) {
+  list = list.filter(n => n && n.user_id === me.id && !n.seen); if (!list.length) return;
+  const open = $(".so-notem .so-nts");
+  if (open) { open.insertAdjacentHTML("beforeend", list.map(warnHTML).join("")); }
+  else App.modal(`<div class="so-notem"><span class="eyebrow">Gemeinsam</span><h2>Hinweis vom Admin</h2><div class="so-nts">${list.map(warnHTML).join("")}</div>
+    <p class="muted">Bitte halte dich an einen freundlichen Umgangston. Bei weiteren Verstößen kann das Schreiben gesperrt werden.</p>
+    <div class="row" style="justify-content:flex-end"><button class="btn pri sm" data-close>Verstanden</button></div></div>`);
+  sb.from("user_notes").update({ seen: true }).in("id", list.map(n => n.id)).then(() => {}, () => {});
+}
+const warnHTML = n => `<div class="so-nt"><p>${esc(n.text)}</p><small class="muted">${time(n.created_at)}</small></div>`;
+async function muteInfo() {
+  if (!modOk) return null;
+  const r = await settle(sb.from("mutes").select("until,reason").eq("user_id", me.id).gt("until", new Date().toISOString()).limit(1));
+  return (!r.error && r.data && r.data[0]) || null;
+}
+const muteTxt = mu => `Du bist bis ${until(mu.until)} stummgeschaltet${mu.reason ? ` (${mu.reason})` : ""} und kannst so lange nichts schreiben.`;
+/* eigener Kanal, damit ein fehlendes Update 9 die übrigen Live-Updates nicht stört */
+function startMod() {
+  if (!modOk || modCh) return;
+  modCh = sb.channel("so-mod-" + me.id + "-" + Date.now())
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_notes", filter: `user_id=eq.${me.id}` }, p => showNotes([p.new]));
+  if (isAdmin) modCh.on("postgres_changes", { event: "INSERT", schema: "public", table: "reports" }, p => adminAlert(p.new));
+  modCh.subscribe();
+}
+const KIND = { filter: "Filter", user: "Gemeldet", name: "Name" };
+async function adminAlert(r) {
+  if (!r || !isAdmin) return;
+  await loadNames([r.sender, r.reporter].filter(Boolean)).catch(() => {});
+  if (adminRedraw) adminRedraw();
+  alertUser("Admin · " + (r.kind === "user" ? "Neue Meldung" : r.kind === "name" ? "Name gefiltert" : "Schimpfwort gefiltert"), `${nm(r.sender)} (${r.place || "Chat"}): ${String(r.body || "").slice(0, 120)}`, "admin", names[r.sender]);
+}
+function reportDialog(mid) {
+  const R = ["Beleidigung", "Belästigung oder Drohung", "Spam", "Unangemessener Inhalt", "Persönliche Daten"];
+  App.modal(`<h2>Nachricht melden</h2><p class="muted">Die Meldung geht an den Admin. Die Person erfährt nicht, wer gemeldet hat.</p>
+    <div class="so-rsns" role="radiogroup" aria-label="Grund">${R.map((x, i) => `<label class="so-rsn"><input type="radio" name="so-rsn" value="${esc(x)}"${i ? "" : " checked"}><span>${esc(x)}</span></label>`).join("")}</div>
+    <textarea class="so-rtx" maxlength="200" rows="2" placeholder="Optional: was ist passiert?" aria-label="Details"></textarea>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn sm" data-close>Abbrechen</button><button class="btn pri sm" id="so-rsend">Melden</button></div>`, (m, close) => {
+    $("#so-rsend", m).onclick = async () => {
+      const why = [($("input:checked", m) || {}).value, $(".so-rtx", m).value.trim()].filter(Boolean).join(": ");
+      try { await q(sb.rpc("report_message", { mid, why })); close(); App.toast("Gemeldet", "Danke. Der Admin schaut sich die Nachricht an.", "✓"); }
+      catch (e) { App.toast("Nicht gemeldet", modFail(e), "!"); }
+    };
+  });
+}
+
 const qr = url => { try { const x = qrcode(0, "M"); x.addData(url); x.make(); return x.createSvgTag({ cellSize: 4, margin: 3, scalable: true }); } catch (e) { return ""; } };
 const copy = (txt, label) => (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => App.toast("Kopiert", label || txt, "⎘"), () => prompt("Kopieren:", txt));
 function shareDialog(title, text, url, code) {
@@ -96,7 +181,7 @@ function fileHTML(m) {
 function msgHTML(m, prev) {
   const mine = m.sender === me.id, same = prev && prev.sender === m.sender && new Date(m.created_at) - new Date(prev.created_at) < 300000;
   return `<div class="so-m ${mine ? "mine" : ""} ${same ? "cont" : ""} ${m.file ? "has-file" : ""}" data-mid="${m.id}">${mine || same ? "" : av(names[m.sender])}
-    <div class="so-b">${mine || same ? "" : `<b>${esc(nm(m.sender))}</b>`}${m.file ? fileHTML(m) : ""}${m.body ? `<p>${linkify(m.body)}</p>` : ""}<small>${m.pending ? "wird gesendet …" : time(m.created_at)}${mine && !m.pending ? ` · <button class="so-del" data-del="${m.id}" aria-label="Nachricht löschen">löschen</button>` : ""}</small></div></div>`;
+    <div class="so-b">${mine || same ? "" : `<b>${esc(nm(m.sender))}${adminSet.has(m.sender) ? `<i class="so-adm" title="Admin von StudyOS">Admin</i>` : ""}</b>`}${m.file ? fileHTML(m) : ""}${m.body ? `<p>${linkify(mask(m.body))}</p>` : ""}<small>${m.pending ? "wird gesendet …" : time(m.created_at)}${m.pending ? "" : mine ? ` · <button class="so-del" data-del="${m.id}" aria-label="Eigene Nachricht löschen">löschen</button>` : `${modOk ? ` · <button class="so-rep" data-rep="${m.id}" aria-label="Nachricht melden">melden</button>` : ""}${isAdmin ? ` · <button class="so-del so-adel" data-adel="${m.id}" aria-label="Nachricht als Admin löschen">löschen</button>` : ""}`}</small></div></div>`;
 }
 function viewImage(path, name) {
   App.modal(`<div class="so-view"><img src="${esc(urls[path])}" alt="${esc(name)}"></div><div class="row" style="justify-content:space-between;align-items:center;gap:10px"><small class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</small><span class="row" style="gap:8px"><a class="btn sm" href="${esc(urls[path])}" download="${esc(name)}" target="_blank" rel="noopener">Herunterladen</a><button class="btn pri sm" data-close>Schließen</button></span></div>`);
@@ -121,6 +206,8 @@ async function chat(box, target, hint) {
   let query = sb.from("messages").select("*").order("created_at", { ascending: false }).limit(150);
   query = key === "to_user" ? query.or(`and(sender.eq.${me.id},to_user.eq.${val}),and(sender.eq.${val},to_user.eq.${me.id})`) : query.eq(key, val);
   if (key === "course") query = query.gt("created_at", new Date(Date.now() - DAY).toISOString()); /* offener Global-Chat zeigt nur die letzten 24 Stunden */
+  const muted = mu => { if (!box.isConnected || $(".so-muted", box)) return; form.insertAdjacentHTML("beforebegin", `<div class="so-muted" role="status">${esc(muteTxt(mu))}</div>`); ta.disabled = true; ta.placeholder = "Stummgeschaltet"; };
+  muteInfo().then(mu => { if (mu) muted(mu); }, () => {});
   try { list = (await q(query)).reverse(); await Promise.all([loadNames(list.map(m => m.sender)), sign(list.filter(m => m.file && !expired(m)).map(m => m.file.path))]); if (!box.isConnected) return; paint(); }
   catch (e) { log.innerHTML = `<div class="so-empty">${esc(fail(e))}</div>`; return; }
   const add = async m => {
@@ -136,9 +223,11 @@ async function chat(box, target, hint) {
   App.cleanup = drop;
   const send = async () => {
     const body = ta.value.trim(); if (!body) return;
+    const hit = badHits(body);
+    if (hit.length && !confirm(`Deine Nachricht enthält ${hit.length > 1 ? "Wörter, die" : "ein Wort, das"} im Chat als ★★★ erscheint (${hit.join(", ")}).${key === "to_user" ? "" : " Der Admin bekommt einen Hinweis."}\n\nTrotzdem senden?`)) return;
     ta.value = ""; ta.style.height = "";
     try { add(await q(sb.from("messages").insert({ body, [key]: val }).select().single())); }
-    catch (e) { ta.value = body; App.toast("Nicht gesendet", fail(e), "!"); }
+    catch (e) { ta.value = body; const mu = /row-level security|42501/i.test(String(e && (e.message || e.code))) && await muteInfo(); App.toast("Nicht gesendet", mu ? muteTxt(mu) : fail(e), "!"); if (mu) muted(mu); }
   };
   /* Bilder, GIFs und Dateien: hochladen, dann als Nachricht mit Anhang senden (Text im Feld wird zur Bildunterschrift) */
   const upload = async files => {
@@ -170,7 +259,16 @@ async function chat(box, target, hint) {
   ta.oninput = () => { ta.style.height = ""; ta.style.height = Math.min(ta.scrollHeight, 160) + "px"; };
   log.onclick = async e => {
     const v = e.target.closest("[data-view]"); if (v) { const m = list.find(x => x.file && x.file.path === v.dataset.view); return viewImage(v.dataset.view, m ? m.file.name : ""); }
-    const d = e.target.closest("[data-del]"); if (!d || !confirm("Nachricht löschen?")) return;
+    const rp = e.target.closest("[data-rep]"); if (rp) return reportDialog(+rp.dataset.rep);
+    const ad = e.target.closest("[data-adel]");
+    if (ad) {
+      if (!isAdmin || !confirm("Diese Nachricht als Admin für alle löschen?")) return;
+      const id = +ad.dataset.adel, m = list.find(x => x.id === id);
+      try { if (m && m.file) await settle(sb.storage.from(BUCKET).remove([m.file.path])); await q(sb.rpc("admin_delete_message", { mid: id })); list = list.filter(x => x.id !== id); paint(); App.toast("Gelöscht", "Die Nachricht ist für alle weg.", "✓"); }
+      catch (er) { App.toast("Fehler", modFail(er), "!"); }
+      return;
+    }
+    const d = e.target.closest("[data-del]"); if (!d || !confirm("Deine Nachricht für alle löschen?")) return;
     const m = list.find(x => x.id === +d.dataset.del);
     try { await q(sb.from("messages").delete().eq("id", +d.dataset.del)); if (m && m.file) sb.storage.from(BUCKET).remove([m.file.path]).catch(() => {}); list = list.filter(x => x.id !== +d.dataset.del); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
   };
@@ -356,6 +454,7 @@ PAGES.together = (el, p) => boot(el, async () => {
   if (kind === "g") return groupPage(el, id, ["together", "", "Gemeinsam"]);
   if (kind === "global" || kind === "c") return globalPage(el);
   if (kind === "find") return findPage(el, id || "");
+  if (kind === "admin") return adminPage(el);
   const [fr, gs] = await Promise.all([friends(), myGroups()]); if (stale()) return;
   reqs = fr.inc.length; gs.forEach(g => { gnames[g.id] = g.name; });
   el.innerHTML = `<div class="page so">${head("Gemeinsam", "Freunde, Lerngruppen und der Global-Chat.")}
@@ -372,7 +471,9 @@ PAGES.together = (el, p) => boot(el, async () => {
         ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe, zum Lernen, mit Freunden oder für ein Projekt, oder tritt einer offenen Gruppe bei.</p>`}
         <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
-    <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein Chat für alle, die StudyOS nutzen. Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p></section></div>`;
+    <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein Chat für alle, die StudyOS nutzen. Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p></section>
+    ${isAdmin ? `<section class="card so-admcard"><div class="spread"><h3>Admin</h3><button class="btn pri sm" data-go="together" data-p="admin">Öffnen ›</button></div><p class="muted so-admn">Meldungen, Verwarnungen, Stummschalten und Wortliste.</p></section>` : ""}</div>`;
+  if (isAdmin) settle(sb.from("reports").select("id").eq("status", "open").limit(100)).then(r => { const t = $(".so-admn", el); if (t && !r.error && r.data) t.textContent = r.data.length ? `${r.data.length >= 100 ? "100+" : r.data.length} offene ${r.data.length === 1 ? "Meldung" : "Meldungen"}. Dazu Verwarnungen, Stummschalten und Wortliste.` : "Keine offenen Meldungen. Dazu Verwarnungen, Stummschalten und Wortliste."; });
   $("#so-qr", el).onclick = () => shareDialog("Dein Freundescode", "Lass den Code scannen oder schick den Link. Wer ihn öffnet, ist mit dir befreundet.", LINK + "#friend=" + me.code, me.code);
   $("#so-scan", el).onclick = () => scanDialog(handleScan);
   $("#so-out", el).onclick = logout;
@@ -490,8 +591,138 @@ async function groupPage(el, gid, back) {
 }
 
 /* Global-Chat: ein offener Raum für alle (messages.course = "global", 24 Stunden) */
+/* ---------- Admin-Seite (together/admin): nur für Konten in der Tabelle admins ---------- */
+let aTab = "reports", aStatus = "open", aTerm = "";
+const markW = (t, ws) => { let h = esc(t || ""); const re = ws && ws.length ? new RegExp("(" + ws.map(w => esc(w).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "giu") : badRe && new RegExp(badRe.source, "giu"); return re ? h.replace(re, (...a) => ws && ws.length ? `<mark>${a[0]}</mark>` : `${a[1]}<mark>${a[0].slice(a[1].length)}</mark>`) : h; };
+function warnDialog(uid, after) {
+  App.modal(`<h2>Verwarnen</h2><p class="muted">${esc(nm(uid))} sieht diesen Hinweis beim nächsten Öffnen von StudyOS (oder sofort, wenn gerade online).</p>
+    <textarea class="so-wtx" maxlength="500" rows="4" aria-label="Hinweis">Bitte achte auf einen respektvollen Umgangston. Beleidigungen und Schimpfwörter haben im Chat keinen Platz.</textarea>
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn sm" data-close>Abbrechen</button><button class="btn pri sm" id="so-wsend">Hinweis senden</button></div>`, (m, close) => {
+    $("#so-wsend", m).onclick = async () => {
+      const text = $(".so-wtx", m).value.trim(); if (!text) return;
+      try { await q(sb.from("user_notes").insert({ user_id: uid, text, by: me.id })); close(); App.toast("Verwarnt", `${nm(uid)} bekommt den Hinweis.`, "✓"); after && after("verwarnt"); }
+      catch (e) { App.toast("Fehler", modFail(e), "!"); }
+    };
+  });
+}
+function muteDialog(uid, after) {
+  const D = [["1 Stunde", 1], ["24 Stunden", 24], ["7 Tage", 168], ["30 Tage", 720]];
+  App.modal(`<h2>Stummschalten</h2><p class="muted">${esc(nm(uid))} kann so lange keine Nachrichten senden, auch nicht in Gruppen und Direktchats. Lesen geht weiter.</p>
+    <div class="so-rsns">${D.map(([t, h], i) => `<label class="so-rsn"><input type="radio" name="so-mu" value="${h}"${i === 1 ? " checked" : ""}><span>${t}</span></label>`).join("")}</div>
+    <input class="so-mr" maxlength="200" placeholder="Grund (sieht die Person)" aria-label="Grund" value="Beleidigungen im Chat">
+    <div class="row" style="justify-content:flex-end;gap:8px"><button class="btn sm" data-close>Abbrechen</button><button class="btn pri sm" id="so-msend">Stummschalten</button></div>`, (m, close) => {
+    $("#so-msend", m).onclick = async () => {
+      const h = +($("input:checked", m) || {}).value || 24, t = new Date(Date.now() + h * 3600000).toISOString();
+      try { await q(sb.from("mutes").upsert({ user_id: uid, until: t, reason: $(".so-mr", m).value.trim() || null, by: me.id })); close(); App.toast("Stummgeschaltet", `${nm(uid)} bis ${until(t)}.`, "✓"); after && after("stumm bis " + until(t)); }
+      catch (e) { App.toast("Fehler", modFail(e), "!"); }
+    };
+  });
+}
+async function adminPage(el) {
+  if (!isAdmin) return App.go("together", "");
+  el.innerHTML = `<div class="page so so-admin">${head("Admin", "Meldungen, Personen und Filter. Diese Seite und die Admin-Knöpfe im Chat siehst nur du.", ["together", "", "Gemeinsam"])}
+    <div class="so-stats" aria-live="polite"></div>
+    <div class="so-tools so-atabs" role="tablist">${[["reports", "Meldungen"], ["users", "Personen"], ["words", "Wortliste"], ["tools", "Werkzeuge"]].map(([k, t]) => `<button class="chip${k === aTab ? " on" : ""}" role="tab" aria-selected="${k === aTab}" data-at="${k}">${t}</button>`).join("")}</div>
+    <div class="so-abody"><div class="so-wait"><span class="so-spin"></span>Lade …</div></div></div>`;
+  const body = $(".so-abody", el), R = App.route();
+  const alive = () => body.isConnected && App.route() === R;
+  const stats = async () => {
+    const s = await settle(sb.rpc("admin_stats")); if (!alive()) return;
+    const box = $(".so-stats", el); if (s.error || !s.data) { box.innerHTML = ""; return; }
+    const d = s.data, T = [["Personen", d.users], ["aktiv (24 h)", d.active24], ["Nachrichten (24 h)", d.messages24], ["Global-Chat (24 h)", d.global24], ["Gruppen", d.groups], ["offene Meldungen", d.open, d.open ? "warn" : ""], ["stumm", d.muted]];
+    box.innerHTML = T.map(([t, n, c]) => `<div class="so-st ${c || ""}"><b>${n == null ? "–" : n}</b><small>${t}</small></div>`).join("");
+  };
+  let rows = [];
+  const paint = async () => {
+    if (!alive()) return;
+    stats();
+    try {
+      if (aTab === "reports") {
+        rows = await q(sb.from("reports").select("*").eq("status", aStatus).order("created_at", { ascending: false }).limit(100));
+        await loadNames(rows.flatMap(r => [r.sender, r.reporter]).filter(Boolean)); if (!alive()) return;
+        body.innerHTML = `<div class="so-tools"><button class="chip${aStatus === "open" ? " on" : ""}" data-as="open">Offen</button><button class="chip${aStatus === "done" ? " on" : ""}" data-as="done">Erledigt</button></div>
+          ${rows.length ? rows.map(r => `<article class="card so-rc" data-rid="${r.id}">
+            <div class="spread"><span class="so-tag k-${esc(r.kind)}">${esc(KIND[r.kind] || r.kind)}</span><small class="muted">${esc(r.place || "")} · ${time(r.created_at)}</small></div>
+            <div class="so-row">${av(names[r.sender])}<b>${esc(nm(r.sender))}</b>${r.words && r.words.length ? `<span class="so-sp"></span><small class="muted">Treffer: ${esc(r.words.join(", "))}</small>` : ""}</div>
+            <blockquote class="so-rq">${markW(r.body, r.words)}</blockquote>
+            ${r.kind === "user" ? `<p class="muted so-rw">Gemeldet von ${esc(nm(r.reporter))}${r.reason ? ": " + esc(r.reason) : ""}</p>` : ""}
+            ${r.action ? `<p class="so-ra-done">✓ ${esc(r.action)}</p>` : ""}
+            <div class="row so-ract">${r.message_id && r.kind !== "name" ? `<button class="btn sm" data-ra="del">Nachricht löschen</button>` : ""}${r.kind === "name" ? `<button class="btn sm" data-ra="name">Name zurücksetzen</button>` : ""}
+              <button class="btn sm" data-ra="warn">Verwarnen</button><button class="btn sm" data-ra="mute">Stummschalten</button>
+              <span class="so-sp"></span>${r.status === "open" ? `<button class="btn pri sm" data-ra="done">Erledigt</button>` : `<button class="btn sm" data-ra="open">Wieder öffnen</button>`}<button class="btn ghost sm" data-ra="rm" aria-label="Meldung entfernen">Entfernen</button></div></article>`).join("")
+          : `<div class="empty">${aStatus === "open" ? "Keine offenen Meldungen. Alles ruhig." : "Noch nichts erledigt."}</div>`}`;
+      } else if (aTab === "users") {
+        rows = await q(sb.rpc("admin_users", { term: aTerm })); if (!alive()) return;
+        rows.forEach(u => { names[u.id] = names[u.id] || { id: u.id, name: u.name, avatar: u.avatar }; });
+        body.innerHTML = `<form class="so-tools so-usearch"><input type="search" placeholder="Name suchen …" value="${esc(aTerm)}" aria-label="Name suchen"><button class="btn sm">Suchen</button></form>
+          <section class="card">${rows.length ? rows.map(u => `<div class="so-urow" data-uid="${u.id}">${av(u)}<div class="so-utxt"><b>${esc(mask(u.name))}${adminSet.has(u.id) ? `<i class="so-adm">Admin</i>` : ""}</b>
+            <small class="muted">${u.msgs} Nachrichten${u.last_at ? " · zuletzt " + time(u.last_at) : ""}${u.reports ? ` · <span class="so-warnc">${u.reports} Meldungen</span>` : ""}${u.notes ? ` · ${u.notes}× verwarnt` : ""}${u.muted_until ? ` · <span class="so-warnc">stumm bis ${until(u.muted_until)}</span>` : ""}</small></div>
+            ${u.id === me.id ? "" : `<div class="row so-uact"><button class="btn sm" data-ua="warn">Verwarnen</button>${u.muted_until ? `<button class="btn sm" data-ua="unmute">Stumm aufheben</button>` : `<button class="btn sm" data-ua="mute">Stummschalten</button>`}<button class="btn ghost sm" data-ua="name">Name zurücksetzen</button><button class="btn ghost sm" data-ua="purge">Global-Nachrichten löschen</button></div>`}</div>`).join("") : `<p class="muted">Niemand gefunden.</p>`}</section>`;
+        $(".so-usearch", body).onsubmit = e => { e.preventDefault(); aTerm = $("input", e.target).value.trim(); paint(); };
+      } else if (aTab === "words") {
+        const w = await q(sb.from("bad_words").select("word").order("word").limit(2000)); if (!alive()) return;
+        setWords(w.map(x => x.word));
+        body.innerHTML = `<section class="card"><h3>Gesperrte Wörter <span class="chip">${words.length}</span></h3>
+          <p class="muted">Ein Wort trifft auch längere Formen am Wortanfang („fick“ trifft „ficken“), aber nicht mitten im Wort („Marsch“ bleibt). Treffer werden zu ★★★. Nur Kleinbuchstaben, Ziffern und Leerzeichen, mindestens 3 Zeichen.</p>
+          <form class="so-tools so-wadd"><input maxlength="40" placeholder="Wort hinzufügen" aria-label="Wort hinzufügen"><button class="btn pri sm">Hinzufügen</button></form>
+          <div class="so-words">${words.map(x => `<span class="so-word">${esc(x)}<button data-wrm="${esc(x)}" aria-label="${esc(x)} entfernen">×</button></span>`).join("")}</div>
+          <h3>Ausprobieren</h3><input class="so-wtest" placeholder="Satz eingeben, um den Filter zu testen" aria-label="Filter testen"><p class="so-wout muted"></p></section>`;
+        $(".so-wadd", body).onsubmit = async e => {
+          e.preventDefault(); const v = $("input", e.target).value.toLowerCase().trim().replace(/\s+/g, " ");
+          if (!okWord(v)) return App.toast("Nicht möglich", "Nur Kleinbuchstaben (auch äöüß), Ziffern und Leerzeichen, 3 bis 40 Zeichen.", "!");
+          try { await q(sb.from("bad_words").insert({ word: v })); paint(); } catch (er) { App.toast("Fehler", /duplicate|23505/.test(String(er.message || er.code)) ? "Das Wort steht schon auf der Liste." : modFail(er), "!"); }
+        };
+        const t = $(".so-wtest", body), out = $(".so-wout", body);
+        t.oninput = () => { const h = badHits(t.value); out.innerHTML = t.value ? `${esc(mask(t.value))}<br><small>${h.length ? "Treffer: " + esc(h.join(", ")) : "Kein Treffer"}</small>` : ""; };
+      } else {
+        const [mu, no] = await Promise.all([q(sb.from("mutes").select("*").gt("until", new Date().toISOString()).order("until")), q(sb.from("user_notes").select("*").order("created_at", { ascending: false }).limit(30))]);
+        await loadNames(mu.map(x => x.user_id).concat(no.map(x => x.user_id))); if (!alive()) return;
+        body.innerHTML = `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
+          <section class="card"><h3>Letzte Verwarnungen</h3>${no.length ? no.map(n => `<div class="so-urow">${av(names[n.user_id])}<div class="so-utxt"><b>${esc(nm(n.user_id))}</b><small class="muted">${time(n.created_at)} · ${n.seen ? "gelesen" : "noch nicht gelesen"}</small><p>${esc(n.text)}</p></div></div>`).join("") : `<p class="muted">Noch keine Verwarnungen.</p>`}</section>
+          <section class="card so-danger"><h3>Global-Chat leeren</h3><p class="muted">Löscht alle Nachrichten im Global-Chat für alle. Gruppen und Direktchats bleiben.</p><button class="btn sm so-dbtn" id="so-clear">Global-Chat leeren</button></section>`;
+        $("#so-clear", body).onclick = async () => {
+          if (!confirm("Wirklich alle Nachrichten im Global-Chat löschen? Das lässt sich nicht rückgängig machen.")) return;
+          try { const n = await q(sb.rpc("admin_clear_global")); App.toast("Geleert", `${n || 0} Nachrichten gelöscht.`, "✓"); paint(); } catch (er) { App.toast("Fehler", modFail(er), "!"); }
+        };
+      }
+    } catch (e) { if (alive()) body.innerHTML = `<div class="empty">${esc(modFail(e))}</div>`; }
+  };
+  const done = async (r, txt, close) => {
+    const patch = { action: (r.action ? r.action + " · " : "") + txt }; if (close !== false) patch.status = "done";
+    await q(sb.from("reports").update(patch).eq("id", r.id)); paint();
+  };
+  el.onclick = async e => {
+    const at = e.target.closest("[data-at]"); if (at) { aTab = at.dataset.at; $$(".so-atabs .chip", el).forEach(b => { const on = b === at; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); }); return paint(); }
+    const as = e.target.closest("[data-as]"); if (as) { aStatus = as.dataset.as; return paint(); }
+    const wr = e.target.closest("[data-wrm]"); if (wr) { try { await q(sb.from("bad_words").delete().eq("word", wr.dataset.wrm)); paint(); } catch (er) { App.toast("Fehler", modFail(er), "!"); } return; }
+    const ra = e.target.closest("[data-ra]"), ua = e.target.closest("[data-ua]");
+    try {
+      if (ra) {
+        const r = rows.find(x => x.id === +ra.closest("[data-rid]").dataset.rid); if (!r) return;
+        const a = ra.dataset.ra;
+        if (a === "del") { if (!confirm("Diese Nachricht für alle löschen?")) return; await q(sb.rpc("admin_delete_message", { mid: r.message_id })); paint(); App.toast("Gelöscht", "Die Nachricht ist für alle weg.", "✓"); }
+        else if (a === "name") { await q(sb.rpc("admin_reset_name", { uid: r.sender })); delete names[r.sender]; await done(r, "Name zurückgesetzt"); }
+        else if (a === "warn") warnDialog(r.sender, t => done(r, t));
+        else if (a === "mute") muteDialog(r.sender, t => done(r, t));
+        else if (a === "done") await done(r, "erledigt");
+        else if (a === "open") { await q(sb.from("reports").update({ status: "open" }).eq("id", r.id)); paint(); }
+        else if (a === "rm") { if (!confirm("Meldung entfernen? Die Nachricht selbst bleibt.")) return; await q(sb.from("reports").delete().eq("id", r.id)); paint(); }
+      } else if (ua) {
+        const uid = ua.closest("[data-uid]").dataset.uid, a = ua.dataset.ua;
+        if (a === "warn") warnDialog(uid, () => paint());
+        else if (a === "mute") muteDialog(uid, () => paint());
+        else if (a === "unmute") { await q(sb.from("mutes").delete().eq("user_id", uid)); App.toast("Aufgehoben", `${nm(uid)} kann wieder schreiben.`, "✓"); paint(); }
+        else if (a === "name") { if (!confirm(`Namen von ${nm(uid)} auf „Studi“ setzen?`)) return; await q(sb.rpc("admin_reset_name", { uid })); delete names[uid]; paint(); }
+        else if (a === "purge") { if (!confirm(`Alle Global-Chat-Nachrichten von ${nm(uid)} löschen?`)) return; const n = await q(sb.rpc("admin_purge_user", { uid })); App.toast("Gelöscht", `${n || 0} Nachrichten entfernt.`, "✓"); paint(); }
+      }
+    } catch (er) { App.toast("Fehler", modFail(er), "!"); }
+  };
+  adminRedraw = () => { if (!alive()) { adminRedraw = null; return; } if (aTab === "reports" && aStatus === "open") paint(); else stats(); };
+  paint();
+}
+
 function globalPage(el) {
-  el.innerHTML = `<div class="page so so-full">${head("Global-Chat", "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten.")}
+  el.innerHTML = `<div class="page so so-full">${head("Global-Chat", "Offen für alle, die StudyOS nutzen. Nachrichten und Anhänge verschwinden nach 24 Stunden. Bleib freundlich, keine privaten Daten. Schimpfwörter werden ausgeblendet und dem Admin gemeldet, fremde Nachrichten kannst du melden.")}
     <div class="so-tools so-gtabs"><button class="chip" data-go="together">‹ Gemeinsam</button><button class="chip" data-go="together" data-p="find">Gruppen entdecken</button></div>
     <div class="card so-box"></div></div>`;
   chat($(".so-box", el), { course: "global" }, "An alle schreiben …");
@@ -615,7 +846,7 @@ async function alertUser(title, body, k, who) {
   const mode = note().mode; if (mode === "off") return;
   const sys = mode === "system" && typeof Notification !== "undefined" && Notification.permission === "granted";
   if (document.visibilityState === "visible" && document.hasFocus()) return inAppNote(title, body, k, who);
-  if (sys && pushOk() && k !== "test") return; /* kommt per Push vom Server, sonst doppelt */
+  if (sys && pushOk() && k !== "test" && k !== "admin") return; /* Admin-Hinweise kommen nicht per Push */ /* kommt per Push vom Server, sonst doppelt */
   if (sys) {
     const opts = { body, tag: "so-" + k, renotify: true, icon: "icons/v2/icon-192.png", badge: "icons/v2/icon-192.png", data: { url: "./#chat=" + k, chat: k } };
     try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) return reg.showNotification(title, opts); } catch (e) {}
@@ -696,8 +927,8 @@ PAGES.settings = (el, p) => {
   pg.appendChild(card); bindNote(card);
 };
 /* Klick auf eine Mitteilung des Systems: der Service Worker schickt den Chat, oder die App startet mit #chat=… */
-if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", e => { const d = e.data || {}; if (d.type === "open-chat" && /^(dm|g):/.test(d.chat || "")) openChat(d.chat); });
-const START_CHAT = (/^#chat=((?:dm|g):[\w-]+)$/.exec(location.hash) || [])[1];
+if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", e => { const d = e.data || {}; if (d.type === "open-chat" && /^((dm|g):|admin$)/.test(d.chat || "")) openChat(d.chat); });
+const START_CHAT = (/^#chat=((?:dm|g):[\w-]+|admin)$/.exec(location.hash) || [])[1];
 if (START_CHAT) try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
 App.afterBoot.push(() => {
   if (START_CHAT) setTimeout(() => openChat(START_CHAT), 60);
