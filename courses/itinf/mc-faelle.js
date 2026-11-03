@@ -90,7 +90,7 @@ M("itfa1-12", "itg-virt", "Ein Team betreibt zehn kleine Microservices. Jeder l�
   ["Container laufen ganz ohne Betriebssystem auf der Hardware.", false]
 ], ""),
 
-/* ================= V2 · Azure-Architektur ================= */
+/* ================= Folien-Fassung · Azure Datacenter (alte Folienthemen itv-*) ================= */
 M("itfa2-1", "itv-region", "Ein Wiener Onlineshop hat fast nur Kunden in Österreich und muss Daten in der EU halten. Er überlegt, seine Ressourcen in „East US“ anzulegen, weil das dort etwas billiger ist. Was ist dazu richtig?", [
   ["Man sollte eine Region nahe bei den Kunden wählen, damit die Latenz gering bleibt.", true],
   ["Compliance und Data Residency sprechen für eine Region in der Geography Europe.", true],
@@ -134,7 +134,7 @@ M("itfa2-6", "itv-green", "Ein Rechenzentrum verbraucht im Jahr 1.500 MWh, davon
   ["Die WUE gibt an, wie viele Liter Wasser pro kWh verbraucht werden.", true]
 ], ""),
 
-/* ================= V3 · Governance & Identität ================= */
+/* ================= Nur Folien · Governance & Identität ================= */
 M("itfa3-1", "itv-mgmt", "Ein Konzern hat 40 Subscriptions. In allen Produktions-Subscriptions sollen VMs nur in West Europe angelegt werden dürfen, und kein Subscription-Owner soll das ändern können. Wie setzt man das am besten um?", [
   ["Die Produktions-Subscriptions in eine Management Group „Production“ legen.", true],
   ["Eine Policy „Allowed locations“ auf der Management Group zuweisen; sie wird an alle Subscriptions vererbt.", true],
@@ -290,7 +290,94 @@ M("itfa4-14", "itv-arch", "Ein kleiner Betrieb fragt, ob er für seinen Fileserv
   ["Ein SAN liefert Blöcke (LUNs), die der Server selbst formatiert, keine Freigaben auf Datei-Ebene.", true],
   ["Ein NAS mit RAID schützt nicht vor Brand oder Blitz am Standort – ein Backup off-site bleibt nötig.", true],
   ["Ein SAN ist die einzige Möglichkeit, Dateien im Büro zu teilen.", false]
+], ""),
+/* ================= V2 · Vorlesung 8.10. (nur gesprochenes Skript) ================= */
+M("itfb2-1", "vo2-price", "Ein Logistikunternehmen hat drei Arten von Last: eine Datenbank, die das ganze Jahr gleich stark läuft, einen Webshop mit Ansturm vor Weihnachten und eine nächtliche Auswertung, die bei einer Unterbrechung einfach neu startet. Welche Preismodelle passen laut Vortrag?", [
+  ["Für die gleichmäßig laufende Datenbank passen Reserved Instances oder ein Savings Plan – oder sogar lokal hosten.", true],
+  ["Für den periodischen Ansturm passen Autoscaling und Pay-as-you-go, außerhalb der Spitzen wird abgeschaltet.", true],
+  ["Für die unterbrechbare nächtliche Auswertung passen Spot-VMs mit bis zu 90 % Rabatt.", true],
+  ["Für den Webshop passen Spot-VMs, weil Kunden dort ständig zugreifen.", false, "Für Anwendungen mit ständigem Benutzerzugriff sind Spot-VMs nichts."],
+  ["Für die Datenbank ist Pay-as-you-go immer am günstigsten, weil sie ständig läuft.", false]
+], "Das Preismodell muss zum Workload passen."),
+M("itfb2-2", "vo2-cost", "Fünf Studierende bauen am Freitag im FH-Tenant VMs auf, setzen einen Budget-Alert über 100 € und fahren übers Wochenende weg, ohne etwas zu löschen. Welche Folgen und Tipps nennt der Vortrag?", [
+  ["Der Budget-Alert schickt höchstens eine E-Mail – die VMs laufen weiter und werden weiter verrechnet.", true],
+  ["Laufende VMs und nicht angehängte Disks sind typische Kostenfallen.", true],
+  ["Besser ist, den Aufbau zu skripten, damit man ihn löschen und am Montag wieder aufbauen kann.", true],
+  ["Beim Erreichen der 100 € stoppt Azure automatisch alle VMs.", false, "Genau das kann man nicht einstellen."],
+  ["Im FH-Tenant entstehen grundsätzlich keine Kosten.", false]
+], "Jedes Jahr gehen so ohne Nutzen schnell 100 € oder mehr verloren."),
+M("itfb2-3", "vo2-rules", "Ein Start-up betreibt seinen Dienst auf einer einzigen, immer größer gemachten VM. Als sie ausfällt, versucht ein Admin zwei Tage lang, sie zu reparieren. Was hätte das Start-up laut den Geboten der Cloud anders machen sollen?", [
+  ["Horizontal skalieren: mehrere kleine Maschinen, die dasselbe tun, statt einer großen (scale out, not up).", true],
+  ["Den Server nicht pflegen und reparieren, sondern einfach durch einen neuen ersetzen (cattle, not pets).", true],
+  ["Auf eine kurze MTTR achten: Entscheidend ist, wie schnell der Dienst wieder läuft.", true],
+  ["Davon ausgehen, dass jederzeit alles ausfallen kann.", true],
+  ["Die VM noch größer machen, damit sie nicht mehr ausfällt.", false, "Eine große Maschine erhöht die Auswirkung und die MTTR."]
+], ""),
+M("itfb2-4", "vo2-fall", "Ein Entwicklerteam plant seine verteilte App mit diesen Annahmen: Das Netz fällt nie aus, Antworten kommen sofort, Datentransfer zwischen Clouds kostet nichts, und der eine Admin bleibt für immer. Was ist dazu richtig?", [
+  ["Alle vier Annahmen gehören zu den Fallacies of Distributed Computing – sie sind falsch.", true],
+  ["Datentransfer kostet Geld, etwa als Egress-Gebühren.", true],
+  ["Es gibt mehrere Administratoren, und einer kann auch kündigen.", true],
+  ["„Die Latenz ist null“ stimmt in der Cloud, weil die Netze so gut ausgebaut sind.", false],
+  ["Die Fallacies gelten nur für das eigene Firmennetz, nicht für die Netze der Cloud-Anbieter.", false, "Sie gelten für Netzwerke allgemein."]
+], ""),
+M("itfb2-5", "vo2-law", "Eine österreichische Behörde will ein Bürgerportal mit sensiblen Daten bei einem US-Hyperscaler in dessen EU-Rechenzentrum hosten und argumentiert: „Die Daten liegen ja in Europa.“ Was antwortet man nach dem Vortrag?", [
+  ["Das betrifft nur die Datenresidenz – souverän sind die Daten deshalb nicht.", true],
+  ["Durch den CLOUD Act kann die US-Regierung die Daten vom Anbieter verlangen, auch aus dem EU-Rechenzentrum.", true],
+  ["Microsoft Frankreich konnte unter Eid nicht garantieren, dass Daten nicht an ausländische Behörden gehen.", true],
+  ["Europäische Anbieter wie IONOS, STACKIT oder OVHcloud wären eine Alternative, die man prüfen kann.", true],
+  ["Eine EU Data Boundary macht den CLOUD Act für diesen Anbieter unwirksam.", false, "Der Anbieter unterliegt weiter US-Recht."]
+], "Gedankenexperiment aus dem Vortrag: ID Austria bei Microsoft."),
+M("itfb2-6", "vo2-risk", "Ein Unternehmen hat 500 TB Daten in Azure und will wegen eines günstigeren Angebots zu AWS wechseln. Dazu fällt am selben Tag ein großer AWS-Dienst aus. Welche Aussagen passen?", [
+  ["Das Verschieben von 500 TB verursacht Egress-Kosten – ein Grund für Lock-in.", true],
+  ["Proprietäre PaaS- und Serverless-Dienste erschweren den Wechsel zusätzlich.", true],
+  ["Bei einem Ausfall eines großen Anbieters sind tausende Kunden gleichzeitig betroffen.", true],
+  ["Der EU Data Act verlangt, dass Wechselentgelte bis 2027 abgeschafft werden.", true],
+  ["Eine Exit-Strategie plant man am besten erst, wenn man wechseln will.", false, "Vom ersten Tag an."]
+], ""),
+/* ================= V3 · Vorlesung 13.10. (nur gesprochenes Skript) ================= */
+M("itfb3-1", "vo3-az", "Ein Grazer Onlineshop läuft auf drei VMs in Austria East, alle in Zone 1, ohne Load Balancer. In Zone 1 fällt die Kühlung aus. Was ist dazu laut Vortrag richtig?", [
+  ["Alle drei VMs sind betroffen – sie hätten auf verschiedene Zonen verteilt werden müssen.", true],
+  ["Ein Load Balancer vor VMs in verschiedenen Zonen hätte die Anfragen an die laufenden VMs geschickt.", true],
+  ["Die Daten zwischen den VMs muss das Team selbst replizieren – die Zonen sind nur in Strom, Kühlung und Netz unabhängig.", true],
+  ["Azure hätte die VMs automatisch in andere Zonen verschoben, weil VMs zonenredundant sind.", false, "VMs sind zonal."],
+  ["Drei VMs sind immer ausfallsicher, egal in welcher Zone.", false]
+], "Typischer Fehler laut Vortrag."),
+M("itfb3-2", "vo3-pair", "Ein Unternehmen betreibt seine Anwendung in West Europe. Die Geschäftsführung fragt: „Wenn ganz Amsterdam ausfällt – sind wir dann automatisch in North Europe?“ Was antwortet man?", [
+  ["Nein – die Daten in der Partnerregion muss man selbst einrichten und dafür bezahlen.", true],
+  ["Es ist eine Designentscheidung: Man wägt den unwahrscheinlichen Regionsausfall gegen die Kosten ab.", true],
+  ["North Europe ist laut Folie die Partnerregion von West Europe.", true],
+  ["Das Paar wurde von Microsoft festgelegt, nicht vom Unternehmen.", true],
+  ["Ja, alle Dienste werden automatisch und kostenlos in die Partnerregion repliziert.", false]
+], "Automatische Replikation gibt es nur für einige Services."),
+M("itfb3-3", "vo3-region", "Ein Start-up aus Wien mit Kunden fast nur in Österreich will DSGVO-konform arbeiten und überlegt eine Region in Amerika, weil dort ein Kollege sitzt. Welche Aussagen passen zum Vortrag?", [
+  ["Man wählt die Region nahe bei den Kunden – das ist netzwerktechnisch besser.", true],
+  ["DSGVO-Konformität und Compliance-Vorgaben sprechen für eine Region in Europa.", true],
+  ["Wo der Kollege sitzt, ist kein Kriterium aus dem Vortrag.", true],
+  ["Beim Anlegen jeder Ressource muss man die Region angeben.", true],
+  ["Rechenzentren in Europa und Amerika haben immer exakt dieselben Compliance-Vorgaben.", false, "Teilweise andere."]
+], ""),
+M("itfb3-4", "vo3-pue", "Ein Rechenzentrum hat 90.000 Server mit je 500 W, die das ganze Jahr voll laufen, und einen PUE von 1,5. Welche Aussagen stimmen?", [
+  ["Die Server allein brauchen 90.000 × 500 W × 8.760 h = 394,2 GWh pro Jahr.", true],
+  ["Mit PUE 1,5 braucht die ganze Anlage 591,3 GWh pro Jahr.", true],
+  ["Das liegt in einer ähnlichen Größenordnung wie der Haushaltsstrom einer Stadt mit 300.000 Einwohnern (525 GWh).", true],
+  ["Mit WUE 0,5 L/kWh ergeben die 394 GWh rund 197 Millionen Liter Wasser pro Jahr.", true],
+  ["Ein PUE von 1,5 bedeutet, dass nur 1,5 % des Stroms in die IT gehen.", false]
+], ""),
+M("itfb3-5", "vo3-rg", "Eine Studentin legt in ihrer Übungs-Resource-Group eine VM in West Europe, eine Datenbank in North Europe und einen Storage Account an. Danach klickt sie versehentlich „Delete Resource Group“. Was ist richtig?", [
+  ["Dass die Ressourcen in verschiedenen Regionen liegen, war erlaubt.", true],
+  ["Durch das Löschen der Resource Group sind alle Ressourcen darin gelöscht.", true],
+  ["Es gibt keinen Papierkorb – die Datenbank ist unwiederbringlich weg.", true],
+  ["Die Ressourcen bleiben bestehen und landen ohne Resource Group in der Subscription.", false, "Ohne Resource Group keine Ressource."],
+  ["Azure stellt gelöschte Resource Groups automatisch nach 30 Tagen wieder her.", false]
+], "„Damit muss man leben.“"),
+M("itfb3-6", "vo3-green", "Firma A kauft Zertifikate und zahlt einem Waldbesitzer, damit er nicht rodet, und nennt sich „carbon neutral“. Firma B entnimmt jedes Jahr so viel CO₂ aus der Atmosphäre, wie sie ausstößt. Was gilt laut Vortrag?", [
+  ["Firma B ist Net Zero.", true],
+  ["Firma A pflanzt damit keine neuen Bäume und entnimmt kein CO₂ – sie wirkt am Papier grün.", true],
+  ["Würde Firma B mehr entnehmen, als sie ausstößt, wäre sie carbon negative.", true],
+  ["Firma A ist automatisch Net Zero.", false],
+  ["Net Zero heißt, dass Firma B gar kein CO₂ mehr ausstößt.", false, "Es gibt weiter Emissionen, sie werden durch Entnahme ausgeglichen."]
 ], "")
+
 ];
 (X.itinf = X.itinf || []).push({ id: "itinf-mc-faelle", questions });
 })();
