@@ -15,6 +15,7 @@ window.ITINF_M = M;
 const V1 = ["itg-def", "itg-nist", "itg-deploy", "itg-virt", "itg-faas", "itg-svc", "itg-shared", "itg-sla", "itg-scale", "itg-workload", "itg-pa", "itg-cost", "itg-dist", "itg-reg"];
 const V2 = ["itv-region", "itv-az", "itv-green", "itv-rg", "itv-tools"];
 const V3 = ["itv-mgmt", "itv-policy", "itv-iam", "itv-loa", "itv-entra", "itv-users", "itv-rbac"];
+const V4 = ["itv-sfund", "itv-arch", "itv-sa", "itv-red", "itv-blob", "itv-svc", "itv-sec", "itv-prot"];
 
 const questions = [
 /* ---------- Definition & Horseless Carriage ---------- */
@@ -645,7 +646,7 @@ M("itm1-137", "itg-reg", "Welche Anbieter nennt die Folie als europäische oder 
   id: "itinf-mc-v1",
   course: {
     exam: "quicktest", multiOnly: true,
-    quicktest: { units: [{ id: "v1", title: "V1 · Cloud Concepts", topics: V1 }, { id: "v2", title: "V2 · Azure-Architektur", topics: V2 }, { id: "v3", title: "V3 · Governance & Identität", topics: V3 }] },
+    quicktest: { units: [{ id: "v1", title: "V1 · Cloud Concepts", topics: V1 }, { id: "v2", title: "V2 · Azure-Architektur", topics: V2 }, { id: "v3", title: "V3 · Governance & Identität", topics: V3 }, { id: "v4", title: "V4 · Storage & Azure Storage", topics: V4 }] },
     examPrep: {
       format: "Keine Abschlussprüfung mehr: Zu jeder Einheit und Übung gibt es einen Quick-Test auf Deutsch. Fragen sind Multiple Choice mit fünf Antworten, von denen eine bis alle fünf richtig sein können. Es gibt Teilpunkte, die Wertung ist aber streng: Falsche Kreuze ziehen richtige wieder ab. Den Stil der Fragen kennst du aus einer alten Prüfung desselben Lehrteams (WS 2023/24): Definitionen mit ihren Eigenschaften, „Welche … sind richtig?“, Zuordnungen und Begründungen.",
       strategy: [
