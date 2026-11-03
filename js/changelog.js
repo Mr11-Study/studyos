@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.54.0", d: "2026-11-03", t: "IT-Infrastruktur: Fallfragen im Quick-Test", items: [
+    "40 neue Fallfragen für V1 bis V4: Statt kurzer Aussagen beschreibt jede Frage eine Situation aus der Praxis (z. B. ein Ausfall bei MurBikes, eine Policy für 40 Subscriptions, ein falsch geteilter Access Key), und die Antworten sind ganze Sätze mit Entscheidungen und Begründungen.",
+    "Weiterhin Multiple Choice mit fünf Antworten, von denen eine bis alle fünf richtig sind. Die Fallfragen erscheinen automatisch im Quick-Test der jeweiligen Einheit."] },
   { v: "4.53.0", d: "2026-11-03", t: "IT-Infrastruktur: Kapitel V4 Storage", items: [
     "Neues Kapitel V4 „Storage & Azure Storage“ mit 8 Lektionen: Datenarten und Block-, File- & Object-Storage, DAS/NAS/SAN mit Ceph und ZFS, der Storage Account, Redundanz und Failover, Blob Storage mit Tiers, Smart Tier und Lifecycle, Files, Queue, Table und Managed Disks, Security und Netzwerk sowie Backup und Tools. Durchgehend am Beispiel MurBikes aus der Vorlesung.",
     "Drei Simulatoren zum Ausprobieren nach dem Vorbild der Moodle-Seiten: Redundanz und Ausfall (LRS bis RA-GZRS, Failover), ein Tier-Rechner mit Early-deletion Fee und ein Netzwerk-Simulator mit Service Endpoint, Private Endpoint und Exfiltration.",
