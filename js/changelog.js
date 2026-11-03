@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.55.0", d: "2026-11-03", t: "IT-Infrastruktur V4: nach dem gesprochenen Skript", items: [
+    "Das Kapitel V4 Storage folgt jetzt dem gesprochenen Skript vom 2.11.: Aufteilung und Inhalte der acht Lektionen kommen aus dem Vortrag, mit den Beispielen und Hinweisen des Vortragenden (Synology und QuickConnect, Proxmox, Cloud-Shell-Account, US CLOUD Act, Thumbnail-Fabrik, Bookstore …).",
+    "Was nur auf den Folien steht, ist am Ende jeder Lektion als „Zusatz aus den Folien“ markiert und wird nicht mehr abgefragt.",
+    "Übungsfragen, Lernkarten, Kapiteltest, Quick-Test V4 (60 Fragen) und die V4-Fallfragen prüfen nur noch Inhalte aus dem Vortrag."] },
   { v: "4.54.0", d: "2026-11-03", t: "IT-Infrastruktur: Fallfragen im Quick-Test", items: [
     "40 neue Fallfragen für V1 bis V4: Statt kurzer Aussagen beschreibt jede Frage eine Situation aus der Praxis (z. B. ein Ausfall bei MurBikes, eine Policy für 40 Subscriptions, ein falsch geteilter Access Key), und die Antworten sind ganze Sätze mit Entscheidungen und Begründungen.",
     "Weiterhin Multiple Choice mit fünf Antworten, von denen eine bis alle fünf richtig sind. Die Fallfragen erscheinen automatisch im Quick-Test der jeweiligen Einheit."] },

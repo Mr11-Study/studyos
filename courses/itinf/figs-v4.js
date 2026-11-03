@@ -15,41 +15,41 @@ F["itf-bfo"] = { title: "Block, File und Object: Wer kennt was?",
   svg: () => svg(480, 250,
     g({ st: 0 }, r(8, 20, 150, 210, { cls: "fx-soft", rx: 12 }) + t(83, 40, "Block", { fw: 700 }) +
       [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => r(24 + (i % 3) * 40, 54 + Math.floor(i / 3) * 34, 34, 28, { rx: 4, cls: i === 2 || i === 3 || i === 7 ? "fx-acc" : "fx-card" }) + t(41 + (i % 3) * 40, 72 + Math.floor(i / 3) * 34, String(i), { fs: 10 })).join("") +
-      t(83, 172, "nummerierte Blöcke (LBA)", { fs: 10, cls: "fx-sub" }) + t(83, 188, "Host formatiert: ext4, NTFS", { fs: 10, cls: "fx-sub" }) + t(83, 212, "SATA · NVMe · iSCSI · FC", { fs: 10, fw: 600 })) +
+      t(83, 172, "nummerierte Blöcke", { fs: 10, cls: "fx-sub" }) + t(83, 188, "weiß nichts von Dateien", { fs: 10, cls: "fx-sub" }) + t(83, 212, "SATA · NVMe · SCSI · iSCSI", { fs: 10, fw: 600 })) +
     g({ st: 1 }, r(165, 20, 150, 210, { cls: "fx-soft", rx: 12 }) + t(240, 40, "File", { fw: 700 }) +
       t(180, 66, "📁 /shared", { a: "start", fs: 11 }) + t(192, 86, "📁 pricelists/", { a: "start", fs: 11 }) + t(204, 106, "📄 2026-spring.xlsx", { a: "start", fs: 10.5 }) + t(192, 126, "📁 workshop/", { a: "start", fs: 11 }) +
-      t(240, 172, "Pfade, Ordner, ACLs, Locks", { fs: 10, cls: "fx-sub" }) + t(240, 188, "NAS verwaltet die Dateien", { fs: 10, cls: "fx-sub" }) + t(240, 212, "SMB · NFS", { fs: 10, fw: 600 })) +
+      t(240, 172, "Ordner, Unterordner, Dateien", { fs: 10, cls: "fx-sub" }) + t(240, 188, "NAS regelt Konflikte", { fs: 10, cls: "fx-sub" }) + t(240, 212, "SMB · NFS", { fs: 10, fw: 600 })) +
     g({ st: 2 }, r(322, 20, 150, 210, { cls: "fx-soft", rx: 12 }) + t(397, 40, "Object", { fw: 700 }) +
       box(334, 52, 126, 34, "ID: photos/trail29.jpg", { fs: 9, cls: "fx-info" }) + box(334, 90, 126, 30, "color=red · tier=Hot", { fs: 9.5, cls: "fx-vio" }) + box(334, 124, 126, 30, "Daten (Bytes)", { fs: 10, cls: "fx-card" }) +
-      t(397, 172, "flacher Namespace", { fs: 10, cls: "fx-sub" }) + t(397, 188, "Dienst statt Dateisystem", { fs: 10, cls: "fx-sub" }) + t(397, 212, "HTTPS + REST (GET/PUT)", { fs: 10, fw: 600 })) +
+      t(397, 172, "flacher Namespace", { fs: 10, cls: "fx-sub" }) + t(397, 188, "kein Dateisystem", { fs: 10, cls: "fx-sub" }) + t(397, 212, "HTTPS + REST (GET/PUT)", { fs: 10, fw: 600 })) +
     g({ st: 3 }, t(83, 244, "→ Managed Disks", { fs: 11, fw: 700, cls: "t-acc" }) + t(240, 244, "→ Azure Files", { fs: 11, fw: 700, cls: "t-acc" }) + t(397, 244, "→ Blob Storage", { fs: 11, fw: 700, cls: "t-acc" }))),
   steps: [
-    "<b>Block-Storage</b>: Die Disk ist eine Reihe leerer, nummerierter Blöcke. Eine Datei belegt einige davon (markiert). Welche Blöcke zu welcher Datei gehören, weiß nur das <b>Dateisystem des Hosts</b>.",
-    "<b>File-Storage</b>: Ordner, Unterordner, Dateien. Das <b>NAS</b> verwaltet Dateisystem, Berechtigungen und Sperren und liefert Dateien über SMB oder NFS.",
-    "<b>Object-Storage</b>: Jedes Objekt hat eine <b>ID</b>, <b>Metadaten</b> und die <b>Daten</b>. Kein Dateisystem, flacher Namespace, Zugriff über HTTPS und REST.",
-    "In Azure: Block = <b>Managed Disks</b> (Page Blobs), File = <b>Azure Files</b>, Object = <b>Blob Storage</b>. Achtung: Block <i>Blobs</i> sind trotzdem Object-Storage."
+    "<b>Block-Storage</b>: Die Disk ist eine Reihe leerer, nummerierter Blöcke. Eine Datei belegt einige davon (markiert). Der Block-Storage selbst <b>weiß nichts von Dateien</b> – daraus werden Disks mit Partitionen und Dateisystem (ext4, APFS, NTFS).",
+    "<b>File-Storage</b>: Ordner, Unterordner, Dateien. Das <b>NAS</b> liefert sie über SMB oder NFS und regelt, was passiert, wenn zwei gleichzeitig dieselbe Datei bearbeiten.",
+    "<b>Object-Storage</b>: Jedes Objekt hat eine <b>ID</b>, <b>Metadaten</b> und die <b>Daten</b>. Kein Dateisystem, Zugriff über HTTP(S) und eine REST-API – ideal für Dateien, die man „irgendwo hinschmeißen“ will, etwa Videos.",
+    "In Azure: Block = <b>Managed Disks</b>, File = <b>Azure Files</b>, Object = <b>Blob Storage</b>. Achtung: Block <i>Blobs</i> sind trotzdem Object-Storage."
   ] };
 
 /* 2 · Storage Stamp: Front-end, Partition, Stream + Geo-Replikation */
 F["itf-stamp"] = { title: "Hinter dem Endpoint: der Weg eines Schreibvorgangs",
   svg: () => svg(480, 260,
     g({ st: 0 }, laptop(40, 40) + t(40, 66, "Webshop", { fs: 10.5 }) + p("M62 40 L150 40", { cls: "acc", arrow: true, acc: true }) + t(106, 32, "PUT trail29.jpg", { fs: 9.5, cls: "fx-sub" })) +
-    g({ st: 0 }, r(152, 14, 200, 236, { cls: "fx-ghost", rx: 12 }) + t(252, 30, "Storage Stamp · West Europe", { fs: 10.5, fw: 700 })) +
+    g({ st: 0 }, r(152, 14, 200, 236, { cls: "fx-ghost", rx: 12 }) + t(252, 30, "Storage Account · West Europe", { fs: 10.5, fw: 700 })) +
     g({ st: 1, hl: 1 }, lay(40, "fx-info", "Front-end Layer", "AuthN/AuthZ · Routing")) +
-    g({ st: 2, hl: 2 }, lay(96, "fx-vio", "Partition Layer", "Partitionen · Geo-Replikation") + l(252, 80, 252, 96, { cls: "acc", arrow: true, acc: true })) +
-    g({ st: 3, hl: 3 }, lay(152, "fx-warn", "Stream Layer", "Extents · 3 synchrone Kopien") + l(252, 136, 252, 152, { cls: "acc", arrow: true, acc: true }) +
+    g({ st: 2, hl: 2 }, lay(96, "fx-vio", "Partition Layer", "Dienste · Geo-Replikation") + l(252, 80, 252, 96, { cls: "acc", arrow: true, acc: true })) +
+    g({ st: 3, hl: 3 }, lay(152, "fx-warn", "Stream Layer", "Bits auf mehreren Platten") + l(252, 136, 252, 152, { cls: "acc", arrow: true, acc: true }) +
       disk(198, 220) + disk(252, 220) + disk(306, 220) + l(220, 192, 198, 208, { cls: "thin" }) + l(252, 192, 252, 208, { cls: "thin" }) + l(284, 192, 306, 208, { cls: "thin" })) +
     g({ st: 4 }, p("M150 60 L64 60", { cls: "acc", arrow: true, acc: true }) + t(106, 76, "201 Created", { fs: 11, fw: 700, cls: "t-ok" })) +
     g({ st: 5 }, r(372, 80, 100, 140, { cls: "fx-soft", rx: 10 }) + t(422, 98, "North Europe", { fs: 10.5, fw: 700 }) + t(422, 112, "(Paired Region)", { fs: 9.5, cls: "fx-sub" }) +
       disk(394, 150, "fx-mute") + disk(422, 150, "fx-mute") + disk(450, 150, "fx-mute") + t(422, 190, "LRS", { fs: 10.5, fw: 600 }) +
       p("M340 116 C356 116 360 140 372 140", { cls: "fx-dashacc", arrow: true }) + t(422, 210, "async · RPO &lt; 15 min", { fs: 9, cls: "fx-sub" }) + dot("M340 116 C356 116 360 140 372 140", { dur: 2.4 }))),
   steps: [
-    "Der Webshop schreibt <code>PUT https://murbikesweb.blob.core.windows.net/photos/trail29.jpg</code>. DNS liefert die IP eines <b>Storage Stamps</b> – eines Clusters aus Racks in einem Rechenzentrum.",
-    "<b>Front-end Layer</b>: prüft, wer schreibt (Entra ID, SAS oder Key) und ob er darf. Dann leitet er an den richtigen Partition Server weiter.",
-    "<b>Partition Layer</b>: kennt Blobs, Tables, Queues und Files, teilt die Daten in Partitionen (Lastverteilung).",
-    "<b>Stream Layer</b>: schreibt die Bits in Extents – <b>dreimal synchron</b> auf verschiedene Fault Domains (LRS) oder Zonen (ZRS).",
-    "Erst wenn alle drei Kopien geschrieben sind, bekommt der Webshop <b>201 Created</b>. Deshalb gehen bei LRS/ZRS keine bestätigten Daten verloren.",
-    "Bei GRS/GZRS kopiert der <b>Partition Layer</b> danach <b>asynchron</b> in die Paired Region (dort wieder LRS). Bis die Kopie ankommt, entsteht ein Loch – die <b>RPO</b>, typisch unter 15 Minuten, ohne SLA."
+    "Der Webshop schreibt <code>PUT https://murbikesweb.blob.core.windows.net/photos/trail29.jpg</code>. Hinter dem Endpoint liegt der Speicher in <b>drei Schichten</b>.",
+    "<b>Front-end Layer</b>: klärt, <b>wer überhaupt zugreifen darf</b> – erst authentifizieren und autorisieren, dann geht es zu den unteren Schichten.",
+    "<b>Partition Layer</b>: stellt die <b>Dienste</b> bereit: Blobs, Files, Queues und Tables.",
+    "<b>Stream Layer</b>: hier geht es wirklich um die <b>Bits</b>: Sie liegen auf Festplatten an <b>mehreren Orten</b> – ähnlich wie bei einem RAID (LRS: drei Disks, ZRS: drei Zonen).",
+    "Erst wenn alle drei Kopien geschrieben sind, bekommt der Webshop <b>201</b> – das ist <b>synchron</b>.",
+    "Bei GRS/GZRS kopiert der <b>Partition Layer</b> danach <b>asynchron</b> in die Paired Region (dort wieder LRS). Bis die Kopie ankommt, entsteht ein Loch mit ungleichem Datenstand – die <b>RPO</b>, typisch unter 15 Minuten, garantiert ist nichts."
   ] };
 
 /* 3 · Simulator: Redundanz & Ausfall (nach 01-redundancy.html) */
