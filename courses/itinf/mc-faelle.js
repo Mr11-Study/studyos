@@ -194,7 +194,7 @@ M("itfa3-8", "itv-rbac", "Ein Global Administrator in Entra ID wundert sich, das
 
 /* ================= V4 · Storage ================= */
 M("itfa4-1", "itv-red", "MurBikes speichert Rechnungen, die sieben Jahre aufbewahrt werden müssen und sogar den Verlust der ganzen Region West Europe überstehen sollen. Der Webshop soll außerdem bei einem Regionsausfall Produktdaten weiter lesen können. Welche Entscheidungen sind richtig?", [
-  ["Für die Rechnungen GZRS (oder GRS) wählen.", true],
+  ["Für die Rechnungen GZRS wählen.", true],
   ["Für die Produktdaten RA-GZRS wählen, damit man über den Secondary Endpoint lesen kann.", true],
   ["Zusätzlich Immutable Storage und Soft Delete für die Rechnungen einschalten, weil Redundanz kein Backup ist.", true],
   ["LRS reicht für die Rechnungen, weil es auch drei Kopien hat.", false, "Alle drei liegen an einem Ort."],
@@ -207,33 +207,33 @@ M("itfa4-2", "itv-red", "Um 10:00 fällt West Europe komplett aus. Der Storage A
   ["Es geht garantiert nichts verloren, weil die RPO per SLA bei 0 liegt.", false, "Typisch < 15 min, ohne SLA."],
   ["Die Daten nach 09:52 werden später automatisch nachgeliefert.", false]
 ], ""),
-M("itfa4-3", "itv-blob", "Die Buchhaltung braucht Rechnungen vom letzten Jahr nur selten, 4–7 Jahre alte praktisch nie, darf aber nicht vergessen, sie nach sieben Jahren zu löschen. Welche Lösung entspricht der Folie?", [
-  ["Eine Lifecycle-Regel für das Präfix invoices/ anlegen.", true],
-  ["Nach 30 Tagen nach Cool, nach 365 nach Cold, nach 1095 nach Archive verschieben.", true],
-  ["Nach rund 2600 Tagen automatisch löschen.", true],
-  ["Die Regeln greifen sofort in derselben Sekunde.", false, "Einmal täglich, bis zu 24 h."],
-  ["Rechnungen im Archive Tier sind in Millisekunden lesbar.", false, "Rehydrierung bis 15 h."]
+M("itfa4-3", "itv-blob", "Die Buchhaltung braucht Rechnungen vom letzten Jahr nur selten, zwei bis drei Jahre alte kaum und vier bis sieben Jahre alte praktisch nie. Nach sieben Jahren müssen sie gelöscht werden, und niemand soll daran denken müssen. Was entspricht dem Vortrag?", [
+  ["Rechnungen vom letzten Jahr in Cool, zwei bis drei Jahre alte in Cold, vier bis sieben Jahre alte in Archive.", true],
+  ["Eine Lifecycle-Regel als Wenn-dann-Anweisung, die die Rechnungen nach sieben Jahren automatisch löscht.", true],
+  ["Die Lifecycle-Regel läuft einmal täglich; eine Änderung kann bis zu 24 Stunden brauchen, bis sie greift.", true],
+  ["Rechnungen im Archive Tier sind wie in Hot sofort lesbar.", false, "Erst rehydrieren: bis 15 h, mit hoher Priorität meist < 1 h."],
+  ["Alle Rechnungen bleiben am besten in Hot, weil dort das Speichern am billigsten ist.", false, "In Hot ist das Speichern am teuersten."]
 ], ""),
-M("itfa4-4", "itv-blob", "Ein Entwickler verschiebt 500 GB Testdaten in den Archive Tier und löscht sie schon nach 60 Tagen wieder. Er wundert sich über eine zusätzliche Gebühr. Was ist passiert?", [
-  ["Archive hat eine Mindestdauer von 180 Tagen.", true],
-  ["Er zahlt eine Early-deletion Fee für die restlichen Tage.", true],
-  ["Die Gebühr wäre auch bei Löschen nach 200 Tagen angefallen.", false, "Nach 180 Tagen nicht mehr."],
-  ["Archive hat keine Mindestdauer, die Gebühr ist ein Fehler.", false],
-  ["Die Gebühr entsteht, weil Archive nur in Premium-Accounts erlaubt ist.", false, "Tiers gibt es nur bei Standard GPv2."]
+M("itfa4-4", "itv-blob", "Ein Entwickler bei MurBikes will sich nicht mehr selbst darum kümmern, welche Produktbilder in welchem Tier liegen. Manche Bilder werden monatelang nicht angesehen, dann plötzlich wieder oft. Der Account ist zonenredundant. Was gilt, wenn er Smart Tier einschaltet?", [
+  ["Bilder ohne Zugriff wandern nach 30 Tagen von Hot nach Cool und nach weiteren 60 Tagen nach Cold.", true],
+  ["Sobald ein Bild wieder gelesen wird, geht es sofort zurück nach Hot.", true],
+  ["Es fallen keine Gebühren für Tier-Wechsel oder Abruf an, nur eine kleine Monitoring-Gebühr pro Objekt.", true],
+  ["Sehr kleine Bilder unter 128 KiB bleiben einfach in Hot.", true],
+  ["Nach 180 Tagen ohne Zugriff verschiebt Smart Tier die Bilder automatisch nach Archive.", false, "Smart Tier geht bis Cold."]
+], "Smart Tier ist seit 14. April 2026 allgemein verfügbar und braucht einen zonenredundanten Account."),
+M("itfa4-5", "itv-svc", "Die Filialen Graz und Leoben arbeiten heute mit einem Windows-Fileserver im Keller. Sie wollen die Daten zentral in Azure haben, die gewohnten Laufwerke behalten und an beiden Standorten dieselben Dateien sehen. Was passt?", [
+  ["Azure Files als Dateifreigabe in der Cloud – Lift and Shift des Fileservers.", true],
+  ["Azure File Sync mit einem Storage Sync Service und dem Sync Agent auf einem Windows Server pro Standort.", true],
+  ["Die Server werden mit Subscription, Resource Group und Sync Service registriert.", true],
+  ["Unter Windows muss zum direkten Einbinden Port 445 offen sein, sonst VPN oder File Sync.", true],
+  ["Blob Storage mit flachem Namespace, weil man dort Ordner gratis verschieben kann.", false, "Verschieben heißt dort kopieren und löschen."]
 ], ""),
-M("itfa4-5", "itv-svc", "Die Filialen Graz und Leoben arbeiten heute mit einem Windows-Fileserver im Keller. Sie wollen die Daten zentral in Azure haben, die gewohnten Laufwerke behalten und auch lokal schnell zugreifen können. Was passt?", [
-  ["Azure Files als Dateifreigabe in der Cloud (Lift and Shift).", true],
-  ["Azure File Sync mit dem Agent auf einem Windows Server pro Standort.", true],
-  ["Der Cloud Endpoint der Sync Group ist der Azure File Share.", true],
-  ["Unter Windows muss für SMB Port 445 erreichbar sein, sonst VPN oder File Sync.", true],
-  ["Blob Storage mit flachem Namespace, weil Ordner dort atomar umbenannt werden.", false]
-], ""),
-M("itfa4-6", "itv-svc", "Kunden laden in der MurBikes-App Fotos hoch. Daraus sollen Thumbnails entstehen, ohne dass die App beim Hochladen warten muss. Auch bei Lastspitzen darf kein Auftrag verloren gehen. Welche Architektur passt?", [
-  ["Die App speichert das Foto im Blob-Container und legt die URL als Nachricht in eine Queue.", true],
-  ["Ein Worker oder eine Azure Function mit Queue-Trigger holt die Nachricht ab und erzeugt das Thumbnail.", true],
-  ["Bei Lastspitzen warten die Nachrichten in der Queue, die Komponenten sind entkoppelt.", true],
+M("itfa4-6", "itv-svc", "Kunden laden in der MurBikes-App Fotos hoch. Daraus sollen Thumbnails entstehen, ohne dass die App beim Hochladen warten muss. Welche Architektur entspricht dem Beispiel aus dem Vortrag?", [
+  ["Die App speichert das Foto im Blob-Container und legt dessen URL als Nachricht in eine Queue.", true],
+  ["Ein Worker holt sich die URL, lädt das Foto, erzeugt das Thumbnail und speichert es in einem anderen Container.", true],
+  ["Statt eines eigenen Workers kann eine Azure Function mit Queue-Trigger das Abfragen übernehmen.", true],
   ["Die Thumbnails können LRS sein, weil sie jederzeit neu erzeugt werden können.", true],
-  ["In die Queue kommt nur die URL, weil Nachrichten höchstens 64 KiB groß sein dürfen.", true]
+  ["Die Storage Queue pusht jede Nachricht aktiv an den Worker.", false, "Der Worker fragt die Queue ab."]
 ], ""),
 M("itfa4-7", "itv-svc", "Für die Datenbank der Webshop-VM wird eine schnelle Disk gebraucht. Der Chef will sie zusätzlich „auf GRS stellen“, damit sie einen Regionsausfall übersteht. Was antwortest du?", [
   ["Managed Disks gibt es nur als LRS oder ZRS, nicht als GRS.", true],
@@ -242,19 +242,19 @@ M("itfa4-7", "itv-svc", "Für die Datenbank der Webshop-VM wird eine schnelle Di
   ["Die Disk kann man einfach in einen GPv2-Account mit RA-GZRS verschieben.", false],
   ["Ein Backup ist überflüssig, weil die Disk ohnehin drei Kopien hat.", false]
 ], ""),
-M("itfa4-8", "itv-sec", "Ein externer Lackierer soll eine Stunde lang ein einziges Foto herunterladen können. Gleichzeitig will die IT, dass niemand mehr mit den Access Keys arbeitet. Welche Vorgehensweisen sind richtig?", [
-  ["Shared-Key-Zugriff im Storage Account deaktivieren.", true],
-  ["Eine User Delegation SAS mit Leserecht und einer Stunde Gültigkeit erstellen.", true],
-  ["Die User Delegation SAS wird mit Entra-ID-Anmeldedaten signiert und gilt höchstens 7 Tage.", true],
-  ["Dem Lackierer einen der beiden Access Keys schicken, weil das am einfachsten ist.", false, "Keys = Root-Passwort, Vollzugriff."],
-  ["Den Container auf „Container“ (anonym) stellen, damit er alles auflisten kann.", false]
+M("itfa4-8", "itv-sec", "Ein externer Lackierer soll eine Stunde lang ein einziges Foto herunterladen können. Gleichzeitig will die IT, dass die eigene Web-App nicht mehr mit den Access Keys arbeitet. Welche Vorgehensweisen sind richtig?", [
+  ["Für die Web-App einen Service Principal bzw. eine Managed Identity mit RBAC verwenden.", true],
+  ["Für den Lackierer eine User Delegation SAS mit Leserecht und einer Stunde Gültigkeit erstellen.", true],
+  ["Die User Delegation SAS wird mit Entra-ID-Anmeldedaten signiert und gilt höchstens sieben Tage.", true],
+  ["Dem Lackierer einen der beiden Access Keys schicken, weil das am einfachsten ist.", false, "Wer einen Key hat, kann alle Daten lesen."],
+  ["Den Container auf anonymen Zugriff stellen, damit er an alles kommt.", false]
 ], ""),
-M("itfa4-9", "itv-sec", "Anna ist Owner der Resource Group und will im Lab mit „az storage blob upload … --auth-mode login“ eine Datei hochladen. Sie bekommt einen Fehler „not authorized“. Warum?", [
-  ["Owner gehört zur Control Plane und erlaubt keinen Datenzugriff über Entra ID.", true],
-  ["Sie braucht eine Datenrolle wie Storage Blob Data Contributor.", true],
-  ["Der Fehler kommt, weil Owner zu wenig Rechte für die Control Plane hat.", false],
-  ["Mit einem Account Key ginge es, aber im Lab ist Shared Key deaktiviert.", true],
-  ["Der Blob-Name ist zu lang.", false]
+M("itfa4-9", "itv-sec", "Anna ist Owner der Resource Group, in der der Storage Account liegt. Sie meldet sich mit ihrem Entra-ID-Konto an und will Blobs lesen, bekommt aber „not authorized“. Was ist richtig?", [
+  ["Owner erlaubt die Verwaltung des Accounts, aber nicht automatisch das Lesen der Daten über Entra ID.", true],
+  ["Sie braucht eine Datenrolle wie Storage Blob Data Reader oder Storage Blob Data Contributor.", true],
+  ["Mit einem Account Key käme sie zwar an alle Daten, Keys sollte man aber nicht verwenden.", true],
+  ["Owner hat zu wenig Rechte, um den Storage Account zu verwalten.", false],
+  ["Der Fehler kommt, weil die Daten mit AES-256 verschlüsselt sind.", false, "Die Verschlüsselung ist transparent."]
 ], ""),
 M("itfa4-10", "itv-sec", "Ein Mitarbeiter mit Zugriff auf den Webserver im VNet versucht, Kundendaten in seinen privaten Storage Account zu kopieren. Außerdem soll der MurBikes-Account aus dem Internet gar nicht mehr erreichbar sein. Was hilft?", [
   ["Eine Service Endpoint Policy erlaubt dem Subnetz nur Verbindungen zu den eigenen Storage Accounts.", true],
@@ -263,28 +263,28 @@ M("itfa4-10", "itv-sec", "Ein Mitarbeiter mit Zugriff auf den Webserver im VNet 
   ["Die Firewall des MurBikes-Accounts verhindert auch das Schreiben in einen fremden Account.", false, "Sie schützt nur den eigenen Account."],
   ["Mit Private Endpoint ist der Account auch von on-prem über VPN erreichbar.", true]
 ], ""),
-M("itfa4-11", "itv-prot", "Ransomware auf einem Büro-PC in Leoben verschlüsselt das gemappte Azure File Share. Der Account ist GZRS. Die IT sagt: „Kein Problem, wir haben sechs Kopien.“ Was ist richtig?", [
-  ["Die Aussage ist falsch: Die Verschlüsselung wird in Sekunden in alle Kopien repliziert.", true],
-  ["Retten können Share Snapshots oder Azure Backup für Files.", true],
-  ["Soft Delete für das Share schützt zusätzlich vor dem Löschen.", true],
+M("itfa4-11", "itv-prot", "Ransomware auf einem Büro-PC in Leoben verschlüsselt das eingebundene Azure File Share. Der Account ist GZRS. Die IT sagt: „Kein Problem, wir haben sechs Kopien.“ Was ist richtig?", [
+  ["Die Aussage ist falsch: Replikation hilft gar nicht, die verschlüsselten Daten werden sofort mitrepliziert.", true],
+  ["Retten können Snapshots von vorher oder ein Backup, etwa mit Azure Backup.", true],
+  ["Nach der 3-2-1-Regel sollte eine Kopie an einem anderen Ort und auf einem anderen Medium liegen.", true],
   ["Ein Failover nach North Europe stellt die unverschlüsselten Dateien wieder her.", false, "Dort sind sie ebenfalls verschlüsselt."],
-  ["Nach der 3-2-1-Regel sollte eine Kopie off-site und am besten immutable sein.", true]
-], "Redundanz ist kein Backup."),
+  ["Ein Resource Lock hätte die Verschlüsselung verhindert.", false, "Ein Lock schützt nur gegen das Löschen der Ressource."]
+], "Ransomware → Backup."),
 M("itfa4-12", "itv-prot", "MurBikes will 120 TB Videoarchiv aus dem Keller nach Azure bringen. Die Internetleitung hat 1 Gbit/s. Welche Überlegungen sind richtig?", [
-  ["Schon 100 TB dauern über 1 Gbit/s bei voller Geschwindigkeit mehr als 9 Tage.", true],
+  ["Schon 100 TB dauern über 1 Gbit/s bei voller Geschwindigkeit mehr als neun Tage.", true],
   ["Azure Data Box (Gerät von Microsoft) oder Import/Export (eigene Platten) sind sinnvoll.", true],
-  ["Für kleinere Mengen kopiert AzCopy schnell und parallel über das Netz.", true],
-  ["Import/Export kann Daten später auch aus Azure Files exportieren.", false, "Export nur aus Blobs."],
-  ["Lange Archivvideos können danach per Lifecycle in kalte Tiers wandern.", true]
+  ["Für kleinere Mengen kopiert AzCopy schnell über die Kommandozeile.", true],
+  ["Lange nicht angesehene Archivvideos können danach per Lifecycle in kalte Tiers wandern.", true],
+  ["Über 1 Gbit/s sind 120 TB in wenigen Stunden hochgeladen.", false]
 ], ""),
 M("itfa4-13", "itv-sfund", "Ein Kollege sagt: „Block Blobs sind Block-Storage, deshalb kann ich mein Linux-Dateisystem direkt darauf anlegen.“ Was ist richtig?", [
   ["Block Blobs sind Object-Storage und werden über HTTPS und die REST-API angesprochen.", true],
   ["„Block“ bedeutet, dass Linux den Blob als /dev/sdc sieht.", false],
-  ["Ein Dateisystem legt man auf einer Managed Disk an, die technisch ein Page Blob ist.", true],
+  ["Ein Dateisystem legt man auf einer Disk an – Page Blobs sind tatsächlich auf Block-Ebene.", true],
   ["Die Aussage stimmt: Block Blobs werden wie eine LUN formatiert.", false],
-  ["Bei Block-Storage formatiert das NAS die Disk.", false, "Der Host formatiert."]
+  ["Bei Block-Storage regelt das NAS, wer gleichzeitig schreibt.", false, "Block-Storage weiß nichts von Dateien."]
 ], ""),
-M("itfa4-14", "itv-arch", "Ein kleiner Betrieb mit 25 Mitarbeitenden fragt, ob er für seinen Fileserver ein SAN mit Fibre Channel anschaffen soll. Was ist eine gute Antwort?", [
+M("itfa4-14", "itv-arch", "Ein kleiner Betrieb fragt, ob er für seinen Fileserver ein SAN mit Fibre Channel anschaffen soll. Was ist eine gute Antwort?", [
   ["Für eine kleine Firma ist ein SAN Overkill – Aufbau, Betrieb und Know-how sind teuer.", true],
   ["Für gemeinsame Ordner reicht ein NAS oder in der Cloud Azure Files.", true],
   ["Ein SAN liefert Blöcke (LUNs), die der Server selbst formatiert, keine Freigaben auf Datei-Ebene.", true],
