@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.57.0", d: "2026-11-03", t: "IT-Infrastruktur: V2 und V3 genau nach den Vorlesungen", items: [
+    "V2 enthält jetzt genau das, was am 8.10. gesagt wurde: KI im Studium, CapEx/OpEx und TCO, die Azure-Preismodelle mit passenden Workloads, Kostenfallen und Budget-Alerts, Markt und Hype Cycle, die fünf Gebote, die acht Fallacies, Lock-in und Ausfälle, DSGVO, CLOUD Act, NIS2, Souveränität und Energie.",
+    "V3 enthält genau die Vorlesung vom 13.10.: Atomstrom, Zusammenfassung und die sieben Wiederholungsfragen, Rechenzentren und Global Network, Regionen, Region Pairs, Geografien, Availability Zones und SLAs, PUE/WUE mit den Rechenbeispielen, Net Zero und Resource Groups.",
+    "Folien-Inhalte stehen in jeder Lektion nur noch als eingeklappter „Zusatz aus den Folien“ und werden nicht abgefragt. Dazu 274 Übungsfragen, 51 Lernkarten, 73 Quick-Test-Fragen und 12 neue Fallfragen.",
+    "Folien ohne Vortrag sind ein eigenes Kapitel: „Nur Folien · Governance & Identität“ (Entra-Foliensatz) und „Folien-Fassung · Azure Datacenter“ (mit Tags, ARM, Werkzeugen) stehen nach V4 und haben eigene Quick-Tests."] },
   { v: "4.56.0", d: "2026-11-03", t: "IT-Infrastruktur V4: Teil A der Vorlesung vom 2.11.", items: [
     "V4 beginnt jetzt wie die Vorlesung vom 2.11. mit dem Abschluss des Entra-Foliensatzes: drei Benutzerarten, Security- und dynamische Gruppen, Administrative Units, Azure RBAC, die zwei getrennten Rollensysteme (RBAC vs. Entra-Rollen), Microsoft Graph und die klassischen Administratoren.",
     "Dazu 26 Übungsfragen, 6 Lernkarten und 7 neue Fragen im Quick-Test V4."] },
