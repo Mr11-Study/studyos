@@ -4,6 +4,57 @@
 (function () {
 const M = window.ITINF_M, X = window.STUDYOS_EXT = window.STUDYOS_EXT || {}; if (!M) return;
 const questions = [
+/* ---------- Teil A: Gruppen, Administrative Units, RBAC, Entra-Rollen ---------- */
+M("itm4-61", "itv-adm", "Welche Aussagen zu den Benutzerarten aus dem Rückblick sind richtig?", [
+  ["Gastbenutzer werden eingeladen, so wie die Studierenden im Übungs-Tenant.", true],
+  ["Cloud-Benutzer legt man direkt im Tenant an.", true],
+  ["Benutzer aus einem lokalen AD synchronisiert man mit Entra Connect Sync oder Cloud Sync.", true],
+  ["Beim Synchronisieren bleiben alle OUs erhalten.", false, "OUs und andere AD-Konzepte gehen verloren."],
+  ["Gruppenrichtlinien übernimmt in der Cloud Microsoft Graph.", false, "Vor allem Microsoft Intune."]
+], ""),
+M("itm4-62", "itv-adm", "Welche Aussagen zu Gruppen sind richtig?", [
+  ["Über eine Security Group gibt man vielen Benutzern auf einmal Rechte.", true],
+  ["Dynamische Gruppen füllen sich automatisch nach einer Regel wie „Abteilung IT“.", true],
+  ["Für dynamische Gruppen braucht man eine Entra-ID-P1-Lizenz.", true],
+  ["Wechselt jemand die Abteilung, ändert man nur das Attribut beim Benutzer.", true],
+  ["Microsoft-365-Gruppen dienen nur dazu, VMs zu verwalten.", false, "Sie sind für Zusammenarbeit: Postfach, Kalender, SharePoint, Teams."]
+], ""),
+M("itm4-63", "itv-adm", "Was gilt für Administrative Units?", [
+  ["Ein Mini-Administrator kann für seinen Bereich Passwörter zurücksetzen und Lizenzen vergeben.", true],
+  ["Jeder dieser Administratoren braucht eine P1-Lizenz.", true],
+  ["Sie sind eine eigene Azure-Region.", false],
+  ["Sie ersetzen Resource Groups.", false],
+  ["Sie sind ein Scope für Azure-RBAC-Rollen auf VMs.", false, "Sie sind ein Scope für Entra-Rollen."]
+], ""),
+M("itm4-64", "itv-adm", "Welche Aussagen zu Azure RBAC sind richtig?", [
+  ["Eine Role Definition ist technisch ein JSON-Dokument.", true],
+  ["Ein Service Principal ist ein Konto für eine Anwendung oder einen Rechner.", true],
+  ["Ein Role Assignment verbindet Principal und Rolle und legt den Scope fest.", true],
+  ["Owner auf einer Management Group darf in allen Resource Groups darunter alles ändern.", true],
+  ["Rechte gelten nur genau auf der Ebene, auf der sie vergeben wurden.", false, "Sie werden vererbt."]
+], ""),
+M("itm4-65", "itv-adm", "Welche Zuordnungen zum Rollensystem sind richtig?", [
+  ["Global Administrator → Entra-Rolle", true],
+  ["Owner auf einer Resource Group → Azure RBAC", true],
+  ["Scope Administrative Unit → Entra-Rolle", true],
+  ["User Administrator → Azure RBAC", false],
+  ["Reader → Entra-Rolle", false]
+], ""),
+M("itm4-66", "itv-adm", "Wie kommt ein Global Administrator zu Rechten auf Azure-Ressourcen?", [
+  ["Per „Elevate access“ als User Access Administrator auf der obersten Ebene von Azure", true],
+  ["Automatisch, Global Admin ist immer Owner auf allen Subscriptions", false],
+  ["Über eine dynamische Gruppe", false],
+  ["Über Microsoft Intune", false],
+  ["Gar nicht, das ist unmöglich", false]
+], ""),
+M("itm4-67", "itv-adm", "Welche Aussagen zu Microsoft Graph und den klassischen Administratoren sind richtig?", [
+  ["Microsoft Graph ist eine API über Microsoft 365 und Entra ID.", true],
+  ["Über Graph kann man einer App z. B. erlauben, einen Raumkalender zu lesen.", true],
+  ["Bei neuen Subscriptions gibt es die klassischen Administratoren nicht mehr.", true],
+  ["Restliche klassische Zuweisungen wurden bis Mai 2026 in Owner umgewandelt.", true],
+  ["Co-Administrator ist der empfohlene Weg für neue Subscriptions.", false]
+], ""),
+
 /* ---------- Einstieg, Datenarten, Block/File/Object ---------- */
 M("itm4-1", "itv-sfund", "Welche Aussagen zu den Datenarten aus dem Vortrag sind richtig?", [
   ["Bei einer Datenbank ist eine Änderung der Tabelle eine Schemaänderung, die man planen muss.", true],

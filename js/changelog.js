@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.56.0", d: "2026-11-03", t: "IT-Infrastruktur V4: Teil A der Vorlesung vom 2.11.", items: [
+    "V4 beginnt jetzt wie die Vorlesung vom 2.11. mit dem Abschluss des Entra-Foliensatzes: drei Benutzerarten, Security- und dynamische Gruppen, Administrative Units, Azure RBAC, die zwei getrennten Rollensysteme (RBAC vs. Entra-Rollen), Microsoft Graph und die klassischen Administratoren.",
+    "Dazu 26 Übungsfragen, 6 Lernkarten und 7 neue Fragen im Quick-Test V4."] },
   { v: "4.55.0", d: "2026-11-03", t: "IT-Infrastruktur V4: nach dem gesprochenen Skript", items: [
     "Das Kapitel V4 Storage folgt jetzt dem gesprochenen Skript vom 2.11.: Aufteilung und Inhalte der acht Lektionen kommen aus dem Vortrag, mit den Beispielen und Hinweisen des Vortragenden (Synology und QuickConnect, Proxmox, Cloud-Shell-Account, US CLOUD Act, Thumbnail-Fabrik, Bookstore …).",
     "Was nur auf den Folien steht, ist am Ende jeder Lektion als „Zusatz aus den Folien“ markiert und wird nicht mehr abgefragt.",
