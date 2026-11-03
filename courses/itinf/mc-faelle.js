@@ -376,7 +376,51 @@ M("itfb3-6", "vo3-green", "Firma A kauft Zertifikate und zahlt einem Waldbesitze
   ["Würde Firma B mehr entnehmen, als sie ausstößt, wäre sie carbon negative.", true],
   ["Firma A ist automatisch Net Zero.", false],
   ["Net Zero heißt, dass Firma B gar kein CO₂ mehr ausstößt.", false, "Es gibt weiter Emissionen, sie werden durch Entnahme ausgeglichen."]
-], "")
+], ""),
+
+/* ---- V1 · Vorlesung 28.09. (Fallfragen) ---- */
+M("itfb1-1", "vo1-pa", "Eine Grazer Firma rechnet: Ein Server kostet in-house 1 € pro Stunde. Ihr Workload braucht in der Spitze 10 Server, im Durchschnitt 2. Die Cloud verlangt 3 € pro Server-Stunde. Was ist dazu laut V1 richtig?", [
+  ["p/a ist 5.", true],
+  ["Die Cloud darf hier bis zu fünfmal so teuer sein wie in-house.", true],
+  ["Mit c/d = 3 ist die Cloud in diesem Fall günstiger.", true],
+  ["Weil die Cloud pro Stunde teurer ist, lohnt sie sich nie.", false, "Die Cloud darf pro Einheit teurer sein, solange c/d < p/a."],
+  ["Bei konstanter Last von 10 Servern wäre die Cloud noch günstiger.", false, "Dann wäre p/a = 1."]
+], "c/d = 3 < p/a = 5."),
+M("itfb1-2", "vo1-sla", "Ein Webshop braucht gleichzeitig App Service (99,95 %), eine SQL-Datenbank (99,99 %) und Storage (99,9 %). Was ist laut V1 richtig?", [
+  ["Die drei Werte werden multipliziert, weil alle gebraucht werden.", true],
+  ["Das Gesamt-SLA ist schlechter als 99,9 %.", true],
+  ["Läge der ganze Shop zusätzlich redundant in einer zweiten Region, stiege die Verfügbarkeit.", true],
+  ["Das Gesamt-SLA ist 99,99 %, weil man den besten Wert nimmt.", false],
+  ["Das SLA ist eine Messung der tatsächlichen Ausfälle.", false, "Eine vertragliche Garantie."]
+], "≈ 99,84 %, rund 14 Stunden pro Jahr."),
+M("itfb1-3", "vo1-shared", "Ein Start-up betreibt seinen Shop auf einer Azure-VM mit eigenem SQL Server und speichert Kundendaten in Outlook und OneDrive. Was gilt laut V1?", [
+  ["Die Sicherheitspatches für das Betriebssystem der VM muss das Start-up selbst einspielen.", true],
+  ["Die VM mit eigenem SQL Server ist IaaS.", true],
+  ["Für die Kundendaten in Outlook ist das Start-up verantwortlich.", true],
+  ["Um das physische Netzwerk und die physischen Hosts kümmert sich Microsoft.", true],
+  ["Weil Outlook SaaS ist, verwaltet Microsoft auch die Verantwortung für die Daten.", false, "Daten und Zugriff sind immer grün – Kunde."]
+], ""),
+M("itfb1-4", "vo1-virt", "Ein Webshop läuft auf einem Bare-Metal-Server, der für den Abend-Peak gekauft wurde. Nachts ist kaum Last. Das Team überlegt, Bestellbestätigungen und Bildverkleinerung als Azure Functions umzusetzen. Was ist laut V1 richtig?", [
+  ["Der Server ist die meiste Zeit überdimensioniert – man zahlt für Leistung, die man nicht braucht.", true],
+  ["Die Bestellbestätigung kann über einen HTTP-Trigger laufen.", true],
+  ["Das Verkleinern hochgeladener Bilder kann ein Blob-Upload auslösen.", true],
+  ["Ohne Aufrufe entstehen für die Functions in der Public Cloud keine Kosten.", true],
+  ["Functions haben keine Grenzen – Cold Starts und Laufzeitlimits gibt es nicht.", false]
+], "Scale to Zero."),
+M("itfb1-5", "vo1-benefit", "Eine Firma betreibt ihre App auf einer einzigen großen VM. Sie fällt wegen eines Netzwerkproblems aus. Die Daten sind repliziert, aber jemand hat vor zwei Wochen versehentlich Dateien überschrieben. Was gilt laut V1?", [
+  ["Die eine große VM war ein Single Point of Failure.", true],
+  ["Mit horizontalem Skalieren (mehrere kleine Instanzen) hätten andere Instanzen den Ausfall kompensiert.", true],
+  ["Replikation allein bringt die Dateien von vor zwei Wochen nicht automatisch zurück.", true],
+  ["Dafür bräuchte die Firma ein Backup, für das sie sich bewusst entscheiden und bezahlen muss.", true],
+  ["Vertikales Skalieren hätte den Ausfall verhindert.", false, "Die App bliebe auf derselben einen Maschine."]
+], "Replikation ≠ Backup."),
+M("itfb1-6", "vo1-gran", "Lisa isst jeden Arbeitstag mittags eine Pizza. Ihr Bruder lädt etwa zweimal im Monat die Familie in die Pizzeria ein (4 Pizzen, 7 im Monat). Was ist laut V1 richtig?", [
+  ["Lisas Workload ist statisch mit p/a ≈ 1,4.", true],
+  ["Für Lisa lohnt sich eher die eigene Ausstattung (on-premises).", true],
+  ["Der Workload des Bruders ist unvorhersehbar mit p/a ≈ 17,1.", true],
+  ["Für den Bruder darf der Anbieter bis zu 17-mal so viel verlangen.", true],
+  ["Bei beiden lohnt sich ein eigener Pizzaofen gleich stark.", false]
+], "Kostenvorteile entstehen aus dem Workload.")
 
 ];
 (X.itinf = X.itinf || []).push({ id: "itinf-mc-faelle", questions });

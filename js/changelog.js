@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.58.0", d: "2026-11-03", t: "IT-Infrastruktur: V1 genau nach der Vorlesung vom 28.09.", items: [
+    "V1 ist neu gebaut – nur aus dem, was in der Vorlesung am 28.09. gesagt wurde: Horseless Carriage, NIST, Deployment-Modelle, Multi-Cloud, Bare Metal bis Serverless, IaaS/PaaS/SaaS, Shared Responsibility, Vorteile, SLAs, Economies of Scale, Workloads, p/a, Wohnmobil, Pizza und Granularität.",
+    "Jede Lektion hat einen Kasten „Zusatz aus den Folien“ – der erklärt mehr, wird aber nicht abgefragt.",
+    "Die Kapitel stehen jetzt in der Reihenfolge V1, V2, V3, V4. Die alten Folien-Kapitel zu Cloud Concepts heißen „Folien-Fassung“ und stehen hinter V4.",
+    "Neue Quick-Test-Fragen und Fallfragen zu V1; im Quick-Test gibt es die Folien-Fassung als eigene Einheit."
+  ] },
   { v: "4.57.0", d: "2026-11-03", t: "IT-Infrastruktur: V2 und V3 genau nach den Vorlesungen", items: [
     "V2 enthält jetzt genau das, was am 8.10. gesagt wurde: KI im Studium, CapEx/OpEx und TCO, die Azure-Preismodelle mit passenden Workloads, Kostenfallen und Budget-Alerts, Markt und Hype Cycle, die fünf Gebote, die acht Fallacies, Lock-in und Ausfälle, DSGVO, CLOUD Act, NIS2, Souveränität und Energie.",
     "V3 enthält genau die Vorlesung vom 13.10.: Atomstrom, Zusammenfassung und die sieben Wiederholungsfragen, Rechenzentren und Global Network, Regionen, Region Pairs, Geografien, Availability Zones und SLAs, PUE/WUE mit den Rechenbeispielen, Net Zero und Resource Groups.",

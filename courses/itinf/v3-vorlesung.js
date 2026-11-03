@@ -26,7 +26,7 @@ const ZUSATZ = "Zusatz aus den Folien (nicht im Vortrag, wird nicht abgefragt)";
   },
 
   world: {
-    id: "itlw3", n: 7, title: "V3 · Vorlesung 13.10.: Rechenzentren, Regionen & Resource Groups", sub: "Nach dem gesprochenen Skript vom 13.10.: Atomstrom, Wiederholungsfragen, Rechenzentren, Global Network, Regionen, Region Pairs, Geografien, Availability Zones, SLAs, PUE/WUE, Net Zero, Resource Groups",
+    id: "itlw3", n: 3, title: "V3 · Vorlesung 13.10.: Rechenzentren, Regionen & Resource Groups", sub: "Nach dem gesprochenen Skript vom 13.10.: Atomstrom, Wiederholungsfragen, Rechenzentren, Global Network, Regionen, Region Pairs, Geografien, Availability Zones, SLAs, PUE/WUE, Net Zero, Resource Groups",
     boss: { id: "boss-itlw3", title: "Kapiteltest V3: Rechenzentren, Regionen & Resource Groups", topics: ["vo3-review", "vo3-dc", "vo3-region", "vo3-pair", "vo3-az", "vo3-pue", "vo3-green", "vo3-rg"] },
     lessons: [
 

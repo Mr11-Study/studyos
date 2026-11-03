@@ -14,14 +14,12 @@ const ZUSATZ = "Zusatz aus den Folien (nicht im Vortrag, wird nicht abgefragt)";
 (EXT["itinf"] = EXT["itinf"] || []).push({
   id: "itinf-vo2",
 
-  /* Kapitel nach Vorlesungsdatum: V2 = Welt 6, V3 = 7, V4 = 8, danach „Nur Folien“ */
+  /* Titel der Folien-Kapitel; die Nummerierung (V1–V4, danach Folien) steht in v1-vorlesung.js */
   worldPatch: {
-    itvw3: { n: 9, title: "Nur Folien · Governance & Identität", sub: "Entra-Foliensatz Folie 1–52 (Management Groups, Policy, IAM, LoA, Entra ID) – dazu gibt es kein Vortragsskript",
+    itvw3: { title: "Nur Folien · Governance & Identität", sub: "Entra-Foliensatz Folie 1–52 (Management Groups, Policy, IAM, LoA, Entra ID) – dazu gibt es kein Vortragsskript",
       boss: { id: "boss-itvw3", title: "Kapiteltest: Nur Folien · Governance & Identität", topics: ["itv-mgmt", "itv-policy", "itv-iam", "itv-loa", "itv-entra", "itv-users", "itv-rbac"] } },
-    itvw2: { n: 10, title: "Folien-Fassung · Azure Datacenter", sub: "Die Folien zu V3 im Detail, dazu Tags, ARM und Werkzeuge (Folie 31–45, im Vortrag noch nicht besprochen)",
-      boss: { id: "boss-itvw2", title: "Kapiteltest: Folien-Fassung · Azure Datacenter", topics: ["itv-region", "itv-az", "itv-green", "itv-rg", "itv-tools"] } },
-    itgw6: { n: 11 },
-    itxw: { n: 12 }
+    itvw2: { title: "Folien-Fassung · Azure Datacenter", sub: "Die Folien zu V3 im Detail, dazu Tags, ARM und Werkzeuge (Folie 31–45, im Vortrag noch nicht besprochen)",
+      boss: { id: "boss-itvw2", title: "Kapiteltest: Folien-Fassung · Azure Datacenter", topics: ["itv-region", "itv-az", "itv-green", "itv-rg", "itv-tools"] } }
   },
 
   topics: {
@@ -38,7 +36,7 @@ const ZUSATZ = "Zusatz aus den Folien (nicht im Vortrag, wird nicht abgefragt)";
   },
 
   world: {
-    id: "itlw2", n: 6, title: "V2 · Vorlesung 8.10.: Kosten, Regeln, Risiken & Recht", sub: "Nach dem gesprochenen Skript vom 8.10.: CapEx/OpEx, TCO, Preismodelle, Kostenfallen, Markt, Hype Cycle, fünf Gebote, acht Fallacies, Lock-in, Ausfälle, DSGVO, CLOUD Act, NIS2, Souveränität, Energie",
+    id: "itlw2", n: 2, title: "V2 · Vorlesung 8.10.: Kosten, Regeln, Risiken & Recht", sub: "Nach dem gesprochenen Skript vom 8.10.: CapEx/OpEx, TCO, Preismodelle, Kostenfallen, Markt, Hype Cycle, fünf Gebote, acht Fallacies, Lock-in, Ausfälle, DSGVO, CLOUD Act, NIS2, Souveränität, Energie",
     boss: { id: "boss-itlw2", title: "Kapiteltest V2: Kosten, Regeln, Risiken & Recht", topics: ["vo2-ki", "vo2-capex", "vo2-price", "vo2-cost", "vo2-market", "vo2-rules", "vo2-fall", "vo2-risk", "vo2-law", "vo2-energy"] },
     lessons: [
 
