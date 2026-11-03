@@ -15,8 +15,8 @@ const worldPatch = {
   itgw3: { title: "V1 · Service-Modelle & Shared Responsibility" },
   itgw4: { title: "V1 · Cloud Economics" },
   itgw5: { title: "V1 · Markt, Risiken & digitale Souveränität" },
-  itgw6: { n: 8, title: "Ergänzung: Azure-Dienste laut Syllabus", sub: "Nicht Teil von V1–V3 – Überblick für die Laborübungen" },
-  itxw:  { n: 9 }
+  itgw6: { n: 9, title: "Ergänzung: Azure-Dienste laut Syllabus", sub: "Nicht Teil von V1–V4 – Überblick für die Laborübungen" },
+  itxw:  { n: 10 }
 };
 
 /* ---------------- „Aus der Vorlesung“ – Kästen in die bestehenden V1-Lektionen ---------------- */

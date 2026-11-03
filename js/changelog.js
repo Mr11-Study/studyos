@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.53.0", d: "2026-11-03", t: "IT-Infrastruktur: Kapitel V4 Storage", items: [
+    "Neues Kapitel V4 „Storage & Azure Storage“ mit 8 Lektionen: Datenarten und Block-, File- & Object-Storage, DAS/NAS/SAN mit Ceph und ZFS, der Storage Account, Redundanz und Failover, Blob Storage mit Tiers, Smart Tier und Lifecycle, Files, Queue, Table und Managed Disks, Security und Netzwerk sowie Backup und Tools. Durchgehend am Beispiel MurBikes aus der Vorlesung.",
+    "Drei Simulatoren zum Ausprobieren nach dem Vorbild der Moodle-Seiten: Redundanz und Ausfall (LRS bis RA-GZRS, Failover), ein Tier-Rechner mit Early-deletion Fee und ein Netzwerk-Simulator mit Service Endpoint, Private Endpoint und Exfiltration.",
+    "190 Übungsfragen, 37 Lernkarten, ein Kapiteltest und 49 Quick-Test-Fragen im Prüfungsstil (1 bis 5 richtige Antworten). Im Quick-Test gibt es jetzt die Einheit V4.",
+    "Korrekturen aus dem Vortrag sind eingearbeitet, etwa dass ein Worker die Queue abfragt und wie man eine SAS widerruft."] },
   { v: "4.52.0", d: "2026-11-02", t: "Likes, Profile antippen und ein strengerer Filter", items: [
     "Nachrichten kann man jetzt mit ♥ liken, im Global-Chat, in Gruppen und in Direktchats. Die Zahl aktualisiert sich live.",
     "Profilbild oder Name im Chat antippen öffnet das Profil: dort direkt „Freund hinzufügen“, eine Anfrage annehmen oder den Chat öffnen.",
