@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.59.0", d: "2026-11-06", t: "Projektmanagement: Prüfungssimulator mit Zufallszahlen", items: [
+    "Neuer Prüfungssimulator für GL-PMGT, aufgebaut wie die schriftliche Prüfung bei Prof. Fritz: 5 Aufgaben mit 100 Punkten plus Bonusfragen.",
+    "Netzplan wie in der Prüfung vom 10.03.2023 vorgegeben und durchrechnen: FAZ, FEZ, SAZ, SEZ, Gesamt- und freier Puffer, kritischer Pfad, Projektdauer, Verzögerungen und welcher Vorgang zum Verkürzen dran ist. Mal in Kalendertagen mit Datum, mal in abstrakten Zeiteinheiten.",
+    "Kritischer Pfad nur aus der Angabe, Prozentsatzmethode, gewichtete Schätzung in der Gruppe, Termintreue, Fertigstellungsgrad, Kalkulationsarten, Folie 117, Strukturplan und Meilensteine.",
+    "Jeder Versuch hat neue Zahlen und Fallbeispiele. Lernmodus mit Lösungsweg und fertig gerechnetem Netzplan; Freitexte bewertest du mit der Musterantwort selbst."
+  ] },
   { v: "4.58.0", d: "2026-11-03", t: "IT-Infrastruktur: V1 genau nach der Vorlesung vom 28.09.", items: [
     "V1 ist neu gebaut – nur aus dem, was in der Vorlesung am 28.09. gesagt wurde: Horseless Carriage, NIST, Deployment-Modelle, Multi-Cloud, Bare Metal bis Serverless, IaaS/PaaS/SaaS, Shared Responsibility, Vorteile, SLAs, Economies of Scale, Workloads, p/a, Wohnmobil, Pizza und Granularität.",
     "Jede Lektion hat einen Kasten „Zusatz aus den Folien“ – der erklärt mehr, wird aber nicht abgefragt.",
