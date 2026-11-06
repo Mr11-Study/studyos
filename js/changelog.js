@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.60.0", d: "2026-11-06", t: "Projektmanagement: Die Prüfung ist der Netzplan", items: [
+    "Die Prüfung sieht jetzt aus wie das Prüfungsblatt vom 10.03.2023: ein fertig gezeichneter Netzplan mit Kästchen (Name, Nr., Dauer und sechs Felder), in die du Frühester Anfang, Freie Pufferzeit, Frühestes Ende, Spätester Anfang, Gesamte Pufferzeit und Spätestes Ende selbst einträgst.",
+    "Danach Fragen, die du aus dem Netzplan ableitest: kritischer Pfad, Dauer, Projektende, spätester Beginn, Verzögerung, größter Puffer, was verkürzen, Prozesszweige und Meilensteine. Dazu ein kritischer Pfad direkt aus der Angabe und Bonusfragen aus der VO.",
+    "Wählbar: der Original-Netzplan mit den echten Dauern (Start 3.4.2023) oder neue Zahlen bei jedem Versuch, in Kalendertagen oder Zeiteinheiten.",
+    "Neu im Lernteil Netzplantechnik: der Prüfungs-Netzplan Schritt für Schritt als Animation (vorwärts, rückwärts, Puffer, kritischer Pfad) und ein zweiter Netzplan zum Mitrechnen mit neuen Zahlen."
+  ] },
   { v: "4.59.0", d: "2026-11-06", t: "Projektmanagement: Prüfungssimulator mit Zufallszahlen", items: [
     "Neuer Prüfungssimulator für GL-PMGT, aufgebaut wie die schriftliche Prüfung bei Prof. Fritz: 5 Aufgaben mit 100 Punkten plus Bonusfragen.",
     "Netzplan wie in der Prüfung vom 10.03.2023 vorgegeben und durchrechnen: FAZ, FEZ, SAZ, SEZ, Gesamt- und freier Puffer, kritischer Pfad, Projektdauer, Verzögerungen und welcher Vorgang zum Verkürzen dran ist. Mal in Kalendertagen mit Datum, mal in abstrakten Zeiteinheiten.",
