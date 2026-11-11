@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.61.0", d: "2026-11-11", t: "Unterwegs von Tür zu Tür: genaue Adresse, Fußwege und Wegbeschreibung", items: [
+    "Wohnort, Studienort und jede Suche dürfen jetzt eine genaue Adresse sein, zum Beispiel „Birkfelder Straße 21“ oder „FH Joanneum“. StudyOS rechnet dann den ganzen Weg von Tür zu Tür.",
+    "Jeder Fußweg zeigt Minuten und Meter und eine Wegbeschreibung Abbiegung für Abbiegung („Rechts abbiegen in …, 80 m“). Mit „Auf der Karte“ siehst du genau diesen Abschnitt groß.",
+    "„Ab meinem Standort“: ein Tipp, und die Verbindung startet dort, wo du gerade stehst. In „Ich fahre mit“ zeigt StudyOS beim Gehen die nächste Abbiegung und wie weit es noch ist.",
+    "Neues Aussehen nach dem Vorbild von ÖBB Scotty und BusBahnBim: groß „Losgehen in … um …“, eine Zeitleiste mit allen Teilstrecken, der Fahrtverlauf mit Uhrzeiten links, farbiger Linie, Steig und Umstiegen.",
+    "Dazu: „Ganz zu Fuß“ als eigene Möglichkeit, Abfahrten an der Haltestelle, an der du einsteigst, und ein Gehtempo (gemütlich, normal, flott) in den Einstellungen unter Wege & Öffis."
+  ] },
   { v: "4.60.0", d: "2026-11-06", t: "Projektmanagement: Die Prüfung ist der Netzplan", items: [
     "Die Prüfung sieht jetzt aus wie das Prüfungsblatt vom 10.03.2023: ein fertig gezeichneter Netzplan mit Kästchen (Name, Nr., Dauer und sechs Felder), in die du Frühester Anfang, Freie Pufferzeit, Frühestes Ende, Spätester Anfang, Gesamte Pufferzeit und Spätestes Ende selbst einträgst.",
     "Danach Fragen, die du aus dem Netzplan ableitest: kritischer Pfad, Dauer, Projektende, spätester Beginn, Verzögerung, größter Puffer, was verkürzen, Prozesszweige und Meilensteine. Dazu ein kritischer Pfad direkt aus der Angabe und Bonusfragen aus der VO.",
