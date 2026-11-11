@@ -3,7 +3,7 @@
    Daten: Transitous (Fahrpläne der österreichischen Verkehrsverbünde und der ÖBB), ersatzweise ÖBB über transport.rest (4.46).
    Die Richtung passt sich der Uhrzeit und dem Stundenplan an: vor der ersten Einheit zur FH, danach nach Hause.
    4.61: Tür zu Tür – Orte dürfen genaue Adressen sein (z. B. Birkfelder Straße 21), Fußwege mit Meter, Minuten und
-   Wegbeschreibung Abbiegung für Abbiegung, „Mein Standort“ als Start, Zeitleiste wie bei ÖBB Scotty.
+   dein Standort als blauer Punkt auf der Karte (4.61.1), „Mein Standort“ als Start, Zeitleiste wie bei ÖBB Scotty.
    Muss vor apps.js geladen werden (Hub-Seite) und vor settings-ui.js (Karte in den Einstellungen). */
 (function () {
 const { $, $$, esc, PAGES } = App;
@@ -210,37 +210,6 @@ function factsHTML(j, noDur) {
 }
 /* Meter lesbar: 450 m, 1,2 km */
 const fmtM = m => !m ? "" : m >= 1000 ? (m / 1000).toFixed(1).replace(".", ",") + " km" : (m < 30 ? Math.max(5, Math.round(m / 5) * 5) : Math.round(m / 10) * 10) + " m";
-/* Wegbeschreibung wie im Navi: Richtung + Straße. Namenlose Wege heißen im Kartenmaterial oft nur „footway“ o. ä. */
-const DIRS = { DEPART: ["↑", ""], CONTINUE: ["↑", "Geradeaus"], SLIGHTLY_LEFT: ["↖", "Leicht links"], LEFT: ["←", "Links"], HARD_LEFT: ["↙", "Scharf links"], SLIGHTLY_RIGHT: ["↗", "Leicht rechts"], RIGHT: ["→", "Rechts"], HARD_RIGHT: ["↘", "Scharf rechts"],
-  UTURN_LEFT: ["↶", "Umdrehen"], UTURN_RIGHT: ["↷", "Umdrehen"], CIRCLE_CLOCKWISE: ["↻", "Kreisverkehr"], CIRCLE_COUNTERCLOCKWISE: ["↺", "Kreisverkehr"], STAIRS: ["⇵", "Treppe"], ELEVATOR: ["⇳", "Aufzug"] };
-const street = n => n && !/^(path|footway|sidewalk|steps|road|track|service|corridor|crossing|platform|pedestrian|cycleway|unclassified|residential|living_street|elevator|unnamed|-)$/i.test(n.trim()) ? n.trim() : "";
-function stepTxt(x, i) {
-  const st = street(x.n), [ic, w] = DIRS[x.d] || DIRS.CONTINUE;
-  let t;
-  if (i === 0 || x.d === "DEPART") t = st ? "Los auf " + st : "Losgehen";
-  else if (x.d === "CONTINUE") t = st ? "Weiter auf " + st : "Geradeaus weiter";
-  else if (/^CIRCLE/.test(x.d)) t = "Im Kreisverkehr" + (x.x ? " die " + x.x + ". Ausfahrt" : "") + (st ? " in " + st : "");
-  else if (x.d === "STAIRS") t = "Treppe" + (st ? " zu " + st : " nehmen");
-  else if (x.d === "ELEVATOR") t = "Aufzug nehmen";
-  else if (/^UTURN/.test(x.d)) t = "Umdrehen" + (st ? " auf " + st : "");
-  else t = w + (x.stay ? " halten" : " abbiegen") + (st ? (x.stay ? ", auf " : " in ") + st + (x.stay ? " bleiben" : "") : "");
-  if (x.area && !/Platz|platz/.test(t)) t += " (über den Platz)";
-  return [i === 0 ? "↑" : ic, t];
-}
-/* gleiche Straße geradeaus zusammenfassen, Mini-Schritte weglassen */
-function stepsOf(g) {
-  const out = [];
-  (g.st || []).forEach((x, i) => { const p = out[out.length - 1];
-    if (p && (x.d === "CONTINUE" || x.stay && x.d !== "DEPART") && street(x.n) && street(x.n) === street(p.n)) { p.m += x.m; return; }
-    if (p && x.m < 8 && i < g.st.length - 1 && x.d === "CONTINUE") { p.m += x.m; return; }
-    out.push(Object.assign({}, x)); });
-  return out;
-}
-function stepsHTML(g) {
-  const L = stepsOf(g);
-  if (!L.length) return "";
-  return `<ol class="tr-steps">${L.map((x, i) => { const [ic, t] = stepTxt(x, i); return `<li><i class="tr-si" aria-hidden="true">${ic}</i><span>${esc(t)}</span><small class="tab">${esc(fmtM(x.m))}</small></li>`; }).join("")}<li class="tr-sgoal"><i class="tr-si" aria-hidden="true">◎</i><span>${esc(g.dst ? "Ankommen: " + g.dst : "Ankommen")}</span><small></small></li></ol>`;
-}
 /* Fahrtverlauf wie bei ÖBB Scotty: links die Uhrzeit, in der Mitte die Linie (farbig = Fahrzeug, gepunktet = zu Fuß), rechts Haltestelle, Steig und Fahrt */
 function detailHTML(j, zoom) {
   const L = j.legs, out = [];
@@ -266,10 +235,9 @@ function detailHTML(j, zoom) {
     if (t || g.m) {
       const what = j.direct ? "Zu Fuß zum Ziel" : first ? "Zu Fuß zur Haltestelle" : last ? "Zu Fuß zum Ziel" : "Zu Fuß umsteigen";
       const spare = prev && next && !prev.walk && !next.walk ? mm(prev.arr, next.dep) : null;
-      const n = stepsOf(g).length;
       out.push(`<li class="tr-s walk"><span class="tr-t"><small class="muted">${t} min</small></span><span class="tr-rail" aria-hidden="true"></span><div class="tr-c">
         <span class="tr-wh">🚶 <b>${what}</b></span><span class="tr-wm tab">${t} min${g.m ? " · " + fmtM(g.m) : ""}${spare != null ? ` · ${spare} min Zeit` : ""}${g.dst && !last ? ` · bis <b>${esc(g.dst)}</b>` : ""}</span>
-        <div class="row tr-wact">${n ? `<details class="tr-wd"${first || j.direct ? " open" : ""}><summary>Wegbeschreibung · ${n} ${n === 1 ? "Schritt" : "Schritte"}</summary>${stepsHTML(g)}</details>` : ""}${zoom !== false && (g.pts || g.oc) ? `<button type="button" class="chip tr-zoom" data-zoom="${i}">🗺 Auf der Karte</button>` : ""}</div></div></li>`);
+        <div class="row tr-wact">${zoom !== false && (g.pts || g.oc) ? `<button type="button" class="chip tr-zoom" data-zoom="${i}">🗺 Auf der Karte</button>` : ""}</div></div></li>`);
     }
     if (last) out.push(node("end walk", g.arr, "", "", g.dst || "Ziel", "", "Ziel"));
   });
@@ -449,7 +417,7 @@ function rideHTML(j) {
   const w = whereNow(j), arr = jArr(j), dep = jDep(j), pc = Math.round(100 * Math.max(0, Math.min(1, (Date.now() - T(j.legs[0].dep)) / Math.max(1, arr - T(j.legs[0].dep))))), g = w.leg || {};
   const now = w.state === "wait" ? `Warte auf ${badge(g.line)} · Abfahrt <b class="tab">${hm(T(g.dep))}</b> (${inTxt(mins(T(g.dep)))})${g.pl ? ` · Steig ${esc(g.pl)}` : ""}`
     : w.state === "ride" ? `Im ${badge(g.line)} ${g.dir ? "Richtung " + esc(g.dir) : ""}<br><small>Nächster Halt <b>${esc(w.next || "")}</b> um <span class="tab">${hm(T(w.nextT))}</span>${w.left ? ` · danach noch ${w.left} ${w.left === 1 ? "Halt" : "Halte"}` : ""}${g.dd >= 60 ? ` · <span class="tr-late">+${Math.round(g.dd / 60)} min</span>` : ""}</small>`
-    : w.state === "walk" ? walkNow(g, w)
+    : w.state === "walk" ? `🚶 Zu Fuß bis <b>${esc(w.next || "")}</b>, ${inTxt(mins(T(w.nextT)))}${g.m ? ` · ${esc(fmtM(g.m))}` : ""}<br><small>Der blaue Punkt auf der Karte zeigt, wo du gerade bist.</small>`
     : w.state === "change" ? `⇄ Umsteigen: ${badge(g.line)} fährt um <b class="tab">${hm(T(g.dep))}</b> (${inTxt(mins(T(g.dep)))})${g.pl ? ` · Steig ${esc(g.pl)}` : ""}`
     : `✓ Angekommen in <b>${esc(w.next || "")}</b>`;
   return `<div class="spread"><span class="eyebrow">Du fährst mit</span><button type="button" class="btn ghost sm" data-ride-end>Beenden</button></div>
@@ -457,27 +425,12 @@ function rideHTML(j) {
     <div class="tr-rbar" aria-hidden="true"><i style="width:${pc}%"></i></div>
     <div class="spread tr-rft"><small class="tab">${hm(dep)} ${esc((realLegs(j)[0] || {}).o || "")}</small><small class="tab">Ankunft <b>${hm(arr)}</b>${arr - Date.now() > 0 ? " · " + inTxt(mins(arr)) : ""}</small></div>`;
 }
-/* Beim Gehen: welcher Schritt der Wegbeschreibung gerade dran ist. Mit Standort (GPS) die nächste Abbiegung, sonst nach der Uhrzeit geschätzt. */
-function stepNow(g, now = Date.now()) {
-  const L = stepsOf(g); if (!L.length) return null;
-  const me = MAP && MAP.me ? MAP.me.getLatLng() : null; let i = 0, gps = false;
-  if (me && L.some(x => x.c)) { gps = true; let bd = 1e9; L.forEach((x, k) => { if (!x.c) return; const d = dist(me.lat, me.lng, x.c[0], x.c[1]); if (d < bd) { bd = d; i = k; } });
-    const nx = L[i + 1]; if (nx && nx.c && L[i].c && dist(me.lat, me.lng, nx.c[0], nx.c[1]) < dist(L[i].c[0], L[i].c[1], nx.c[0], nx.c[1])) i++; }
-  else { const tot = L.reduce((t, x) => t + x.m, 0), goal = tot * Math.max(0, Math.min(1, (now - T(g.dep)) / Math.max(1, T(g.arr) - T(g.dep)))); let acc = 0; i = L.findIndex(x => (acc += x.m) > goal); if (i < 0) i = L.length - 1; }
-  return { L, i, gps, left: L.slice(i).reduce((t, x) => t + x.m, 0) };
-}
-function walkNow(g, w) {
-  const s = stepNow(g), head = `🚶 Zu Fuß bis <b>${esc(w.next || "")}</b>, ${inTxt(mins(T(w.nextT)))}`;
-  if (!s) return head;
-  const [ic, t] = stepTxt(s.L[s.i], s.i), nx = s.L[s.i + 1];
-  return `${head}<div class="tr-navi"><i class="tr-si big" aria-hidden="true">${ic}</i><div><b>${esc(t)}</b><small>${s.gps ? "nach deinem Standort" : "geschätzt nach der Uhrzeit"} · noch ${esc(fmtM(s.left) || "wenige Meter")}${nx ? " · danach: " + esc(stepTxt(nx, s.i + 1)[1]) : ""}</small></div></div>`;
-}
 let MAP = null; /* { m, grp, veh, me, watch, key } */
 /* freie OpenStreetMap-Kacheln ohne Key (CARTO verlangt inzwischen einen); im Dunkelmodus per CSS-Filter abgedunkelt, bei Fehlern Ausweich-Server */
 const TILES = ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", "https://tile.openstreetmap.de/{z}/{x}/{y}.png"];
 const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende';
 const pin = (L, cls, html) => L.divIcon({ className: "tr-pin " + cls, html, iconSize: null });
-function drawMap(box, j, title) {
+function drawMap(box, j, title, follow) {
   const note = $(".tr-mapnote", box.closest(".tr-mapc")), head = $(".tr-mt", box.closest(".tr-mapc"));
   if (head) head.textContent = title || "Karte";
   return leaflet().then(L => {
@@ -489,7 +442,7 @@ function drawMap(box, j, title) {
       let ti = 0, bad = 0; const tl = L.tileLayer(TILES[0], { maxZoom: 19, attribution: OSM_ATTR, className: "tr-tiles" }).addTo(m);
       tl.on("tileerror", () => { if (++bad > 6 && ti < TILES.length - 1) { bad = 0; tl.setUrl(TILES[++ti]); } });
       MAP = { box, m, grp: L.layerGroup().addTo(m), veh: null, me: null, watch: null, key: null };
-      if (navigator.permissions && navigator.geolocation) navigator.permissions.query({ name: "geolocation" }).then(st => { if (st.state === "granted") showMe(false); }).catch(() => {});
+      showMe(false); /* dein Standort als blauer Punkt, sobald die Karte offen ist (fragt beim ersten Mal um Erlaubnis) */
     }
     const key = jKey(j) + "|" + j.legs.map(g => g.dep).join();
     if (MAP.key !== key) {
@@ -498,7 +451,7 @@ function drawMap(box, j, title) {
       j.legs.forEach(g => {
         const path = legPath(g); if (path.length < 2) return; all.push(...path);
         if (g.walk) { L.polyline(path, { color: "#fff", weight: 8, opacity: .85, lineCap: "round" }).addTo(MAP.grp); L.polyline(path, { color: "#0A84FF", weight: 5, dashArray: "1 9", lineCap: "round" }).addTo(MAP.grp);
-          stepsOf(g).forEach((x, i) => { if (i && x.c) L.circleMarker(x.c, { radius: 4, color: "#0A84FF", weight: 2, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(esc(stepTxt(x, i)[1]) + (x.m ? " · " + fmtM(x.m) : "")).addTo(MAP.grp); }); }
+}
         else { L.polyline(path, { color: "#fff", weight: 9, opacity: .9 }).addTo(MAP.grp); L.polyline(path, { color: lineCol(g.line), weight: 5 }).addTo(MAP.grp);
           (g.stops || []).forEach(x => x.c && L.circleMarker(x.c, { radius: 3.5, color: lineCol(g.line), weight: 2, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(`${esc(x.n)}${x.t ? " · " + hm(T(x.t)) : ""}`).addTo(MAP.grp));
           if (g.oc) L.circleMarker(g.oc, { radius: 6, color: lineCol(g.line), weight: 3, fillColor: "#fff", fillOpacity: 1 }).bindTooltip(`${esc(g.o || "")} · ${hm(T(g.dep))}${g.pl ? " · Steig " + esc(g.pl) : ""}`).addTo(MAP.grp); }
@@ -509,6 +462,7 @@ function drawMap(box, j, title) {
       if (all.length) MAP.m.fitBounds(L.latLngBounds(all), { padding: [26, 26], maxZoom: 15 }); else MAP.m.setView([47.07, 15.44], 12);
       if (note) note.textContent = all.length ? "" : "Für diese Verbindung liefert der Fahrplan keine Koordinaten.";
     }
+    MAP.follow = !!follow;
     moveVeh(j);
     setTimeout(() => MAP && MAP.m.invalidateSize(), 60);
   }).catch(() => { if (note) note.textContent = "Die Karte konnte nicht geladen werden. Prüf dein Internet."; });
@@ -526,8 +480,8 @@ function showMe(pan) {
   if (!MAP || !navigator.geolocation) return;
   if (MAP.watch != null) { if (pan && MAP.me) MAP.m.panTo(MAP.me.getLatLng()); return; }
   MAP.watch = navigator.geolocation.watchPosition(p => { if (!MAP || !window.L) return; const c = [p.coords.latitude, p.coords.longitude];
-    if (!MAP.me) { MAP.me = window.L.marker(c, { icon: pin(window.L, "tr-me", "<i></i>"), zIndexOffset: 2000, keyboard: false }).bindTooltip("Du bist hier").addTo(MAP.m); if (pan) MAP.m.panTo(c); } else MAP.me.setLatLng(c); },
-    () => { const n = $(".tr-mapnote", MAP.box.closest(".tr-mapc")); if (n) n.textContent = "Standort nicht freigegeben. Erlaube ihn in den Browser-Einstellungen."; }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+    if (!MAP.me) { MAP.me = window.L.marker(c, { icon: pin(window.L, "tr-me", "<i></i>"), zIndexOffset: 2000, keyboard: false }).bindTooltip("Du bist hier").addTo(MAP.m); if (pan) MAP.m.panTo(c); else if (MAP.follow) MAP.m.setView(c, Math.max(MAP.m.getZoom(), 16)); } else { MAP.me.setLatLng(c); if (MAP.follow && !MAP.m.getBounds().pad(-0.2).contains(c)) MAP.m.panTo(c); } },
+    () => { const n = $(".tr-mapnote", MAP.box.closest(".tr-mapc")); if (n) n.textContent = "Für den blauen Punkt „Wo bin ich“ den Standort in den Browser-Einstellungen erlauben."; }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
 }
 function dropMap() { if (MAP) { if (MAP.watch != null) navigator.geolocation.clearWatch(MAP.watch); try { MAP.m.remove(); } catch (e) {} MAP = null; } }
 
@@ -658,12 +612,10 @@ PAGES.transit = el => {
       : `<div class="tr-vsum">${legsHTML(j)}<div class="tr-tm tab"><b>${hm(jDep(j))}</b> ${delayTxt(f.dd)} <span class="tr-arrow">→</span> <b>${hm(jArr(j))}</b>${f.pl ? ` <span class="chip">Steig ${esc(f.pl)}</span>` : ""}</div>${factsHTML(j)}${live ? `<small class="muted">Abfahrt <b data-cd>${esc(inTxt(mins(jDep(j))))}</b>${leaveAt(j, r) ? ` · losgehen spätestens ${hm(leaveAt(j, r))}` : ""}</small>` : `<small class="muted">${esc(dayTxt(jDep(j)))}${leaveAt(j, r) ? ` · losgehen ${hm(leaveAt(j, r))}` : ""}</small>`}</div>
         <div class="row tr-acts">${riding ? `<button type="button" class="btn pri sm" data-open-ride>Du fährst mit · Fahrt öffnen ›</button>` : soon(j) ? `<button type="button" class="btn pri sm" data-ride="${esc(k)}">▶ Ich fahre mit</button>` : ""}</div>${!riding && soon(j) ? RIDEHINT : ""}`;
     const open = [...body.querySelectorAll("details.tr-mid")].map(x => x.open);
-    const ways = [...body.querySelectorAll("details.tr-wd")].map(x => x.open);
-    body.innerHTML = `<section class="card"><div class="spread"><h3>Dein Weg Schritt für Schritt</h3>${(m => m ? `<small class="muted">🚶 ${esc(fmtM(m))} zu Fuß</small>` : "")(j.legs.filter(g => g.walk).reduce((t, g) => t + (g.m || 0), 0))}</div>${detailHTML(j)}</section>`;
-    if (ways.length) body.querySelectorAll("details.tr-wd").forEach((x, i) => { if (i < ways.length) x.open = ways[i]; });
+    body.innerHTML = `<section class="card"><div class="spread"><h3>Dein Weg</h3>${(m => m ? `<small class="muted">🚶 ${esc(fmtM(m))} zu Fuß</small>` : "")(j.legs.filter(g => g.walk).reduce((t, g) => t + (g.m || 0), 0))}</div>${detailHTML(j)}</section>`;
     body.querySelectorAll("details.tr-mid").forEach((x, i) => { if (open[i]) x.open = true; });
     mc.hidden = false;
-    drawMap($(".tr-map", mc), j, VIEW.t === "ride" ? "Deine Fahrt auf der Karte" : "Karte dieser Verbindung");
+    drawMap($(".tr-map", mc), j, VIEW.t === "ride" ? "Deine Fahrt auf der Karte" : "Karte dieser Verbindung", VIEW.t === "ride");
   };
   const showView = () => {
     const tb = $(".topbar"); el.style.setProperty("--tr-top", (tb && getComputedStyle(tb).display !== "none" ? tb.offsetHeight : 0) + "px");
@@ -723,7 +675,7 @@ function placesHTML() {
   const one = (k, label, ic, p, extra) => `<div class="tr-place" data-k="${k}"><div class="tr-ph"><span class="tr-pic" aria-hidden="true">${ic}</span>${extra ? `<input class="tr-lbl" value="${esc(label)}" aria-label="Name des Orts" maxlength="24">` : `<b>${label}</b>`}
       ${p && p.name && !isStop(p) ? `<span class="tr-wk tr-exact" title="Der Fußweg wird ab dieser Adresse genau berechnet">🚶 genau berechnet</span>` : `<label class="tr-wk" title="Fußweg bis zur Haltestelle"><span aria-hidden="true">🚶</span><input type="number" min="0" max="30" class="tr-walkin" value="${p && p.walk ? +p.walk : 0}" aria-label="Minuten zu Fuß bis zur Haltestelle"><small>min</small></label>`}${extra ? `<button type="button" class="btn ghost sm tr-del" aria-label="Ort entfernen">✕</button>` : ""}</div>
       <div class="tr-ps"></div></div>`;
-  return `<h3>Wege & Öffis</h3><p class="muted" style="font-size:14px">Deine Orte: am besten die <b>genaue Adresse</b> (z. B. Birkfelder Straße 21), dann rechnet StudyOS den Weg von Tür zu Tür mit Fußweg, Metern und Wegbeschreibung. Eine Haltestelle geht auch. StudyOS zeigt dir damit unter „Unterwegs“ den nächsten Bus oder Zug und wählt die Richtung selbst: vor der Vorlesung zur FH, danach nach Hause.</p>
+  return `<h3>Wege & Öffis</h3><p class="muted" style="font-size:14px">Deine Orte: am besten die <b>genaue Adresse</b> (z. B. Birkfelder Straße 21), dann rechnet StudyOS den Weg von Tür zu Tür mit Fußweg in Minuten und Metern. Eine Haltestelle geht auch. StudyOS zeigt dir damit unter „Unterwegs“ den nächsten Bus oder Zug und wählt die Richtung selbst: vor der Vorlesung zur FH, danach nach Hause.</p>
     ${one("home", "Wohnort", "⌂", c.home)}${one("uni", "Studienort", "🎓", c.uni)}${(c.more || []).map((m, i) => one("m" + i, m.label || "Ort", "★", m, true)).join("")}
     <div class="row"><button type="button" class="btn ghost sm" id="tr-add">＋ Weiterer Ort (Arbeit, Eltern …)</button>${ready() ? `<button type="button" class="btn sm" data-go="transit">Unterwegs öffnen →</button>` : ""}</div>
     <div class="tr-pace"><div><div>Gehtempo</div><small>Damit rechnet StudyOS deine Fußwege und wann du losgehen musst.</small></div><div class="so-seg" role="radiogroup">${Object.keys(PACE).map(k => `<button type="button" class="chip ${pace() === k ? "acc" : ""}" data-pace="${k}">${PACE[k][1]}</button>`).join("")}</div></div>

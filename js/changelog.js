@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.61.1", d: "2026-11-11", t: "Unterwegs: Standort auf der Karte statt Wegbeschreibung", items: [
+    "Die Wegbeschreibung Abbiegung für Abbiegung ist wieder weg. Der Fußweg zeigt Minuten und Meter und ist auf der Karte gepunktet eingezeichnet.",
+    "Dafür siehst du auf der Karte sofort als blauen Punkt, wo du gerade bist. In „Ich fahre mit“ bleibt die Karte bei dir, während du gehst oder fährst."
+  ] },
   { v: "4.61.0", d: "2026-11-11", t: "Unterwegs von Tür zu Tür: genaue Adresse, Fußwege und Wegbeschreibung", items: [
     "Wohnort, Studienort und jede Suche dürfen jetzt eine genaue Adresse sein, zum Beispiel „Birkfelder Straße 21“ oder „FH Joanneum“. StudyOS rechnet dann den ganzen Weg von Tür zu Tür.",
     "Jeder Fußweg zeigt Minuten und Meter und eine Wegbeschreibung Abbiegung für Abbiegung („Rechts abbiegen in …, 80 m“). Mit „Auf der Karte“ siehst du genau diesen Abschnitt groß.",
