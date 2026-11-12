@@ -380,21 +380,21 @@ async function takeInvite() {
 const isGuest = () => !user || user.is_anonymous || !user.email;
 const authErr = er => { const t = String((er && er.message) || er); return /invalid login|invalid credentials/i.test(t) ? "E-Mail oder Passwort stimmt nicht." : /already|registered|exists/i.test(t) ? "Diese E-Mail hat schon ein Konto. Melde dich damit an." : /confirm|not confirmed/i.test(t) ? "Supabase verlangt noch eine E-Mail-Bestätigung. In Supabase unter Authentication → Sign In / Providers → Email „Confirm email“ ausschalten." : /weak|short|at least|password/i.test(t) ? "Das Passwort ist zu kurz oder zu einfach (mindestens 8 Zeichen)." : /valid email|invalid.*email|email.*invalid/i.test(t) ? "Diese E-Mail-Adresse ist ungültig." : /rate|too many/i.test(t) ? "Zu viele Versuche. Warte kurz und versuch es dann nochmal." : fail(er); };
 /* mode: "signup" | "login" | "secure" (altes Gastkonto) */
-function authView(el, cont, mode) {
-  const intro = mode !== "secure" && !st().on;
+function authView(el, cont, mode, bare) {
+  const intro = !bare && mode !== "secure" && !st().on;
   const T = { signup: ["Konto erstellen", "Erstelle ein Konto mit E-Mail und Passwort. Damit bist du in der App, im Browser und auf jedem Gerät dieselbe Person.", "Konto erstellen"],
     login: ["Anmelden", "Melde dich mit deiner E-Mail und deinem Passwort an. Freunde, Gruppen und Chats sind dann auch hier da.", "Anmelden"],
     secure: ["Konto sichern", "Gemeinsam funktioniert jetzt nur noch mit Konto. Sichere dein bisheriges Gastkonto mit E-Mail und Passwort, dann bleiben Freunde, Gruppen und Chats erhalten.", "Konto sichern"] }[mode];
-  el.innerHTML = `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Gruppen und ein Global-Chat für alle.")}
-    <div class="so-auth-wrap">${intro ? `<section class="card so-intro"><div class="so-ill" aria-hidden="true"><i></i><i></i><i></i></div>
+  el.innerHTML = `${bare ? "" : `<div class="page so">${head("Gemeinsam lernen", "Freunde, Chats, Gruppen und ein Global-Chat für alle.")}`}
+    <div class="so-auth-wrap${bare ? " bare" : ""}">${intro ? `<section class="card so-intro"><div class="so-ill" aria-hidden="true"><i></i><i></i><i></i></div>
         <ul class="muted"><li>Freunde per QR-Code oder Freundescode hinzufügen und privat schreiben.</li><li>Offene oder private Gruppen gründen, zum Lernen, mit Freunden oder für Projekte.</li><li>Ein offener Global-Chat mit allen, die StudyOS nutzen.</li></ul>
         <p class="muted" style="font-size:13px">Sichtbar für andere sind nur dein Name „${esc(S().name || "Studi")}“ und dein Avatar, nicht deine E-Mail und nicht dein Lernstand. Nachrichten liegen auf einem Server in der EU. Ohne Internet funktioniert alles andere in StudyOS wie bisher.</p></section>` : ""}
     <section class="card so-auth">${mode === "secure" ? "" : `<div class="so-seg" role="tablist"><button class="chip ${mode === "signup" ? "acc" : ""}" data-mode="signup" role="tab" aria-selected="${mode === "signup"}">Konto erstellen</button><button class="chip ${mode === "login" ? "acc" : ""}" data-mode="login" role="tab" aria-selected="${mode === "login"}">Anmelden</button></div>`}
       <h3>${T[0]}</h3><p class="muted">${T[1]}</p>
       <form class="col" id="so-af"><label class="fld">E-Mail<input id="so-ae" type="email" autocomplete="email" required placeholder="name@edu.fh-joanneum.at"></label>
         <label class="fld">Passwort${mode === "login" ? "" : " (mindestens 8 Zeichen)"}<input id="so-ap" type="password" minlength="${mode === "login" ? 1 : 8}" autocomplete="${mode === "login" ? "current-password" : "new-password"}" required></label>
-        <div class="row so-gate-act"><button type="submit" class="btn pri">${T[2]}</button>${mode === "secure" ? `<button type="button" class="btn ghost sm" id="so-other">Mit anderem Konto anmelden</button>` : ""}</div></form></section></div></div>`;
-  $$("[data-mode]", el).forEach(b => b.onclick = () => authView(el, cont, b.dataset.mode));
+        <div class="row so-gate-act"><button type="submit" class="btn pri">${T[2]}</button>${mode === "secure" ? `<button type="button" class="btn ghost sm" id="so-other">Mit anderem Konto anmelden</button>` : ""}</div></form></section></div>${bare ? "" : "</div>"}`;
+  $$("[data-mode]", el).forEach(b => b.onclick = () => authView(el, cont, b.dataset.mode, bare));
   const oth = $("#so-other", el); if (oth) oth.onclick = async () => { if (!confirm("Das Gastkonto auf diesem Gerät geht dabei verloren. Weiter?")) return; try { await sb.auth.signOut(); } catch (e) {} user = me = null; authView(el, cont, "login"); };
   $("#so-af", el).onsubmit = async ev => {
     ev.preventDefault(); const btn = $("#so-af [type=submit]", el); btn.disabled = true;
@@ -422,7 +422,7 @@ async function logout() {
   if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
   drop(); try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(), sub = reg && reg.pushManager && await reg.pushManager.getSubscription(); if (sub && me) await sb.from("push_subs").delete().eq("user_id", me.id).eq("endpoint", sub.endpoint); } catch (e) {} delete st().push;
   if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
-  me = null; user = null; st().on = false; App.save(); (App.authHooks || []).forEach(f => { try { f("logout"); } catch (e) {} }); App.go("together", "");
+  me = null; user = null; st().on = false; delete st().role; delete st().fh; S().settings.guest = false; App.save(); (App.authHooks || []).forEach(f => { try { f("logout"); } catch (e) {} }); App.renderSide(); App.go("welcome", "");
 }
 
 /* ---------- QR-Code in der App scannen (statt mit der Kamera-App, die den Link im Browser öffnen würde) ---------- */
@@ -498,6 +498,10 @@ const fhKind = m => /@edu\.fh-joanneum\.at$/i.test(m || "") ? "student" : /@fh-j
 async function fhLoad() {
   const r = await settle(sb.from("fh_verified").select("*").eq("user_id", me.id).maybeSingle());
   fhOn = !r.error; fhRow = (!r.error && r.data) || null;
+  if (!fhOn) return;
+  const ok = fhOk(), was = st().fh;
+  if (ok) { st().fh = true; if (!st().role) st().role = "fh"; } else delete st().fh;
+  if (!!was !== ok) { App.save(); App.renderSide(); App.accessChanged && App.accessChanged(); }
 }
 /* Ohne Update 11 gibt es noch keine Sperre (fhOn = false), dann bleibt alles wie bisher */
 const fhOk = () => !fhOn || isAdmin || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.kind === "staff" || fhRow.wi));
@@ -510,7 +514,7 @@ const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
     : /rate|too many|security purposes|seconds/i.test(t) ? "Kurz warten: Ein neuer Code geht erst nach etwa einer Minute."
     : /already|registered|exists/i.test(t) ? "Diese Adresse gehört schon zu einem anderen StudyOS-Konto. Melde dich mit diesem Konto an."
     : fail(e); };
-const FH_INTRO = "Lerngruppen zu einem Fach sind nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. Gruppen ohne Fach, Freunde und der Global-Chat bleiben für alle offen.";
+const FH_INTRO = "Fächer, Prüfungstraining und Lerngruppen sind nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. Freunde, Gruppen ohne Fach und der Global-Chat bleiben für alle mit Konto offen.";
 /* Schritte in ein Element zeichnen; done() nach erfolgreicher Freischaltung */
 function fhSteps(box, done) {
   const mail = String((user && user.email) || ""), kind = fhKind(mail), verified = !!(fhRow && fhRow.email === mail.toLowerCase());
@@ -527,7 +531,7 @@ function fhSteps(box, done) {
     : `<p>✓ <b>${esc(mail)}</b> ist bestätigt. Jetzt noch den Studiengangs-Code von Wirtschaftsinformatik eingeben. Du bekommst ihn in deiner Jahrgangsgruppe.</p>
       <form class="col so-fhf" data-s="wi"><label class="fld">Studiengangs-Code<input type="text" maxlength="16" required autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label><div class="row"><button class="btn pri sm">Freischalten</button></div></form>`}`;
   const busy = (b, on) => { if (b) b.disabled = on; };
-  const finish = async () => { await fhLoad(); if (fhOk()) { App.toast("Freigeschaltet", "Du kannst jetzt Lerngruppen zu deinen Fächern nutzen.", "✓"); done(); } else fhSteps(box, done); };
+  const finish = async () => { await fhLoad(); if (fhOk()) { App.toast("Freigeschaltet", "Du siehst jetzt alle Fächer und kannst Lerngruppen nutzen.", "✓"); done(); } else fhSteps(box, done); };
   box.onclick = async e => {
     const b = e.target.closest("[data-fh=send]"); if (!b) return;
     busy(b, true);
@@ -564,10 +568,77 @@ function fhDialog(done) {
 const fhHint = () => fhOk() ? "" : `<div class="so-fhhint"><span>🎓 Lerngruppen zu Fächern nur mit FH-Konto (Wirtschaftsinformatik).</span><button class="btn sm" data-fhopen>Freischalten</button></div>`;
 document.addEventListener("click", e => { const b = e.target.closest("[data-fhopen]"); if (!b || !sb || !me) return; e.preventDefault(); const mb = b.closest(".modal-back"); if (mb) mb.remove(); fhDialog(() => App.go(App.route().v, App.route().p)); });
 
+/* ---------- Zugang: Gast, Konto oder FH-Konto ----------
+   guest = nicht angemeldet; user = Konto ohne FH-Bestätigung (Global-Chat, Freunde, Direktchats);
+   fh = bestätigte FH-Adresse mit Studiengangs-Code oder Lehrende (alle Fächer und Lerngruppen).
+   st().fh merkt sich das letzte Ergebnis vom Server, damit die App auch offline weiß, was sie zeigt. */
+App.tier = () => !st().on ? "guest" : st().fh ? "fh" : "user";
+const ROLES = [
+  ["student", "🎓", "Student:in an der FH JOANNEUM", "Wirtschaftsinformatik: alle Fächer mit Skript, Üben und Prüfungstraining, dazu Lerngruppen. Du bestätigst deine @edu.fh-joanneum.at-Adresse und gibst den Studiengangs-Code ein."],
+  ["staff", "🧑‍🏫", "Lehrende:r an der FH JOANNEUM", "Alles wie Studierende. Du bestätigst deine @fh-joanneum.at-Adresse, ein Studiengangs-Code ist nicht nötig."],
+  ["user", "👤", "Normaler User", "Global-Chat, Freunde und Direktchats, dazu Kalender und Unterwegs. Die Fächer bleiben Studierenden und Lehrenden der FH vorbehalten."]];
+const wlHead = (t, sub) => `<div class="wl-brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small>Wirtschaftsinformatik · FH JOANNEUM</small></div></div><h1>${t}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}`;
+function welcomeStart(el) {
+  el.innerHTML = `<div class="page wl"><div class="wl-in">${wlHead(`Willkommen${S().name ? ", " + esc(S().name) : ""}`, "Wie möchtest du StudyOS nutzen? Du kannst das später jederzeit ändern.")}
+    <div class="wl-grid"><section class="card wl-acc"><span class="eyebrow">Mit Konto</span><div class="wl-auth"></div></section>
+      <section class="card wl-guest"><span class="eyebrow">Ohne Konto</span><h3>Als Gast weiter</h3>
+        <ul class="wl-list"><li>Kalender mit Stundenplan-Import</li><li>Unterwegs: Öffis von Tür zu Tür</li><li>Neuigkeiten</li></ul>
+        <p class="muted">Alles bleibt auf diesem Gerät. Chats, Fächer und Lerngruppen brauchen ein Konto.</p>
+        <button class="btn" id="wl-guest">Als Gast weiter</button></section></div>
+    <div class="wl-tiers" aria-label="Was du womit bekommst">
+      <div><b>Gast</b><small>Kalender, Unterwegs</small></div>
+      <div><b>Konto</b><small>+ Global-Chat, Freunde, Direktchats, Gruppen ohne Fach</small></div>
+      <div class="fh"><b>FH-Konto</b><small>+ alle Fächer, Prüfungstraining und Lerngruppen</small></div></div></div></div>`;
+  authView($(".wl-auth", el), () => App.go("welcome", "role"), "signup", true);
+  $("#wl-guest", el).onclick = () => { S().settings.guest = true; App.save(); App.renderSide(); App.go("dash"); };
+}
+async function welcomeRole(el) {
+  const R0 = App.route();
+  el.innerHTML = `<div class="page wl"><div class="wl-in">${wlHead("Wer bist du?", "")}<div class="so-wait"><span class="so-spin"></span>Verbinde …</div></div></div>`;
+  try { await connect(); } catch (e) {
+    if (App.route() !== R0) return;
+    if (e && e.auth) return App.go("welcome", "");
+    $(".wl-in", el).insertAdjacentHTML("beforeend", `<div class="empty">${esc(fail(e))}<br><br><button class="btn sm" data-go="welcome" data-p="role">Nochmal</button> <button class="btn ghost sm" data-go="dash">Später</button></div>`); $(".so-wait", el).remove(); return;
+  }
+  if (App.route() !== R0) return;
+  if (fhOk() && fhOn) { st().role = "fh"; st().fh = true; App.save(); App.renderSide(); App.toast("Willkommen zurück", "Dein FH-Konto ist bestätigt, du siehst alle Fächer.", "✓"); return App.go("dash"); }
+  const kind = fhKind(user.email);
+  el.innerHTML = `<div class="page wl"><div class="wl-in">${wlHead("Wer bist du?", `Angemeldet als <b>${esc(user.email)}</b>. Wähl aus, wie du StudyOS nutzt.`)}
+    <div class="wl-roles">${ROLES.map(([k, i, t, d]) => `<button class="card wl-role${(kind === "student" && k === "student") || (kind === "staff" && k === "staff") ? " sug" : ""}" data-role="${k}"><span class="wl-ri" aria-hidden="true">${i}</span><b>${t}</b><small>${d}</small></button>`).join("")}</div>
+    <div class="wl-fh" hidden><section class="card"><div class="so-fh"></div></section><div class="row"><button class="btn ghost sm" id="wl-back">← Andere Auswahl</button><span class="so-sp"></span><button class="btn ghost sm" id="wl-later">Später bestätigen</button></div></div></div></div>`;
+  const pick = $(".wl-roles", el), fh = $(".wl-fh", el);
+  pick.onclick = e => {
+    const b = e.target.closest("[data-role]"); if (!b) return;
+    const r = b.dataset.role; st().role = r; App.save();
+    if (r === "user") { App.renderSide(); App.toast("Los geht’s", "Global-Chat und Freunde findest du links unter Gemeinsam.", "☺"); return App.go("dash"); }
+    pick.hidden = true; fh.hidden = false;
+    fhSteps($(".so-fh", fh), () => { st().fh = true; App.save(); App.renderSide(); App.go("dash"); });
+  };
+  $("#wl-back", el).onclick = () => { pick.hidden = false; fh.hidden = true; };
+  $("#wl-later", el).onclick = () => { App.renderSide(); App.toast("Später bestätigen", "Auf „Heute“ kannst du dein FH-Konto jederzeit bestätigen.", "◎"); App.go("dash"); };
+}
+PAGES.welcome = (el, p) => { if (p === "role" && st().on) return welcomeRole(el); if (st().on) return App.go("dash"); return welcomeStart(el); };
+/* Konto-Knopf unten im Menü: Anmelden oder Abmelden */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-acct]"); if (!b) return;
+  if (b.dataset.acct === "out") { client().then(() => logout()).catch(() => logout()); } else App.go("welcome", "");
+});
+App.social_fh = { dialog: d => (sb && me ? fhDialog(d) : App.go("welcome", "role")), kind: fhKind };
+/* Beim ersten Öffnen: Startbildschirm; angemeldet ohne gewählten Kontotyp: Auswahl */
+App.afterBoot.push(() => {
+  let inv = false; try { inv = !!sessionStorage.getItem("studyos.invite") || !!sessionStorage.getItem("studyos.pair"); } catch (e) {}
+  if (FHLINK || inv || START_CHAT) return;
+  if (!st().on && !S().settings.guest) setTimeout(() => App.go("welcome", ""), 30);
+  else if (st().on && !st().role && navigator.onLine) setTimeout(() => App.go("welcome", "role"), 30);
+});
+
 /* ---------- Seiten ---------- */
 const head = (title, sub, back) => `<header class="so-head">${back ? `<button class="btn ghost sm so-back" data-go="${back[0]}"${back[1] ? ` data-p="${esc(back[1])}"` : ""}>← ${esc(back[2])}</button>` : ""}<span class="eyebrow">Gemeinsam</span><h1>${title}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}</header>`;
 function gate(el, cont) {
-  if (!st().on && !(sb && me) && !(FHLINK && !FHLINK.used)) { authView(el, cont, "signup"); return false; }
+  if (!st().on && !(sb && me) && !(FHLINK && !FHLINK.used)) {
+    el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">Freunde, Chats und der Global-Chat brauchen ein Konto. Als Gast nutzt du Kalender, Unterwegs und Neuigkeiten.<br><br><button class="btn pri sm" data-go="welcome">Anmelden oder Konto erstellen</button></div></div>`;
+    return false;
+  }
   if (!navigator.onLine) { el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">Du bist gerade offline. Freunde und Chats brauchen Internet, alles andere in StudyOS funktioniert weiter.</div></div>`; return false; }
   return true;
 }

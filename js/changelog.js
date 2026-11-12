@@ -5,6 +5,13 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.63.0", d: "2026-11-12", t: "Startbildschirm: Gast, Konto oder FH-Konto", items: [
+    "Beim ersten Öffnen fragt StudyOS, wie du es nutzen willst: mit Konto anmelden bzw. eines erstellen, oder als Gast weiter.",
+    "Nach der Anmeldung wählst du, wer du bist: Student:in oder Lehrende:r an der FH JOANNEUM (mit Bestätigung der FH-Adresse) oder normaler User.",
+    "Gäste nutzen Kalender, Unterwegs und Neuigkeiten. Mit Konto kommen Global-Chat, Freunde, Direktchats und Gruppen ohne Fach dazu.",
+    "Die Fächer mit Skript, Üben und Prüfungstraining sowie die Lerngruppen gibt es nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM.",
+    "Unten im Menü meldest du dich jetzt direkt ab (oder als Gast an). Die Anmeldung unter Gemeinsam ist dafür weggefallen."
+  ] },
   { v: "4.62.0", d: "2026-11-12", t: "Lerngruppen nur für die FH JOANNEUM", items: [
     "Lerngruppen zu einem Fach sind jetzt nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. So bleiben Unterlagen und Fragen zu den Lehrveranstaltungen unter uns.",
     "Freischalten in drei Schritten: FH-Adresse (@edu.fh-joanneum.at) hinterlegen, mit dem Code aus der E-Mail bestätigen und den Studiengangs-Code eingeben. Lehrende mit @fh-joanneum.at brauchen keinen Studiengangs-Code.",
