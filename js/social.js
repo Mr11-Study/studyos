@@ -14,6 +14,12 @@ App.SB = { url: SB_URL, key: SB_KEY }; /* auch für den Kalender-Abruf (Edge Fun
 const INVITE = (/^#(friend|group)=([A-Za-z0-9]{4,12})$/.exec(location.hash) || []).slice(1);
 if (INVITE.length) { try { sessionStorage.setItem("studyos.invite", JSON.stringify(INVITE.concat("link"))); history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
 
+/* Anmelde-Link aus der FH-Bestätigungsmail (#access_token=…&type=magiclink): Sitzung merken, Adresse leeren */
+const FHLINK = (() => { const h = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+  if (!h.get("access_token") || !/^(magiclink|recovery)$/.test(h.get("type") || "")) return null;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  return { access_token: h.get("access_token"), refresh_token: h.get("refresh_token") }; })();
+
 /* ---------- Verbindung ---------- */
 let sb = null, me = null, user = null, loading = null;
 const st = () => S().settings.online || (S().settings.online = {});
@@ -24,8 +30,11 @@ async function connect() {
   if (loading) return loading;
   loading = (async () => {
     await client();
+    let fromMail = false;
+    if (FHLINK && !FHLINK.used) { FHLINK.used = true; try { const r = await sb.auth.setSession(FHLINK); fromMail = !r.error; } catch (e) {} }
     const { data } = await sb.auth.getSession(); user = data && data.session && data.session.user;
     if (!user) throw Object.assign(new Error("Nicht angemeldet"), { auth: "login" });
+    if (fromMail && !st().on) { st().on = true; App.save(); }
     if (isGuest()) throw Object.assign(new Error("Gastkonto"), { auth: "secure" }); /* alte Gastkonten erst mit E-Mail sichern */
     const prof = { id: user.id, name: (S().name || "Studi").slice(0, 40), avatar: (S().settings.avatar || "").slice(0, 8) || null };
     const r = await sb.from("profiles").upsert(prof).select().single(); if (r.error) throw r.error;
@@ -33,10 +42,12 @@ async function connect() {
     try { const c = await sb.rpc("my_code"); if (!c.error && c.data) me.code = c.data; } catch (e) {} /* ab Update 5 steht der Code nicht mehr im Profil */
     cleanOwn();
     await modLoad().catch(() => {}); nameCheck(prof.name); notesCheck().catch(() => {}); startMod();
+    await fhLoad();
+    if (fromMail && fhKind(user.email) && !fhRow) await fhConfirm().then(() => App.toast("FH-Adresse bestätigt", fhOk() ? "Du kannst jetzt Lerngruppen nutzen." : "Jetzt noch den Studiengangs-Code eingeben (Fach-App → Lerngruppen).", "✓")).catch(() => {});
   })();
   try { await loading; } finally { loading = null; }
 }
-const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
+const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /Nur für FH-Konten/.test(m) ? "Lerngruppen zu einem Fach gibt es nur für bestätigte FH-JOANNEUM-Konten aus Wirtschaftsinformatik." : /fh_verify|fh_join_wi|admin_wi_code|admin_fh_|fh_verified/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen." : /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
 const q = async p => { const r = await p; if (r.error) throw r.error; return r.data; };
 
 /* Namen und Avatare anderer zwischenspeichern */
@@ -477,10 +488,86 @@ function browserHint(inv, cont) {
   });
 }
 
+/* ---------- Lerngruppen nur für FH JOANNEUM (supabase-update-11.sql) ----------
+   Gruppen ohne Fach, Freunde, Direktchats und der Global-Chat sind für alle Angemeldeten offen.
+   Lerngruppen (Gruppen mit Fach) nur für Konten, die ihre Adresse @edu.fh-joanneum.at per E-Mail-Code bestätigt
+   und den Studiengangs-Code (Wirtschaftsinformatik) eingegeben haben; Lehrende (@fh-joanneum.at) brauchen keinen Code.
+   Geprüft wird in der Datenbank (Row Level Security), die App erklärt nur und führt durch die Schritte. */
+let fhOn = false, fhRow = null;
+const fhKind = m => /@edu\.fh-joanneum\.at$/i.test(m || "") ? "student" : /@fh-joanneum\.at$/i.test(m || "") ? "staff" : null;
+async function fhLoad() {
+  const r = await settle(sb.from("fh_verified").select("*").eq("user_id", me.id).maybeSingle());
+  fhOn = !r.error; fhRow = (!r.error && r.data) || null;
+}
+/* Ohne Update 11 gibt es noch keine Sperre (fhOn = false), dann bleibt alles wie bisher */
+const fhOk = () => !fhOn || isAdmin || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.kind === "staff" || fhRow.wi));
+async function fhConfirm() { await q(sb.rpc("fh_verify")); await fhLoad(); }
+const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
+  return /Falscher Studiengangs-Code/.test(t) ? "Dieser Studiengangs-Code stimmt nicht. Frag in deiner Jahrgangsgruppe nach dem aktuellen Code."
+    : /Code fehlt/.test(t) ? "Bitte zuerst den Code aus der E-Mail eingeben."
+    : /expired|invalid|otp/i.test(t) && !/sending|smtp/i.test(t) ? "Der Code ist falsch oder abgelaufen. Lass dir einen neuen schicken."
+    : /sending|smtp|mail.*(error|fail)/i.test(t) ? "Supabase kann gerade keine E-Mails verschicken. Der Admin muss dafür einen E-Mail-Versand (SMTP) einrichten."
+    : /rate|too many|security purposes|seconds/i.test(t) ? "Kurz warten: Ein neuer Code geht erst nach etwa einer Minute."
+    : /already|registered|exists/i.test(t) ? "Diese Adresse gehört schon zu einem anderen StudyOS-Konto. Melde dich mit diesem Konto an."
+    : fail(e); };
+const FH_INTRO = "Lerngruppen zu einem Fach sind nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. Gruppen ohne Fach, Freunde und der Global-Chat bleiben für alle offen.";
+/* Schritte in ein Element zeichnen; done() nach erfolgreicher Freischaltung */
+function fhSteps(box, done) {
+  const mail = String((user && user.email) || ""), kind = fhKind(mail), verified = !!(fhRow && fhRow.email === mail.toLowerCase());
+  const step = !kind ? 1 : !verified ? 2 : 3;
+  const dot = n => `<li class="${n < step ? "done" : n === step ? "now" : ""}">${["FH-Adresse", "E-Mail bestätigen", "Studiengangs-Code"][n - 1]}</li>`;
+  box.innerHTML = `<p class="muted">${FH_INTRO}</p><ol class="so-fhsteps">${dot(1)}${dot(2)}${kind === "staff" ? "" : dot(3)}</ol>
+    ${step === 1 ? `<p>Dein Konto nutzt <b>${esc(mail)}</b>. Hinterlege deine FH-Adresse, dann schicken wir dir einen Code dorthin. Deine Freunde, Gruppen und Chats bleiben erhalten.</p>
+      <form class="col so-fhf" data-s="mail"><label class="fld">FH-Adresse<input type="email" required autocomplete="email" placeholder="vorname.nachname@edu.fh-joanneum.at"></label><div class="row"><button class="btn pri sm">Adresse übernehmen</button></div></form>`
+    : step === 2 ? `<p>Wir schicken einen Code an <b>${esc(mail)}</b>. Damit zeigst du, dass das Postfach dir gehört.</p>
+      <div class="row"><button class="btn pri sm" data-fh="send">Code schicken</button></div>
+      <form class="col so-fhf" data-s="otp" hidden><label class="fld">Code aus der E-Mail<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required placeholder="123456" style="letter-spacing:.2em"></label>
+        <div class="row"><button class="btn pri sm">Bestätigen</button><button type="button" class="btn ghost sm" data-fh="send">Neuen Code schicken</button></div>
+        <p class="muted" style="font-size:13px">Kein Code, sondern ein Link in der Mail? Tippe auf den Link, er bestätigt dich genauso. Schau auch im Spam-Ordner nach.</p></form>`
+    : `<p>✓ <b>${esc(mail)}</b> ist bestätigt. Jetzt noch den Studiengangs-Code von Wirtschaftsinformatik eingeben. Du bekommst ihn in deiner Jahrgangsgruppe.</p>
+      <form class="col so-fhf" data-s="wi"><label class="fld">Studiengangs-Code<input type="text" maxlength="16" required autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label><div class="row"><button class="btn pri sm">Freischalten</button></div></form>`}`;
+  const busy = (b, on) => { if (b) b.disabled = on; };
+  const finish = async () => { await fhLoad(); if (fhOk()) { App.toast("Freigeschaltet", "Du kannst jetzt Lerngruppen zu deinen Fächern nutzen.", "✓"); done(); } else fhSteps(box, done); };
+  box.onclick = async e => {
+    const b = e.target.closest("[data-fh=send]"); if (!b) return;
+    busy(b, true);
+    try {
+      const r = await sb.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false, emailRedirectTo: LINK } }); if (r.error) throw r.error;
+      const f = $("[data-s=otp]", box); f.hidden = false; $("input", f).focus();
+      App.toast("Code verschickt", "Schau in dein Postfach " + mail + ".", "✉");
+    } catch (er) { App.toast("Hat nicht geklappt", fhErr(er), "!"); }
+    busy(b, false);
+  };
+  box.onsubmit = async e => {
+    e.preventDefault(); const f = e.target, v = $("input", f).value.trim(), b = $("button:not([type=button])", f); busy(b, true);
+    try {
+      if (f.dataset.s === "mail") {
+        const m = v.toLowerCase(); if (!fhKind(m)) throw new Error("Das ist keine Adresse der FH JOANNEUM (…@edu.fh-joanneum.at oder …@fh-joanneum.at).");
+        const r = await sb.auth.updateUser({ email: m }); if (r.error) throw r.error;
+        if (String(r.data.user.email || "").toLowerCase() !== m) { App.toast("Bestätigung nötig", "Supabase hat einen Link an die neue Adresse geschickt. Öffne ihn, dann geht es hier weiter.", "✉"); busy(b, false); return; }
+        user = r.data.user; fhRow = null; return fhSteps(box, done);
+      }
+      if (f.dataset.s === "otp") {
+        const r = await sb.auth.verifyOtp({ email: mail, token: v.replace(/\s/g, ""), type: "email" }); if (r.error) throw r.error;
+        if (r.data && r.data.user) user = r.data.user;
+        await fhConfirm(); return finish();
+      }
+      await q(sb.rpc("fh_join_wi", { code: v })); return finish();
+    } catch (er) { busy(b, false); App.toast("Hat nicht geklappt", er && /keine Adresse der FH/.test(er.message) ? er.message : fhErr(er), "!"); }
+  };
+}
+function fhDialog(done) {
+  App.modal(`<h2>Lerngruppen freischalten</h2><div class="so-fh"></div><div class="row" style="justify-content:flex-end"><button class="btn ghost sm" data-close>Schließen</button></div>`, (m, close) => {
+    fhSteps($(".so-fh", m), () => { close(); done && done(); });
+  });
+}
+const fhHint = () => fhOk() ? "" : `<div class="so-fhhint"><span>🎓 Lerngruppen zu Fächern nur mit FH-Konto (Wirtschaftsinformatik).</span><button class="btn sm" data-fhopen>Freischalten</button></div>`;
+document.addEventListener("click", e => { const b = e.target.closest("[data-fhopen]"); if (!b || !sb || !me) return; e.preventDefault(); const mb = b.closest(".modal-back"); if (mb) mb.remove(); fhDialog(() => App.go(App.route().v, App.route().p)); });
+
 /* ---------- Seiten ---------- */
 const head = (title, sub, back) => `<header class="so-head">${back ? `<button class="btn ghost sm so-back" data-go="${back[0]}"${back[1] ? ` data-p="${esc(back[1])}"` : ""}>← ${esc(back[2])}</button>` : ""}<span class="eyebrow">Gemeinsam</span><h1>${title}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}</header>`;
 function gate(el, cont) {
-  if (!st().on && !(sb && me)) { authView(el, cont, "signup"); return false; }
+  if (!st().on && !(sb && me) && !(FHLINK && !FHLINK.used)) { authView(el, cont, "signup"); return false; }
   if (!navigator.onLine) { el.innerHTML = `<div class="page so">${head("Gemeinsam", "")}<div class="empty">Du bist gerade offline. Freunde und Chats brauchen Internet, alles andere in StudyOS funktioniert weiter.</div></div>`; return false; }
   return true;
 }
@@ -518,7 +605,7 @@ PAGES.together = (el, p) => boot(el, async () => {
         ${fr.ok.length || fr.out.length ? "" : `<p class="muted">Noch keine Freunde. Zeig deinen QR-Code oder gib einen Freundescode ein.</p>`}</section>
       <section class="card"><div class="spread"><h3>Gruppen</h3><span class="chip">${gs.length}</span></div>
         ${gs.length ? gs.map(g => `<button class="so-row so-link so-grow" data-go="together" data-p="g:${g.id}"><span class="so-gi">${esc(gIcon(g))}</span><span class="so-gtxt"><b>${esc(g.name)}</b>${badges(g)}</span><span class="so-sp"></span><span class="muted">›</span></button>`).join("") : `<p class="muted">Gründe eine Gruppe, zum Lernen, mit Freunden oder für ein Projekt, oder tritt einer offenen Gruppe bei.</p>`}
-        <div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
+        ${fhHint()}<div class="row so-gact"><button class="btn sm pri" id="so-new">Gruppe gründen</button><button class="btn sm" data-go="together" data-p="find">Gruppen entdecken</button><button class="btn ghost sm" id="so-join">Mit Code beitreten</button></div></section>
     </div>
     <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein Chat für alle, die StudyOS nutzen. Nachrichten bleiben 24 Stunden. Frag, was du nicht verstehst, oder hilf anderen.</p></section>
     ${isAdmin ? `<section class="card so-admcard"><div class="spread"><h3>Admin</h3><button class="btn pri sm" data-go="together" data-p="admin">Öffnen ›</button></div><p class="muted so-admn">Meldungen, Verwarnungen, Stummschalten und Wortliste.</p></section>` : ""}</div>`;
@@ -555,7 +642,8 @@ function groupDialog(course, g, done) {
   const tags = new Set((g && g.tags) || []), extra = [...tags].filter(t => !TAGS.includes(t)).join(", "), open = !!(g && g.open);
   App.modal(`<h2>${g ? "Gruppe bearbeiten" : "Gruppe gründen"}</h2><form class="col" id="so-gf">
     <label class="fld">Name der Gruppe<input type="text" id="so-gn" maxlength="60" placeholder="z. B. BWL Lerngruppe Dienstag" value="${esc((g && g.name) || "")}"></label>
-    <label class="fld">Fach<select id="so-gc"><option value="">Kein bestimmtes Fach</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === ((g && g.course) || course) ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label>
+    <label class="fld">Fach<select id="so-gc"><option value="">Kein bestimmtes Fach</option>${COURSES.map(c => `<option value="${c.id}" ${fhOk() && c.id === ((g && g.course) || course) ? "selected" : ""}${fhOk() ? "" : " disabled"}>${esc(c.title)}</option>`).join("")}</select>
+      ${fhOk() ? "" : `<small class="muted">Eine Lerngruppe zu einem Fach gründen kannst du mit einem FH-Konto (Wirtschaftsinformatik). <a href="#" data-fhopen>Freischalten</a></small>`}</label>
     <div class="fld">Wer kann beitreten?<div class="so-vis">
       <label class="so-opt"><input type="radio" name="so-vis" value="0" ${open ? "" : "checked"}><span><b>Privat</b><small>Nur mit Einladung per Code oder QR-Code</small></span></label>
       <label class="so-opt"><input type="radio" name="so-vis" value="1" ${open ? "checked" : ""}><span><b>Offen</b><small>Alle finden die Gruppe unter „Gruppen entdecken“ und können direkt beitreten</small></span></label></div></div>
@@ -584,7 +672,7 @@ async function findPage(el, fach) {
   el.innerHTML = `<div class="page so">${head("Gruppen entdecken", "Offene Gruppen, denen du direkt beitreten kannst. Private Gruppen erscheinen hier nicht.", ["together", "", "Gemeinsam"])}
     <div class="so-find"><input type="search" id="so-fq" placeholder="Name, Thema oder Tag suchen …" autocomplete="off"><select id="so-fc"><option value="">Alle Fächer</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === f.fach ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select><button class="btn pri sm" id="so-fnew">Gruppe gründen</button></div>
     <div class="so-tagbar"><button class="chip acc" data-ft="">Alle</button>${TAGS.map(t => `<button class="chip" data-ft="${esc(t)}">#${esc(t)}</button>`).join("")}</div>
-    <div class="so-found"><p class="muted">Lädt …</p></div></div>`;
+    ${fhHint()}<div class="so-found"><p class="muted">Lädt …</p></div></div>`;
   const box = $(".so-found", el); let tmr = null, n = 0;
   const load = async () => {
     const my = ++n;
@@ -623,7 +711,13 @@ async function dmPage(el, id) {
   chat($(".so-box", el), { to_user: id }, `Nachricht an ${nm(id)} …`); markRead("dm:" + id);
 }
 async function groupPage(el, gid, back) {
-  const g = await q(sb.from("groups").select("*").eq("id", gid).single());
+  const gr = await sb.from("groups").select("*").eq("id", gid).maybeSingle();
+  if (!gr.error && !gr.data && !fhOk()) {
+    el.innerHTML = `<div class="page so">${head("Lerngruppe", "", back)}<section class="card so-fhcard"><h3>🎓 Nur für die FH JOANNEUM</h3><div class="so-fh"></div></section></div>`;
+    return fhSteps($(".so-fh", el), () => groupPage(el, gid, back));
+  }
+  if (gr.error || !gr.data) throw gr.error || new Error("Diese Gruppe gibt es nicht mehr oder du bist kein Mitglied.");
+  const g = gr.data;
   const mem = await q(sb.from("group_members").select("user_id").eq("group_id", gid)); await loadNames(mem.map(m => m.user_id)); if (stale()) return;
   const c = CBY[g.course];
   el.innerHTML = `<div class="page so so-full">${head(esc(g.name), `${esc(c ? c.title : "Allgemeine Gruppe")} · ${mem.length} ${mem.length === 1 ? "Mitglied" : "Mitglieder"}${g.about ? " · " + esc(g.about) : ""}`, back)}${badges(g)}
@@ -726,9 +820,23 @@ async function adminPage(el) {
       } else {
         const [mu, no] = await Promise.all([q(sb.from("mutes").select("*").gt("until", new Date().toISOString()).order("until")), q(sb.from("user_notes").select("*").order("created_at", { ascending: false }).limit(30))]);
         await loadNames(mu.map(x => x.user_id).concat(no.map(x => x.user_id))); if (!alive()) return;
-        body.innerHTML = `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
+        const [wc, fl] = await Promise.all([settle(sb.rpc("admin_wi_code")), settle(sb.rpc("admin_fh_list"))]); if (!alive()) return;
+        const fhSec = wc.error ? `<section class="card"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen.</p></section>`
+          : `<section class="card so-fhadm"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Lerngruppen zu Fächern sind nur für bestätigte FH-Adressen. Studierende (@edu.fh-joanneum.at) brauchen zusätzlich diesen Studiengangs-Code, Lehrende (@fh-joanneum.at) nicht. Teile ihn nur in der WI-Jahrgangsgruppe. Ein neuer Code sperrt niemanden aus, der schon drin ist.</p>
+            <div class="so-row so-wirow"><span class="muted">Studiengangs-Code</span><span class="so-code">${esc(wc.data || "")}</span><span class="so-sp"></span><button class="btn sm" id="so-wicopy">Kopieren</button><button class="btn sm" id="so-wiset">Ändern</button></div>
+            <h3>Bestätigt <span class="chip">${(fl.data || []).length}</span></h3>${(fl.data || []).length ? fl.data.map(v => `<div class="so-urow" data-fuid="${v.user_id}"><div class="so-utxt"><b>${esc(mask(v.name || "Studi"))}</b><small class="muted">${esc(v.email)} · ${v.kind === "staff" ? "Lehrende" : v.wi ? "Wirtschaftsinformatik" : "ohne Studiengangs-Code"}</small></div>${v.kind === "student" && v.wi ? `<div class="row so-uact"><button class="btn ghost sm" data-fhrev>Zugang entziehen</button></div>` : ""}</div>`).join("") : `<p class="muted">Noch niemand.</p>`}</section>`;
+        body.innerHTML = fhSec + `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
           <section class="card"><h3>Letzte Verwarnungen</h3>${no.length ? no.map(n => `<div class="so-urow">${av(names[n.user_id])}<div class="so-utxt"><b>${esc(nm(n.user_id))}</b><small class="muted">${time(n.created_at)} · ${n.seen ? "gelesen" : "noch nicht gelesen"}</small><p>${esc(n.text)}</p></div></div>`).join("") : `<p class="muted">Noch keine Verwarnungen.</p>`}</section>
           <section class="card so-danger"><h3>Global-Chat leeren</h3><p class="muted">Löscht alle Nachrichten im Global-Chat für alle. Gruppen und Direktchats bleiben.</p><button class="btn sm so-dbtn" id="so-clear">Global-Chat leeren</button></section>`;
+        const wcp = $("#so-wicopy", body); if (wcp) wcp.onclick = () => copy(wc.data, "Code in der Zwischenablage.");
+        const wcs = $("#so-wiset", body); if (wcs) wcs.onclick = async () => {
+          const v = prompt("Neuer Studiengangs-Code (4 bis 16 Buchstaben oder Ziffern):", ""); if (!v) return;
+          try { await q(sb.rpc("admin_wi_code", { new_code: v })); App.toast("Geändert", "Der neue Code gilt ab sofort.", "✓"); paint(); } catch (er) { App.toast("Fehler", /4 bis 16/.test(String(er.message)) ? "Der Code braucht 4 bis 16 Buchstaben oder Ziffern." : fail(er), "!"); }
+        };
+        $$("[data-fhrev]", body).forEach(b => b.onclick = async () => {
+          if (!confirm("Zugang zu Lerngruppen entziehen? Die Person muss dann den Studiengangs-Code neu eingeben.")) return;
+          try { await q(sb.rpc("admin_fh_revoke", { uid: b.closest("[data-fuid]").dataset.fuid })); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
+        });
         $("#so-clear", body).onclick = async () => {
           if (!confirm("Wirklich alle Nachrichten im Global-Chat löschen? Das lässt sich nicht rückgängig machen.")) return;
           try { const n = await q(sb.rpc("admin_clear_global")); App.toast("Geleert", `${n || 0} Nachrichten gelöscht.`, "✓"); paint(); } catch (er) { App.toast("Fehler", modFail(er), "!"); }
@@ -782,6 +890,13 @@ PAGES.coursechat = (el, p) => boot(el, async () => {
   drop();
   const [cid, sub] = String(p || (App.currentApp && App.currentApp()) || "").split("|"), c = CBY[cid];
   if (!c) return App.go("together", "");
+  if (!fhOk()) {
+    el.innerHTML = `<div class="page so">${head(`Lerngruppen · ${esc(c.title)}`, "")}
+      <section class="card so-fhcard"><h3>🎓 Nur für die FH JOANNEUM</h3><div class="so-fh"></div></section>
+      <section class="card so-global"><div class="spread"><h3>Global-Chat</h3><button class="btn pri sm" data-go="together" data-p="global">Öffnen ›</button></div><p class="muted">Ein offener Chat für alle, die StudyOS nutzen.</p></section>
+      <div class="row"><button class="btn ghost sm" data-go="together">Freunde & Gruppen ›</button></div></div>`;
+    return fhSteps($(".so-fh", el), () => PAGES.coursechat(el, p));
+  }
   if (sub && sub.startsWith("g:")) return groupPage(el, sub.slice(2), ["coursechat", cid, "Lerngruppen " + c.short]);
   const gs = (await myGroups()).filter(g => g.course === cid); if (stale()) return;
   el.innerHTML = `<div class="page so">${head(`Lerngruppen · ${esc(c.title)}`, "Deine Gruppen zu diesem Fach. Für alle offen schreibst du im Global-Chat.")}
@@ -988,6 +1103,6 @@ App.afterBoot.push(() => {
 });
 
 /* Einladungslink geöffnet: direkt zu „Gemeinsam“ */
-App.afterBoot.push(() => { try { if (sessionStorage.getItem("studyos.invite")) setTimeout(() => App.go("together", ""), 50); } catch (e) {} });
+App.afterBoot.push(() => { try { if (sessionStorage.getItem("studyos.invite") || FHLINK) setTimeout(() => App.go("together", ""), 50); } catch (e) {} });
 App.social = { connect, me: () => me, client: () => sb, ensure: client };
 })();
