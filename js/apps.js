@@ -7,7 +7,7 @@ if ((window.STUDYOS_TRACK || "uni") !== "uni") return;
 const { $, $$, esc, PAGES, CBY, COURSES, TOPICS, LBYID } = App;
 const S = () => App.S();
 
-const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback", "together", "transit"]);
+const HUB = new Set(["dash", "courses", "calendar", "bookmarks", "news", "feedback", "together", "transit", "welcome"]);
 const worldOf = id => { for (const c of COURSES) for (const w of c.worlds) if (w.id === id) return c.id; return null; };
 const app = () => S().app && CBY[S().app] ? S().app : null;
 function setApp(v, p) {
@@ -49,6 +49,8 @@ function appNav(c) {
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
   ["Planen", [["calendar", "", "Kalender", "▦"], ["bookmarks", "", "Merkliste", "★"], ["transit", "", "Unterwegs", "⇆"]]], ["Gemeinsam", [["together", "", "Freunde & Gruppen", "◎"], ["together", "global", "Global-Chat", "◌"], ["together", "admin", "Admin", "⚑", "admin"]]], ["Konto", [["settings", "", "Einstellungen", "⚙"], ["news", "", "Neuigkeiten", "✦"], ["feedback", "", "Feedback", "✉"]]]];
+/* Zugang (js/access.js): Fächer nur mit FH-Konto, Gemeinsam nur mit Konto */
+const navOk = x => App.pageOk ? App.pageOk(x[0]) : true;
 /* Gemeinsam hat drei Einträge: Übersicht (""), Global-Chat und (nur für Admins) Admin */
 const togSub = p => /^(global|c:)/.test(String(p || "")) ? "global" : /^admin/.test(String(p || "")) ? "admin" : "";
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
@@ -67,8 +69,8 @@ App.SIDE = () => {
   } else {
     const due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0;
     side.innerHTML = `<div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
-      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.filter(x => x[4] !== "admin" || App.ADMIN).map(x => btn(x, v === x[0] && (x[0] !== "together" || x[1] === togSub(R.p)), x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("")).join("")}
-        <div class="eyebrow lbl">Deine Fächer</div><div class="hub-apps">${COURSES.map(x => `<button data-go="course" data-p="${x.id}" class="hd-${x.id}"><i></i>${esc(x.title)}</button>`).join("")}</div></nav>${meHTML}`;
+      <nav class="nav" aria-label="Hauptmenü">${HUBNAV.map(([g, items]) => { const its = items.filter(x => (x[4] !== "admin" || App.ADMIN) && navOk(x)); return its.length ? `<div class="eyebrow lbl">${g}</div>` + its.map(x => btn(x, v === x[0] && (x[0] !== "together" || x[1] === togSub(R.p)), x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("") : ""; }).join("")}
+        ${navOk(["course"]) ? `<div class="eyebrow lbl">Deine Fächer</div><div class="hub-apps">${COURSES.map(x => `<button data-go="course" data-p="${x.id}" class="hd-${x.id}"><i></i>${esc(x.title)}</button>`).join("")}</div>` : ""}</nav>${meHTML}`;
   }
   /* Fach-Apps bekommen oben eine farbige App-Leiste, damit man sofort sieht: man ist in einem Fach, nicht in der Übersicht */
   const pg = $("#page"); let bar = $("#appbar");
@@ -82,7 +84,8 @@ App.SIDE = () => {
   const due = counts(c ? c.id : undefined).due, tb = $("#tb-stats"); if (tb) tb.innerHTML = due ? `<button class="chip acc" data-go="review" data-p="${c ? "c:" + c.id : "all"}">↻ ${due} fällig</button>` : "";
   const bn = $("#bnav"); if (bn) {
     const items = c ? [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skript", "❡"], ["review", "c:" + c.id, "Üben", "↻"], c.examPrep ? ["prep", c.id, "Prüfung", "⏱"] : ["exam", "", "Prüfung", "⏱"]]
-      : [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"], ["calendar", "", "Kalender", "▦"]];
+      : navOk(["courses"]) ? [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"], ["calendar", "", "Kalender", "▦"]]
+      : [["dash", "", "Heute", "◐"], ["calendar", "", "Kalender", "▦"], ["transit", "", "Unterwegs", "⇆"]].concat(navOk(["together"]) ? [["together", "global", "Chat", "◌"]] : []);
     bn.innerHTML = items.map(x => `<button data-go="${x[0]}"${x[1] ? ` data-p="${esc(x[1])}"` : ""} class="${v === x[0] || (x[0] === "prep" && v === "exam") ? "on" : ""}"><span class="ni">${x[3]}${x[0] === "review" && due ? `<i class="bdot"></i>` : ""}</span>${x[2]}</button>`).join("") + `<button id="bmore"><span class="ni">☰</span>Mehr</button>`;
     $("#bmore").onclick = () => $("#side").classList.add("open");
   }
