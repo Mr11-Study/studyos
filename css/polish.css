@@ -1420,3 +1420,8 @@ body.so-start .app{grid-template-columns:minmax(0,1fr)}
 .hl-soon{display:flex;flex-direction:column;gap:6px}
 .hl-si{display:flex;justify-content:space-between;gap:10px;font-size:14px}
 .hl-fh{font-size:13px;margin-top:4px}
+
+/* 4.63.5: Fehler im FH-Dialog direkt sichtbar, Meldungen über dem Dialog */
+.so-fherr{margin:4px 0;padding:10px 12px;border-radius:10px;background:rgba(220,70,70,.12);border:1px solid rgba(220,70,70,.45);color:var(--text);font-size:14px}
+.so-fherr small{display:block;margin-top:4px;color:var(--muted);font-size:12px;word-break:break-word}
+.toasts{z-index:90}
