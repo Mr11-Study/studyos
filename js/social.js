@@ -514,7 +514,7 @@ async function fhConfirm() { await q(sb.rpc("fh_verify")); await fhLoad(); }
 const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
   return /Falscher Studiengangs-Code/.test(t) ? "Dieser Studiengangs-Code stimmt nicht. Frag in deiner Jahrgangsgruppe nach dem aktuellen Code."
     : /Code fehlt/.test(t) ? "Bitte zuerst den Code aus der E-Mail eingeben."
-    : /expired|invalid|otp/i.test(t) && !/sending|smtp/i.test(t) ? "Der Code ist falsch oder abgelaufen. Lass dir einen neuen schicken."
+    : /expired|invalid|otp/i.test(t) && !/sending|smtp/i.test(t) ? "Der Code ist falsch oder abgelaufen. Es gilt nur der Code aus der neuesten E-Mail, und nur eine Stunde lang."
     : /sending|smtp|mail.*(error|fail)/i.test(t) ? "Supabase kann gerade keine E-Mails verschicken. Der Admin muss dafür einen E-Mail-Versand (SMTP) einrichten."
     : /rate|too many|security purposes|seconds/i.test(t) ? "Kurz warten: Ein neuer Code geht erst nach etwa einer Minute."
     : /already|registered|exists/i.test(t) ? "Diese Adresse gehört schon zu einem anderen StudyOS-Konto. Melde dich mit diesem Konto an."
@@ -525,30 +525,36 @@ function fhSteps(box, done) {
   const mail = String((user && user.email) || ""), kind = fhKind(mail), verified = !!(fhRow && fhRow.email === mail.toLowerCase());
   const step = !kind ? 1 : !verified ? 2 : 3;
   const dot = n => `<li class="${n < step ? "done" : n === step ? "now" : ""}">${["FH-Adresse", "E-Mail bestätigen", "Studiengangs-Code"][n - 1]}</li>`;
-  box.innerHTML = `<p class="muted">${FH_INTRO}</p><ol class="so-fhsteps">${dot(1)}${dot(2)}${kind === "staff" ? "" : dot(3)}</ol>
+  box.innerHTML = `<p class="muted">${FH_INTRO}</p><p class="so-fherr" role="alert" hidden></p><ol class="so-fhsteps">${dot(1)}${dot(2)}${kind === "staff" ? "" : dot(3)}</ol>
     ${step === 1 ? `<p>Dein Konto nutzt <b>${esc(mail)}</b>. Hinterlege deine FH-Adresse, dann schicken wir dir einen Code dorthin. Deine Freunde, Gruppen und Chats bleiben erhalten.</p>
       <form class="col so-fhf" data-s="mail"><label class="fld">FH-Adresse<input type="email" required autocomplete="email" placeholder="vorname.nachname@edu.fh-joanneum.at"></label><div class="row"><button class="btn pri sm">Adresse übernehmen</button></div></form>`
     : step === 2 ? `<p>Wir schicken einen Code an <b>${esc(mail)}</b>. Damit zeigst du, dass das Postfach dir gehört.</p>
       <div class="row"><button class="btn pri sm" data-fh="send">Code schicken</button></div>
       <form class="col so-fhf" data-s="otp" hidden><label class="fld">Code aus der E-Mail<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required placeholder="123456" style="letter-spacing:.2em"></label>
         <div class="row"><button class="btn pri sm">Bestätigen</button><button type="button" class="btn ghost sm" data-fh="send">Neuen Code schicken</button></div>
-        <p class="muted" style="font-size:13px">Kein Code, sondern ein Link in der Mail? Tippe auf den Link, er bestätigt dich genauso. Schau auch im Spam-Ordner nach.</p></form>`
+        <p class="muted" style="font-size:13px">Die E-Mail kann ein paar Minuten brauchen, schau auch im Spam-Ordner nach. Es gilt immer nur der zuletzt geschickte Code.</p></form>`
     : `<p>✓ <b>${esc(mail)}</b> ist bestätigt. Jetzt noch den Studiengangs-Code von Wirtschaftsinformatik eingeben. Du bekommst ihn in deiner Jahrgangsgruppe.</p>
       <form class="col so-fhf" data-s="wi"><label class="fld">Studiengangs-Code<input type="text" maxlength="16" required autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label><div class="row"><button class="btn pri sm">Freischalten</button></div></form>`}`;
   const busy = (b, on) => { if (b) b.disabled = on; };
+  /* Fehler direkt im Dialog zeigen (eine Meldung unten rechts liegt hinter dem abgedunkelten Hintergrund) */
+  const err = (t, raw) => { const p = $(".so-fherr", box); if (!p) return App.toast("Hat nicht geklappt", t, "!"); p.innerHTML = esc(t) + (raw ? `<small>${esc(raw)}</small>` : ""); p.hidden = !t; };
+  const rawOf = er => { const m = String((er && (er.message || er.msg)) || ""); return m && !/[äöüß]/.test(m) ? "Meldung von Supabase: " + m.slice(0, 160) : ""; };
   const finish = async () => { await fhLoad(); if (fhOk()) { App.toast("Freigeschaltet", "Du siehst jetzt alle Fächer und kannst Lerngruppen nutzen.", "✓"); done(); } else fhSteps(box, done); };
   box.onclick = async e => {
     const b = e.target.closest("[data-fh=send]"); if (!b) return;
-    busy(b, true);
+    const again = !$("[data-s=otp]", box).hidden;
+    if (again && !confirm("Neuen Code schicken? Der Code aus der vorigen E-Mail gilt dann nicht mehr.")) return;
+    busy(b, true); err("");
     try {
       const r = await sb.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: false, emailRedirectTo: LINK } }); if (r.error) throw r.error;
-      const f = $("[data-s=otp]", box); f.hidden = false; $("input", f).focus();
+      const f = $("[data-s=otp]", box); f.hidden = false; $("input", f).value = ""; $("input", f).focus();
+      const top = $("[data-fh=send]:not(form [data-fh])", box); if (top) top.parentElement.style.display = "none";
       App.toast("Code verschickt", "Schau in dein Postfach " + mail + ".", "✉");
-    } catch (er) { App.toast("Hat nicht geklappt", fhErr(er), "!"); }
+    } catch (er) { err(fhErr(er), rawOf(er)); }
     busy(b, false);
   };
   box.onsubmit = async e => {
-    e.preventDefault(); const f = e.target, v = $("input", f).value.trim(), b = $("button:not([type=button])", f); busy(b, true);
+    e.preventDefault(); const f = e.target, v = $("input", f).value.trim(), b = $("button:not([type=button])", f); busy(b, true); err("");
     try {
       if (f.dataset.s === "mail") {
         const m = v.toLowerCase(); if (!fhKind(m)) throw new Error("Das ist keine Adresse der FH JOANNEUM (…@edu.fh-joanneum.at oder …@fh-joanneum.at).");
@@ -562,7 +568,7 @@ function fhSteps(box, done) {
         await fhConfirm(); return finish();
       }
       await q(sb.rpc("fh_join_wi", { code: v })); return finish();
-    } catch (er) { busy(b, false); App.toast("Hat nicht geklappt", er && /keine Adresse der FH/.test(er.message) ? er.message : fhErr(er), "!"); }
+    } catch (er) { busy(b, false); err(er && /keine Adresse der FH/.test(er.message) ? er.message : fhErr(er), er && /keine Adresse der FH/.test(er.message) ? "" : rawOf(er)); }
   };
 }
 function fhDialog(done) {
