@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.63.3", d: "2026-11-12", t: "Gruppen ohne Fach-Auswahl für normale User", items: [
+    "Normale User und Gäste sehen beim Entdecken und Gründen von Gruppen keine Fach-Auswahl mehr. Im Gast-Profil gibt es außerdem kein „Profil wechseln“."
+  ] },
   { v: "4.63.2", d: "2026-11-12", t: "Gast und Konto getrennt, eigene Startseite", items: [
     "Gäste und normale User haben eine eigene Startseite „Heute“: Termine von heute, die nächste Verbindung und Global-Chat bzw. Konto, ohne Lernstoff und Lern-Statistiken.",
     "Wer sich abmeldet oder als Gast weitermacht, landet in einem eigenen, leeren Gast-Profil. Stundenplan, Kalender, Name und Lernstand deines Kontos bleiben in deinem Profil und sind ohne Anmeldung nicht zu sehen.",

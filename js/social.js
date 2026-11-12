@@ -737,8 +737,8 @@ function groupDialog(course, g, done) {
   const tags = new Set((g && g.tags) || []), extra = [...tags].filter(t => !TAGS.includes(t)).join(", "), open = !!(g && g.open);
   App.modal(`<h2>${g ? "Gruppe bearbeiten" : "Gruppe gründen"}</h2><form class="col" id="so-gf">
     <label class="fld">Name der Gruppe<input type="text" id="so-gn" maxlength="60" placeholder="z. B. BWL Lerngruppe Dienstag" value="${esc((g && g.name) || "")}"></label>
-    <label class="fld">Fach<select id="so-gc"><option value="">Kein bestimmtes Fach</option>${COURSES.map(c => `<option value="${c.id}" ${fhOk() && c.id === ((g && g.course) || course) ? "selected" : ""}${fhOk() ? "" : " disabled"}>${esc(c.title)}</option>`).join("")}</select>
-      ${fhOk() ? "" : `<small class="muted">Eine Lerngruppe zu einem Fach gründen kannst du mit einem FH-Konto (Wirtschaftsinformatik). <a href="#" data-fhopen>Freischalten</a></small>`}</label>
+    ${fhOk() ? `<label class="fld">Fach<select id="so-gc"><option value="">Kein bestimmtes Fach</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === ((g && g.course) || course) ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select></label>`
+      : `<input type="hidden" id="so-gc" value="">`}
     <div class="fld">Wer kann beitreten?<div class="so-vis">
       <label class="so-opt"><input type="radio" name="so-vis" value="0" ${open ? "" : "checked"}><span><b>Privat</b><small>Nur mit Einladung per Code oder QR-Code</small></span></label>
       <label class="so-opt"><input type="radio" name="so-vis" value="1" ${open ? "checked" : ""}><span><b>Offen</b><small>Alle finden die Gruppe unter „Gruppen entdecken“ und können direkt beitreten</small></span></label></div></div>
@@ -765,7 +765,7 @@ const newGroupDialog = (course, done) => groupDialog(course, null, done);
 async function findPage(el, fach) {
   const f = { search: "", tag: null, fach: CBY[fach] ? fach : null };
   el.innerHTML = `<div class="page so">${head("Gruppen entdecken", "Offene Gruppen, denen du direkt beitreten kannst. Private Gruppen erscheinen hier nicht.", ["together", "", "Gemeinsam"])}
-    <div class="so-find"><input type="search" id="so-fq" placeholder="Name, Thema oder Tag suchen …" autocomplete="off"><select id="so-fc"><option value="">Alle Fächer</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === f.fach ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select><button class="btn pri sm" id="so-fnew">Gruppe gründen</button></div>
+    <div class="so-find"><input type="search" id="so-fq" placeholder="Name, Thema oder Tag suchen …" autocomplete="off">${fhOk() ? `<select id="so-fc"><option value="">Alle Fächer</option>${COURSES.map(c => `<option value="${c.id}" ${c.id === f.fach ? "selected" : ""}>${esc(c.title)}</option>`).join("")}</select>` : ""}<button class="btn pri sm" id="so-fnew">Gruppe gründen</button></div>
     <div class="so-tagbar"><button class="chip acc" data-ft="">Alle</button>${TAGS.map(t => `<button class="chip" data-ft="${esc(t)}">#${esc(t)}</button>`).join("")}</div>
     ${fhHint()}<div class="so-found"><p class="muted">Lädt …</p></div></div>`;
   const box = $(".so-found", el); let tmr = null, n = 0;
@@ -780,7 +780,7 @@ async function findPage(el, fach) {
     } catch (e) { if (my === n && !stale()) box.innerHTML = `<div class="empty">${esc(fail(e))}</div>`; }
   };
   $("#so-fq", el).oninput = e => { clearTimeout(tmr); tmr = setTimeout(() => { f.search = e.target.value.trim(); load(); }, 250); };
-  $("#so-fc", el).onchange = e => { f.fach = e.target.value || null; load(); };
+  const fc = $("#so-fc", el); if (fc) fc.onchange = e => { f.fach = e.target.value || null; load(); };
   $("#so-fnew", el).onclick = () => newGroupDialog(f.fach, g => App.go("together", "g:" + g.id));
   el.onclick = async e => {
     const t = e.target.closest("[data-ft]");
