@@ -98,6 +98,24 @@
     rename(id, name) { const p = byId(id); if (p && name) { p.name = name; save(); } },
     remove(id) { if (!byId(id) || (P && P.id === id)) return false; list = list.filter(p => p.id !== id); save(); try { localStorage.removeItem(keyOf(id)); localStorage.removeItem(secretOf(id)); } catch (e) {} return true; },
     remember(on) { if (!P) return; if (on) LS("studyos.active", P.id); else LS("studyos.active", null); },
-    remembered: () => !!(P && LS("studyos.active") === P.id)
+    remembered: () => !!(P && LS("studyos.active") === P.id),
+    /* Konto und Gast trennen: ein Profil gehört nach der Anmeldung zu einem Konto (acct = E-Mail).
+       Gäste bekommen ein eigenes, leeres Profil „gast“, damit sie nie die Daten eines Kontos sehen. */
+    GUEST: "gast",
+    isGuest: () => !!(P && P.id === "gast"),
+    acct: () => (P && P.acct) || null,
+    byAcct: mail => list.find(p => p.acct && p.acct === String(mail || "").toLowerCase()) || null,
+    bind(mail) { if (!P || P.id === "gast" || !mail) return; P.acct = String(mail).toLowerCase(); save(); },
+    bindId(id, mail) { const p = byId(id); if (p && id !== "gast" && mail) { p.acct = String(mail).toLowerCase(); save(); } },
+    /* Profil anlegen (ohne Oberfläche) und optional den Startzustand vorgeben */
+    ensure(id, name, init) {
+      if (!byId(id)) { list.push({ id, name, track: "uni", sem: (P && P.sem) || 3 }); save(); }
+      try { const k = keyOf(id), cur = JSON.parse(LS(k) || "null"); LS(k, JSON.stringify(Object.assign({ v: 2, name, profile: { onboarded: true, created: Date.now() } }, cur || {}, init || {}))); } catch (e) {}
+      return id;
+    },
+    /* Einstellungen eines anderen Profils ändern, bevor man hinwechselt */
+    patchSettings(id, fn) { try { const k = keyOf(id), st = JSON.parse(LS(k) || "null") || { v: 2, name: (byId(id) || {}).name }; st.settings = st.settings || {}; fn(st.settings); LS(k, JSON.stringify(st)); } catch (e) {} },
+    copyKey: (prefix, to) => { if (!P) return; const v = LS(prefix + P.id); if (v != null) LS(prefix + to, v); },
+    open: (id, remember) => choose(id, remember !== false)
   };
 })();

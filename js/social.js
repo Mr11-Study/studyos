@@ -35,6 +35,7 @@ async function connect() {
     const { data } = await sb.auth.getSession(); user = data && data.session && data.session.user;
     if (!user) throw Object.assign(new Error("Nicht angemeldet"), { auth: "login" });
     if (fromMail && !st().on) { st().on = true; App.save(); }
+    try { const P = SP(); if (P && !P.isGuest() && !P.acct()) P.bind(user.email); } catch (e) {}
     if (isGuest()) throw Object.assign(new Error("Gastkonto"), { auth: "secure" }); /* alte Gastkonten erst mit E-Mail sichern */
     const prof = { id: user.id, name: (S().name || "Studi").slice(0, 40), avatar: (S().settings.avatar || "").slice(0, 8) || null };
     const r = await sb.from("profiles").upsert(prof).select().single(); if (r.error) throw r.error;
@@ -411,6 +412,7 @@ function authView(el, cont, mode, bare) {
         const b = await sb.auth.updateUser({ password }); if (b.error) throw b.error; user = b.data.user;
       }
       me = null; st().on = true; App.save();
+      if (moveToAccount(email)) return; /* lädt neu im Profil dieses Kontos */
       (App.authHooks || []).forEach(f => { try { f("login", user); } catch (e) {} });
       App.toast(mode === "login" ? "Angemeldet" : mode === "signup" ? "Konto erstellt" : "Konto gesichert", "Mit " + email + " meldest du dich auf jedem Gerät an.", "✓");
       cont();
@@ -422,7 +424,9 @@ async function logout() {
   if (!confirm("Abmelden? Du kannst dich jederzeit wieder mit E-Mail und Passwort anmelden.")) return;
   drop(); try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(), sub = reg && reg.pushManager && await reg.pushManager.getSubscription(); if (sub && me) await sb.from("push_subs").delete().eq("user_id", me.id).eq("endpoint", sub.endpoint); } catch (e) {} delete st().push;
   if (inbox) { sb.removeChannel(inbox); inbox = null; } unread = {}; reqs = 0; paintBadges(); try { await sb.auth.signOut(); } catch (e) {}
-  me = null; user = null; st().on = false; delete st().role; delete st().fh; S().settings.guest = false; App.save(); (App.authHooks || []).forEach(f => { try { f("logout"); } catch (e) {} }); App.renderSide(); App.go("welcome", "");
+  me = null; user = null; st().on = false; S().settings.guest = false; App.save(); (App.authHooks || []).forEach(f => { try { f("logout"); } catch (e) {} });
+  if (toGuest(false)) return; /* Daten des Kontos bleiben in seinem Profil, weiter geht es im leeren Gast-Profil */
+  delete st().role; delete st().fh; App.renderSide(); App.go("welcome", "");
 }
 
 /* ---------- QR-Code in der App scannen (statt mit der Kamera-App, die den Link im Browser öffnen würde) ---------- */
@@ -573,13 +577,33 @@ document.addEventListener("click", e => { const b = e.target.closest("[data-fhop
    fh = bestätigte FH-Adresse mit Studiengangs-Code oder Lehrende (alle Fächer und Lerngruppen).
    st().fh merkt sich das letzte Ergebnis vom Server, damit die App auch offline weiß, was sie zeigt. */
 App.tier = () => !st().on ? "guest" : st().fh ? "fh" : "user";
+/* Profil und Konto: Ein Profil, in dem sich jemand angemeldet hat, gehört diesem Konto. Gäste landen im eigenen Profil „gast“. */
+const SP = () => window.StudyProfiles && StudyProfiles.ensure ? StudyProfiles : null;
+const SBKEY = "studyos.sb.";
+function toGuest(asGuest) {
+  const P = SP(); if (!P || P.isGuest() || !P.acct()) return false;
+  P.ensure(P.GUEST, "Gast"); P.patchSettings(P.GUEST, s => { s.guest = !!asGuest; s.online = {}; });
+  P.open(P.GUEST, true); return true;
+}
+function moveToAccount(email) {
+  const P = SP(); if (!P) return false;
+  const mine = P.acct(), mail = String(email || "").toLowerCase();
+  if (!P.isGuest() && (!mine || mine === mail)) { P.bind(mail); return false; } /* eigenes Profil: an das Konto binden */
+  const target = (P.byAcct(mail) || {}).id || P.ensure("a" + Date.now().toString(36), (S().name && !P.isGuest() ? S().name : mail.split("@")[0].split(/[._-]/)[0].replace(/^./, c => c.toUpperCase())).slice(0, 24));
+  P.bindId(target, mail);
+  P.patchSettings(target, s => { s.online = Object.assign({}, s.online, { on: true }); s.guest = false; });
+  P.copyKey(SBKEY, target); /* angemeldete Sitzung mitnehmen */
+  if (P.isGuest()) P.patchSettings(P.GUEST, s => { s.online = {}; });
+  try { (App.authHooks || []).forEach(f => { try { f("leave"); } catch (e) {} }); } catch (e) {}
+  P.open(target, true); return true;
+}
 const ROLES = [
   ["student", "🎓", "Student:in an der FH JOANNEUM", "Wirtschaftsinformatik: alle Fächer mit Skript, Üben und Prüfungstraining, dazu Lerngruppen. Du bestätigst deine @edu.fh-joanneum.at-Adresse und gibst den Studiengangs-Code ein."],
   ["staff", "🧑‍🏫", "Lehrende:r an der FH JOANNEUM", "Alles wie Studierende. Du bestätigst deine @fh-joanneum.at-Adresse, ein Studiengangs-Code ist nicht nötig."],
   ["user", "👤", "Normaler User", "Global-Chat, Freunde und Direktchats, dazu Kalender und Unterwegs. Die Fächer bleiben Studierenden und Lehrenden der FH vorbehalten."]];
 const wlHead = (t, sub) => `<div class="wl-brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small>Wirtschaftsinformatik · FH JOANNEUM</small></div></div><h1>${t}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}`;
 function welcomeStart(el) {
-  el.innerHTML = `<div class="page wl"><div class="wl-in">${wlHead(`Willkommen${S().name ? ", " + esc(S().name) : ""}`, "Wie möchtest du StudyOS nutzen? Du kannst das später jederzeit ändern.")}
+  el.innerHTML = `<div class="page wl"><div class="wl-in">${wlHead(`Willkommen${S().name && !(SP() && (SP().acct() || SP().isGuest())) ? ", " + esc(S().name) : ""}`, "Wie möchtest du StudyOS nutzen? Du kannst das später jederzeit ändern.")}
     <div class="wl-grid"><section class="card wl-acc"><span class="eyebrow">Mit Konto</span><div class="wl-auth"></div></section>
       <section class="card wl-guest"><span class="eyebrow">Ohne Konto</span><h3>Als Gast weiter</h3>
         <ul class="wl-list"><li>Kalender mit Stundenplan-Import</li><li>Unterwegs: Öffis von Tür zu Tür</li><li>Neuigkeiten</li></ul>
@@ -590,7 +614,7 @@ function welcomeStart(el) {
       <div><b>Konto</b><small>+ Global-Chat, Freunde, Direktchats, Gruppen ohne Fach</small></div>
       <div class="fh"><b>FH-Konto</b><small>+ alle Fächer, Prüfungstraining und Lerngruppen</small></div></div></div></div>`;
   authView($(".wl-auth", el), () => App.go("welcome", "role"), "signup", true);
-  $("#wl-guest", el).onclick = () => { S().settings.guest = true; App.save(); App.renderSide(); App.go("dash"); };
+  $("#wl-guest", el).onclick = () => { if (toGuest(true)) return; S().settings.guest = true; App.save(); App.renderSide(); App.go("dash"); };
 }
 async function welcomeRole(el) {
   const R0 = App.route();

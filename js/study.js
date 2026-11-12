@@ -58,7 +58,7 @@ App.SIDE = () => {
     <div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
     <nav class="nav" aria-label="Hauptmenü">${NAVG.map(([g, items]) => `<div class="eyebrow lbl">${g}</div>` + items.map(([v, t, i]) => `<button data-go="${v}" class="${cur === v ? "on" : ""}"><span class="ni">${i}</span>${t}${v === "review" && due ? `<span class="badge">${due}</span>` : ""}</button>`).join("")).join("")}
       <div class="eyebrow lbl">Konto</div><button data-go="settings" class="${cur === "settings" ? "on" : ""}"><span class="ni">⚙</span>Einstellungen</button></nav>
-    <div class="me"><div class="me-top">${App.avatar.html("avatar", 'data-go="settings" role="link" title="Profil"')}<div><div class="me-name">${esc(S().name)}</div><small>${st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
+    <div class="me"><div class="me-top">${App.avatar.html("avatar", 'data-go="settings" role="link" title="Profil"')}<div><div class="me-name">${esc(S().name)}</div><small>${App.tier && App.tier() !== "fh" ? (App.tier() === "guest" ? "Gast · ohne Konto" : "Angemeldet") : st ? plural(st, "Lerntag", "Lerntage") + " in Folge" : "Heute noch nicht gelernt"}</small></div></div>
       ${App.tier ? (App.tier() === "guest" ? `<button class="me-switch me-acct" data-acct="in">Anmelden</button>` : `<button class="me-switch me-acct" data-acct="out">Abmelden</button>`) : ""}${window.StudyProfiles && StudyProfiles.list().length > 1 ? `<button class="me-switch" id="pswitch" title="Profile">⇄ Profil wechseln</button>` : ""}</div>`;
   const psw = $("#pswitch"); if (psw) psw.onclick = () => StudyProfiles.switchTo();
   const tb = $("#tb-stats"); if (tb) tb.innerHTML = due ? `<button class="chip acc" data-go="review">↻ ${due} fällig</button>` : "";
@@ -73,6 +73,7 @@ const endHM = e => { if (!e.time || !e.min) return ""; const [h, m] = e.time.spl
 const ring = (pct, c) => `<svg class="dh-ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" pathLength="100"/><circle cx="22" cy="22" r="18" pathLength="100" style="stroke:${c};stroke-dashoffset:${100 - Math.max(0, Math.min(100, pct))}"/></svg>`;
 const KINDS = { exam: "Prüfung", deadline: "Abgabe", register: "Anmeldung", other: "Termin", study: "Lernen" };
 PAGES.dash = el => {
+  if (App.tier && App.tier() !== "fh" && App.homeLite) return App.homeLite(el); /* Gäste und normale User: eigene Startseite (access.js) */
   const t = today(), h = new Date().getHours(), greet = h < 5 ? "Noch wach" : h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend";
   const st = App.streak(), mon = monday0(t);
   let wkMin = 0; for (let i = 0; i < 7; i++) wkMin += Math.round(((S().days[addDays(mon, i)] || {}).sec || 0) / 60);
