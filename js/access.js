@@ -7,6 +7,7 @@
    Muss nach apps.js und settings-ui.js geladen werden, weil es die fertigen Seiten umhüllt. */
 (function () {
 const { $, $$, esc, PAGES } = App;
+/* Neuigkeiten sehen alle, ohne FH-Konto aber nur die allgemeine Fassung (PUB in changelog.js) */
 const OPEN = new Set(["dash", "calendar", "transit", "news", "feedback", "settings", "welcome", "profile"]);
 const tier = () => (App.tier ? App.tier() : "fh");
 App.pageOk = v => tier() === "fh" || OPEN.has(v) || (v === "together" && tier() === "user");
