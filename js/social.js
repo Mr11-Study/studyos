@@ -44,11 +44,11 @@ async function connect() {
     cleanOwn();
     await modLoad().catch(() => {}); nameCheck(prof.name); notesCheck().catch(() => {}); startMod();
     await fhLoad();
-    if (fromMail && fhKind(user.email) && !fhRow) await fhConfirm().then(() => App.toast("FH-Adresse bestätigt", fhOk() ? "Du kannst jetzt Lerngruppen nutzen." : "Jetzt noch den Studiengangs-Code eingeben (Fach-App → Lerngruppen).", "✓")).catch(() => {});
+    if (fromMail && fhKind(user.email) && !fhRow) await fhConfirm().then(() => App.toast("FH-Adresse bestätigt", fhOk() ? "Du siehst jetzt alle Fächer und kannst Lerngruppen nutzen." : "Der Zugang ist für dieses Konto gesperrt.", "✓")).catch(() => {});
   })();
   try { await loading; } finally { loading = null; }
 }
-const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /Nur für FH-Konten/.test(m) ? "Lerngruppen zu einem Fach gibt es nur für bestätigte FH-JOANNEUM-Konten aus Wirtschaftsinformatik." : /fh_verify|fh_join_wi|admin_wi_code|admin_fh_(?!test)|fh_verified/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen." : /admin_fh_test|fh_admin_test/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-12.sql ausführen." : /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
+const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /Nur für FH-Konten/.test(m) ? "Lerngruppen zu einem Fach gibt es nur für bestätigte FH-JOANNEUM-Konten." : /fh_verify|fh_join_wi|admin_wi_code|admin_fh_(?!test)|fh_verified/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen." : /admin_fh_test|fh_admin_test/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-12.sql ausführen." : /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
 const q = async p => { const r = await p; if (r.error) throw r.error; return r.data; };
 
 /* Namen und Avatare anderer zwischenspeichern */
@@ -494,8 +494,8 @@ function browserHint(inv, cont) {
 
 /* ---------- Lerngruppen nur für FH JOANNEUM (supabase-update-11.sql) ----------
    Gruppen ohne Fach, Freunde, Direktchats und der Global-Chat sind für alle Angemeldeten offen.
-   Lerngruppen (Gruppen mit Fach) nur für Konten, die ihre Adresse @edu.fh-joanneum.at per E-Mail-Code bestätigt
-   und den Studiengangs-Code (Wirtschaftsinformatik) eingegeben haben; Lehrende (@fh-joanneum.at) brauchen keinen Code.
+   Lerngruppen (Gruppen mit Fach) nur für Konten, die ihre Adresse @edu.fh-joanneum.at oder @fh-joanneum.at
+   per E-Mail-Code bestätigt haben (seit Update 13 ohne Studiengangs-Code). Der Admin kann den Zugang entziehen.
    Geprüft wird in der Datenbank (Row Level Security), die App erklärt nur und führt durch die Schritte. */
 let fhOn = false, fhRow = null, fhTest = false;
 const fhKind = m => /@edu\.fh-joanneum\.at$/i.test(m || "") ? "student" : /@fh-joanneum\.at$/i.test(m || "") ? "staff" : null;
@@ -509,7 +509,7 @@ async function fhLoad() {
   if (!!was !== ok) { App.save(); App.renderSide(); App.accessChanged && App.accessChanged(); }
 }
 /* Ohne Update 11 gibt es noch keine Sperre (fhOn = false), dann bleibt alles wie bisher */
-const fhOk = () => !fhOn || (isAdmin && !fhTest) || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.kind === "staff" || fhRow.wi));
+const fhOk = () => !fhOn || (isAdmin && !fhTest) || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.revoked === undefined ? fhRow.kind === "staff" || fhRow.wi : !fhRow.revoked));
 async function fhConfirm() { await q(sb.rpc("fh_verify")); await fhLoad(); }
 const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
   return /Falscher Studiengangs-Code/.test(t) ? "Dieser Studiengangs-Code stimmt nicht. Frag in deiner Jahrgangsgruppe nach dem aktuellen Code."
@@ -519,13 +519,13 @@ const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
     : /rate|too many|security purposes|seconds/i.test(t) ? "Kurz warten: Ein neuer Code geht erst nach etwa einer Minute."
     : /already|registered|exists/i.test(t) ? "Diese Adresse gehört schon zu einem anderen StudyOS-Konto. Melde dich mit diesem Konto an."
     : fail(e); };
-const FH_INTRO = "Fächer, Prüfungstraining und Lerngruppen sind nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. Freunde, Gruppen ohne Fach und der Global-Chat bleiben für alle mit Konto offen.";
+const FH_INTRO = "Fächer, Prüfungstraining und Lerngruppen sind nur für Studierende und Lehrende der FH JOANNEUM. Freunde, Gruppen ohne Fach und der Global-Chat bleiben für alle mit Konto offen.";
 /* Schritte in ein Element zeichnen; done() nach erfolgreicher Freischaltung */
 function fhSteps(box, done) {
   const mail = String((user && user.email) || ""), kind = fhKind(mail), verified = !!(fhRow && fhRow.email === mail.toLowerCase());
-  const step = !kind ? 1 : !verified ? 2 : 3;
-  const dot = n => `<li class="${n < step ? "done" : n === step ? "now" : ""}">${["FH-Adresse", "E-Mail bestätigen", "Studiengangs-Code"][n - 1]}</li>`;
-  box.innerHTML = `<p class="muted">${FH_INTRO}</p><p class="so-fherr" role="alert" hidden></p><ol class="so-fhsteps">${dot(1)}${dot(2)}${kind === "staff" ? "" : dot(3)}</ol>
+  const step = !kind ? 1 : !verified ? 2 : 3, blocked = verified && fhRow.revoked;
+  const dot = n => `<li class="${n < step ? "done" : n === step ? "now" : ""}">${["FH-Adresse", "E-Mail bestätigen"][n - 1]}</li>`;
+  box.innerHTML = `<p class="muted">${FH_INTRO}</p><p class="so-fherr" role="alert" hidden></p><ol class="so-fhsteps">${dot(1)}${dot(2)}</ol>
     ${step === 1 ? `<p>Dein Konto nutzt <b>${esc(mail)}</b>. Hinterlege deine FH-Adresse, dann schicken wir dir einen Code dorthin. Deine Freunde, Gruppen und Chats bleiben erhalten.</p>
       <form class="col so-fhf" data-s="mail"><label class="fld">FH-Adresse<input type="email" required autocomplete="email" placeholder="vorname.nachname@edu.fh-joanneum.at"></label><div class="row"><button class="btn pri sm">Adresse übernehmen</button></div></form>`
     : step === 2 ? `<p>Wir schicken einen Code an <b>${esc(mail)}</b>. Damit zeigst du, dass das Postfach dir gehört.</p>
@@ -533,14 +533,15 @@ function fhSteps(box, done) {
       <form class="col so-fhf" data-s="otp" hidden><label class="fld">Code aus der E-Mail<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required placeholder="123456" style="letter-spacing:.2em"></label>
         <div class="row"><button class="btn pri sm">Bestätigen</button><button type="button" class="btn ghost sm" data-fh="send">Neuen Code schicken</button></div>
         <p class="muted" style="font-size:13px">Die E-Mail kann ein paar Minuten brauchen, schau auch im Spam-Ordner nach. Es gilt immer nur der zuletzt geschickte Code.</p></form>`
-    : `<p>✓ <b>${esc(mail)}</b> ist bestätigt. Jetzt noch den Studiengangs-Code von Wirtschaftsinformatik eingeben. Du bekommst ihn in deiner Jahrgangsgruppe.</p>
-      <form class="col so-fhf" data-s="wi"><label class="fld">Studiengangs-Code<input type="text" maxlength="16" required autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.12em"></label><div class="row"><button class="btn pri sm">Freischalten</button></div></form>`}`;
+    : blocked ? `<p><b>${esc(mail)}</b> ist bestätigt, aber der Zugang zu Fächern und Lerngruppen ist für dieses Konto gesperrt. Wende dich an den Admin, wenn das ein Irrtum ist.</p>`
+    : `<p>✓ <b>${esc(mail)}</b> ist bestätigt.</p><div class="row"><button class="btn pri sm" data-fh="reload">Weiter</button></div>`}`;
   const busy = (b, on) => { if (b) b.disabled = on; };
   /* Fehler direkt im Dialog zeigen (eine Meldung unten rechts liegt hinter dem abgedunkelten Hintergrund) */
   const err = (t, raw) => { const p = $(".so-fherr", box); if (!p) return App.toast("Hat nicht geklappt", t, "!"); p.innerHTML = esc(t) + (raw ? `<small>${esc(raw)}</small>` : ""); p.hidden = !t; };
   const rawOf = er => { const m = String((er && (er.message || er.msg)) || ""); return m && !/[äöüß]/.test(m) ? "Meldung von Supabase: " + m.slice(0, 160) : ""; };
   const finish = async () => { await fhLoad(); if (fhOk()) { App.toast("Freigeschaltet", "Du siehst jetzt alle Fächer und kannst Lerngruppen nutzen.", "✓"); done(); } else fhSteps(box, done); };
   box.onclick = async e => {
+    if (e.target.closest("[data-fh=reload]")) return finish();
     const b = e.target.closest("[data-fh=send]"); if (!b) return;
     const again = !$("[data-s=otp]", box).hidden;
     if (again && !confirm("Neuen Code schicken? Der Code aus der vorigen E-Mail gilt dann nicht mehr.")) return;
@@ -567,7 +568,7 @@ function fhSteps(box, done) {
         if (r.data && r.data.user) user = r.data.user;
         await fhConfirm(); return finish();
       }
-      await q(sb.rpc("fh_join_wi", { code: v })); return finish();
+      return finish();
     } catch (er) { busy(b, false); err(er && /keine Adresse der FH/.test(er.message) ? er.message : fhErr(er), er && /keine Adresse der FH/.test(er.message) ? "" : rawOf(er)); }
   };
 }
@@ -576,12 +577,12 @@ function fhDialog(done) {
     fhSteps($(".so-fh", m), () => { close(); done && done(); });
   });
 }
-const fhHint = () => fhOk() ? "" : `<div class="so-fhhint"><span>🎓 Lerngruppen zu Fächern nur mit FH-Konto (Wirtschaftsinformatik).</span><button class="btn sm" data-fhopen>Freischalten</button></div>`;
+const fhHint = () => fhOk() ? "" : `<div class="so-fhhint"><span>🎓 Lerngruppen zu Fächern nur mit bestätigtem FH-Konto.</span><button class="btn sm" data-fhopen>Freischalten</button></div>`;
 document.addEventListener("click", e => { const b = e.target.closest("[data-fhopen]"); if (!b || !sb || !me) return; e.preventDefault(); const mb = b.closest(".modal-back"); if (mb) mb.remove(); fhDialog(() => App.go(App.route().v, App.route().p)); });
 
 /* ---------- Zugang: Gast, Konto oder FH-Konto ----------
    guest = nicht angemeldet; user = Konto ohne FH-Bestätigung (Global-Chat, Freunde, Direktchats);
-   fh = bestätigte FH-Adresse mit Studiengangs-Code oder Lehrende (alle Fächer und Lerngruppen).
+   fh = bestätigte FH-Adresse von Studierenden oder Lehrenden (alle Fächer und Lerngruppen).
    st().fh merkt sich das letzte Ergebnis vom Server, damit die App auch offline weiß, was sie zeigt. */
 App.tier = () => !st().on ? "guest" : st().fh ? "fh" : "user";
 /* Profil und Konto: Ein Profil, in dem sich jemand angemeldet hat, gehört diesem Konto. Gäste landen im eigenen Profil „gast“. */
@@ -605,8 +606,8 @@ function moveToAccount(email) {
   P.open(target, true); return true;
 }
 const ROLES = [
-  ["student", "🎓", "Student:in an der FH JOANNEUM", "Wirtschaftsinformatik: alle Fächer mit Skript, Üben und Prüfungstraining, dazu Lerngruppen. Du bestätigst deine @edu.fh-joanneum.at-Adresse und gibst den Studiengangs-Code ein."],
-  ["staff", "🧑‍🏫", "Lehrende:r an der FH JOANNEUM", "Alles wie Studierende. Du bestätigst deine @fh-joanneum.at-Adresse, ein Studiengangs-Code ist nicht nötig."],
+  ["student", "🎓", "Student:in an der FH JOANNEUM", "Alle Fächer mit Skript, Üben und Prüfungstraining, dazu Lerngruppen. Du bestätigst deine @edu.fh-joanneum.at-Adresse mit einem Code per E-Mail."],
+  ["staff", "🧑‍🏫", "Lehrende:r an der FH JOANNEUM", "Alles wie Studierende. Du bestätigst deine @fh-joanneum.at-Adresse mit einem Code per E-Mail."],
   ["user", "👤", "Normaler User", "Global-Chat, Freunde und Direktchats, dazu Kalender und Unterwegs. Die Fächer bleiben Studierenden und Lehrenden der FH vorbehalten."]];
 const wlHead = (t, sub) => `<div class="wl-brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small>Wirtschaftsinformatik · FH JOANNEUM</small></div></div><h1>${t}</h1>${sub ? `<p class="muted">${sub}</p>` : ""}`;
 function welcomeStart(el) {
@@ -922,14 +923,13 @@ async function adminPage(el) {
       } else {
         const [mu, no] = await Promise.all([q(sb.from("mutes").select("*").gt("until", new Date().toISOString()).order("until")), q(sb.from("user_notes").select("*").order("created_at", { ascending: false }).limit(30))]);
         await loadNames(mu.map(x => x.user_id).concat(no.map(x => x.user_id))); if (!alive()) return;
-        const [wc, fl] = await Promise.all([settle(sb.rpc("admin_wi_code")), settle(sb.rpc("admin_fh_list"))]); if (!alive()) return;
+        const fl = await settle(sb.rpc("admin_fh_list")), wc = fl; if (!alive()) return;
         const fhSec = wc.error ? `<section class="card"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen.</p></section>`
-          : `<section class="card so-fhadm"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Lerngruppen zu Fächern sind nur für bestätigte FH-Adressen. Studierende (@edu.fh-joanneum.at) brauchen zusätzlich diesen Studiengangs-Code, Lehrende (@fh-joanneum.at) nicht. Teile ihn nur in der WI-Jahrgangsgruppe. Ein neuer Code sperrt niemanden aus, der schon drin ist.</p>
-            <div class="so-row so-wirow"><span class="muted">Studiengangs-Code</span><span class="so-code">${esc(wc.data || "")}</span><span class="so-sp"></span><button class="btn sm" id="so-wicopy">Kopieren</button><button class="btn sm" id="so-wiset">Ändern</button></div>
-            <h3>Bestätigt <span class="chip">${(fl.data || []).length}</span></h3>${(fl.data || []).length ? fl.data.map(v => `<div class="so-urow" data-fuid="${v.user_id}"><div class="so-utxt"><b>${esc(mask(v.name || "Studi"))}</b><small class="muted">${esc(v.email)} · ${v.kind === "staff" ? "Lehrende" : v.wi ? "Wirtschaftsinformatik" : "ohne Studiengangs-Code"}</small></div>${v.kind === "student" && v.wi ? `<div class="row so-uact"><button class="btn ghost sm" data-fhrev>Zugang entziehen</button></div>` : ""}</div>`).join("") : `<p class="muted">Noch niemand.</p>`}</section>`;
+          : `<section class="card so-fhadm"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Fächer und Lerngruppen sind für alle, die eine Adresse @edu.fh-joanneum.at (Studierende) oder @fh-joanneum.at (Lehrende) per E-Mail-Code bestätigt haben. Du kannst einzelnen Personen den Zugang entziehen.</p>
+            <h3>Bestätigt <span class="chip">${(fl.data || []).length}</span></h3>${(fl.data || []).length ? fl.data.map(v => `<div class="so-urow" data-fuid="${v.user_id}"><div class="so-utxt"><b>${esc(mask(v.name || "Studi"))}</b><small class="muted">${esc(v.email)} · ${v.kind === "staff" ? "Lehrende" : "Studierende"}${v.revoked ? " · gesperrt" : v.revoked === undefined ? " · Update 13 fehlt" : ""}</small></div>${v.revoked === undefined ? "" : `<div class="row so-uact">${v.revoked ? `<button class="btn ghost sm" data-fhres>Zugang zurückgeben</button>` : `<button class="btn ghost sm" data-fhrev>Zugang entziehen</button>`}</div>`}</div>`).join("") : `<p class="muted">Noch niemand.</p>`}</section>`;
         const tst = await settle(sb.from("fh_admin_test").select("user_id").eq("user_id", me.id).maybeSingle()); if (!alive()) return;
         const tSec = wc.error ? "" : tst.error ? `<section class="card"><h3>Testmodus</h3><p class="muted">Für den Testmodus im Supabase SQL Editor einmal supabase-update-12.sql ausführen.</p></section>`
-          : `<section class="card so-fhtest"><h3>Testmodus ${tst.data ? `<span class="chip">an</span>` : ""}</h3><p class="muted">${tst.data ? "Du bist gerade wie ein normaler User ohne FH-Freischaltung. Geh die Schritte durch (FH-Adresse, Code aus der E-Mail, Studiengangs-Code oben). Die Admin-Werkzeuge bleiben hier erreichbar." : "Spiel die FH-Freischaltung selbst durch. Dein Admin-Recht zählt dann für Fächer und Lerngruppen nicht, und deine bisherige Bestätigung wird gelöscht. Nur dein Konto ist betroffen."}</p>
+          : `<section class="card so-fhtest"><h3>Testmodus ${tst.data ? `<span class="chip">an</span>` : ""}</h3><p class="muted">${tst.data ? "Du bist gerade wie ein normaler User ohne FH-Freischaltung. Geh die Schritte durch (FH-Adresse und Code aus der E-Mail). Die Admin-Werkzeuge bleiben hier erreichbar." : "Spiel die FH-Freischaltung selbst durch. Dein Admin-Recht zählt dann für Fächer und Lerngruppen nicht, und deine bisherige Bestätigung wird gelöscht. Nur dein Konto ist betroffen."}</p>
             <div class="row">${tst.data ? `<button class="btn pri sm" id="so-fhtgo">Freischaltung starten</button><button class="btn sm" id="so-fhtoff">Testmodus beenden</button>` : `<button class="btn pri sm" id="so-fhton">Als Student testen</button>`}</div></section>`;
         body.innerHTML = fhSec + tSec + `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
           <section class="card"><h3>Letzte Verwarnungen</h3>${no.length ? no.map(n => `<div class="so-urow">${av(names[n.user_id])}<div class="so-utxt"><b>${esc(nm(n.user_id))}</b><small class="muted">${time(n.created_at)} · ${n.seen ? "gelesen" : "noch nicht gelesen"}</small><p>${esc(n.text)}</p></div></div>`).join("") : `<p class="muted">Noch keine Verwarnungen.</p>`}</section>
@@ -939,14 +939,12 @@ async function adminPage(el) {
         const ton = $("#so-fhton", body); if (ton) ton.onclick = () => { if (confirm("Testmodus einschalten? Deine FH-Bestätigung wird gelöscht und du gehst den Ablauf wie ein Student neu durch.")) tog(true); };
         const toff = $("#so-fhtoff", body); if (toff) toff.onclick = () => tog(false);
         const tgo = $("#so-fhtgo", body); if (tgo) tgo.onclick = () => fhDialog(() => paint());
-        const wcp = $("#so-wicopy", body); if (wcp) wcp.onclick = () => copy(wc.data, "Code in der Zwischenablage.");
-        const wcs = $("#so-wiset", body); if (wcs) wcs.onclick = async () => {
-          const v = prompt("Neuer Studiengangs-Code (4 bis 16 Buchstaben oder Ziffern):", ""); if (!v) return;
-          try { await q(sb.rpc("admin_wi_code", { new_code: v })); App.toast("Geändert", "Der neue Code gilt ab sofort.", "✓"); paint(); } catch (er) { App.toast("Fehler", /4 bis 16/.test(String(er.message)) ? "Der Code braucht 4 bis 16 Buchstaben oder Ziffern." : fail(er), "!"); }
-        };
         $$("[data-fhrev]", body).forEach(b => b.onclick = async () => {
-          if (!confirm("Zugang zu Lerngruppen entziehen? Die Person muss dann den Studiengangs-Code neu eingeben.")) return;
+          if (!confirm("Zugang zu Fächern und Lerngruppen entziehen? Die Person bleibt gesperrt, bis du ihn zurückgibst.")) return;
           try { await q(sb.rpc("admin_fh_revoke", { uid: b.closest("[data-fuid]").dataset.fuid })); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
+        });
+        $$("[data-fhres]", body).forEach(b => b.onclick = async () => {
+          try { await q(sb.rpc("admin_fh_restore", { uid: b.closest("[data-fuid]").dataset.fuid })); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); }
         });
         $("#so-clear", body).onclick = async () => {
           if (!confirm("Wirklich alle Nachrichten im Global-Chat löschen? Das lässt sich nicht rückgängig machen.")) return;

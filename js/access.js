@@ -1,7 +1,7 @@
 /* StudyOS · Zugang je Kontotyp
    guest (ohne Konto): Heute, Kalender, Unterwegs, Neuigkeiten, Einstellungen.
    user (Konto ohne FH-Bestätigung): dazu Gemeinsam (Global-Chat, Freunde, Direktchats, Gruppen ohne Fach).
-   fh (bestätigte FH-Adresse, Studierende mit Studiengangs-Code oder Lehrende): alles, auch Fächer und Lerngruppen.
+   fh (bestätigte FH-Adresse von Studierenden oder Lehrenden): alles, auch Fächer und Lerngruppen.
    Den Kontotyp liefert App.tier() aus social.js. Die Lerngruppen sind zusätzlich in der Datenbank geschützt
    (supabase-update-11.sql); die Fächer blendet die App aus.
    Muss nach apps.js und settings-ui.js geladen werden, weil es die fertigen Seiten umhüllt. */
@@ -15,7 +15,7 @@ App.pageOk = v => tier() === "fh" || OPEN.has(v) || (v === "together" && tier() 
 function lockPage(el, v) {
   const t = tier();
   const what = v === "together" ? ["Gemeinsam braucht ein Konto", "Freunde, Direktchats und der Global-Chat sind für alle mit Konto da. Als Gast nutzt du Kalender und Unterwegs."]
-    : ["Nur für die FH JOANNEUM", "Fächer mit Skript, Üben und Prüfungstraining sowie Lerngruppen gibt es für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM."];
+    : ["Nur für die FH JOANNEUM", "Fächer mit Skript, Üben und Prüfungstraining sowie Lerngruppen gibt es für Studierende und Lehrende der FH JOANNEUM."];
   el.innerHTML = `<div class="page"><section class="card ac-lock"><span class="ac-ic" aria-hidden="true">${v === "together" ? "◎" : "🎓"}</span><h2>${what[0]}</h2><p class="muted">${what[1]}</p>
     ${t === "guest" ? `<p class="muted">Melde dich an oder erstelle ein Konto. Mit deiner FH-Adresse schaltest du danach die Fächer frei.</p><div class="row"><button class="btn pri" data-go="welcome">Anmelden oder Konto erstellen</button><button class="btn ghost" data-go="dash">Zu Heute</button></div>`
       : `<p class="muted">Bestätige deine FH-Adresse (@edu.fh-joanneum.at oder @fh-joanneum.at), dann siehst du alles.</p><div class="row"><button class="btn pri" data-acunlock>FH-Konto bestätigen</button><button class="btn ghost" data-go="dash">Zu Heute</button></div>`}</section></div>`;

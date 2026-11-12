@@ -53,12 +53,12 @@ async function onMessage(id) {
   if (m.to_user) return send([m.to_user], { title: who, body: text, chat: "dm:" + m.sender, tag: "so-dm:" + m.sender });
   const g = (await db.from("groups").select("name, course").eq("id", m.group_id).maybeSingle()).data;
   let mem = ((await db.from("group_members").select("user_id").eq("group_id", m.group_id)).data || []).map(r => r.user_id).filter(u => u !== m.sender);
-  /* Fach-Lerngruppen (Update 11): nur bestätigte FH-Konten mit Studiengangs-Code, Lehrende und Admins bekommen die Mitteilung */
+  /* Fach-Lerngruppen (Update 11): nur bestätigte FH-Konten ohne Sperre (wi = hat Zugang, seit Update 13) und Admins bekommen die Mitteilung */
   if (g && g.course && mem.length) {
     const v = await db.from("fh_verified").select("user_id, kind, wi").in("user_id", mem);
     if (!v.error) {
       const ad = new Set(((await db.from("admins").select("user_id").in("user_id", mem)).data || []).map(r => r.user_id));
-      const ok = new Set((v.data || []).filter(r => r.kind === "staff" || r.wi).map(r => r.user_id));
+      const ok = new Set((v.data || []).filter(r => r.wi).map(r => r.user_id));
       mem = mem.filter(u => ok.has(u) || ad.has(u));
     }
   }
