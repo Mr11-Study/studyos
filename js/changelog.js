@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.64.0", d: "2026-11-12", t: "FH-Zugang ohne Studiengangs-Code", items: [
+    "Fächer und Lerngruppen schaltet jetzt jede bestätigte Adresse der FH JOANNEUM frei (@edu.fh-joanneum.at oder @fh-joanneum.at). Der Studiengangs-Code fällt weg, der Code aus der E-Mail reicht.",
+    "Admins können einzelnen Personen den Zugang entziehen und wieder zurückgeben. Braucht supabase-update-13.sql."
+  ] },
   { v: "4.63.5", d: "2026-11-12", t: "FH-Bestätigung klarer", items: [
     "Fehler beim Bestätigen der FH-Adresse stehen jetzt direkt im Fenster, mit der genauen Meldung. Meldungen unten rechts liegen nicht mehr hinter einem abgedunkelten Fenster.",
     "Der Hinweis auf einen Link in der E-Mail ist weg. Nach „Code schicken“ gibt es nur noch „Neuen Code schicken“, mit Rückfrage, weil dann der alte Code nicht mehr gilt."
@@ -391,6 +395,7 @@ App.VERSION = LOG[0].v;
    Bei jedem Update, das auch für sie etwas bringt, hier einen Eintrag ergänzen: Version -> [Titel, [Punkte]].
    Versionen ohne Eintrag sehen sie nicht; der Update-Hinweis sagt dann nur „StudyOS wurde aktualisiert“. */
 const PUB = {
+  "4.64.0": ["FH-Bestätigung einfacher", ["Studierende und Lehrende der FH JOANNEUM bestätigen ihre Adresse nur noch mit dem Code aus der E-Mail."]],
   "4.63.5": ["FH-Bestätigung klarer", ["Fehler beim Bestätigen der FH-Adresse stehen jetzt direkt im Fenster.", "Meldungen sind auch über offenen Fenstern gut lesbar."]],
   "4.63.2": ["Neue Startseite und getrennte Profile", ["„Heute“ zeigt deine Termine, die nächste Verbindung und den Global-Chat auf einen Blick.", "Als Gast startest du mit einem eigenen, leeren Profil. Die Daten eines Kontos siehst du erst nach der Anmeldung."]],
   "4.63.1": ["Neuigkeiten für alle", ["Hier siehst du ab jetzt, was in StudyOS für dich neu ist."]],
