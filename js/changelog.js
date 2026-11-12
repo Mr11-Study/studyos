@@ -5,6 +5,12 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.62.0", d: "2026-11-12", t: "Lerngruppen nur für die FH JOANNEUM", items: [
+    "Lerngruppen zu einem Fach sind jetzt nur für Studierende der Wirtschaftsinformatik und Lehrende der FH JOANNEUM. So bleiben Unterlagen und Fragen zu den Lehrveranstaltungen unter uns.",
+    "Freischalten in drei Schritten: FH-Adresse (@edu.fh-joanneum.at) hinterlegen, mit dem Code aus der E-Mail bestätigen und den Studiengangs-Code eingeben. Lehrende mit @fh-joanneum.at brauchen keinen Studiengangs-Code.",
+    "Alles andere bleibt für alle offen: Kalender, Unterwegs, die Fächer, Freunde, Direktchats, Gruppen ohne Fach und der Global-Chat. Auch ohne FH-Konto kannst du mit Studierenden befreundet sein und schreiben.",
+    "Geprüft wird auf dem Server, nicht nur in der App. Den Studiengangs-Code sieht und ändert nur der Admin."
+  ] },
   { v: "4.61.1", d: "2026-11-11", t: "Unterwegs: Standort auf der Karte statt Wegbeschreibung", items: [
     "Die Wegbeschreibung Abbiegung für Abbiegung ist wieder weg. Der Fußweg zeigt Minuten und Meter und ist auf der Karte gepunktet eingezeichnet.",
     "Dafür siehst du auf der Karte sofort als blauen Punkt, wo du gerade bist. In „Ich fahre mit“ bleibt die Karte bei dir, während du gehst oder fährst."

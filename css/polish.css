@@ -1360,3 +1360,15 @@ details.tr-wd>summary::after{content:"▾";transition:transform .2s}details.tr-w
 .so-prof>.so-av{width:72px;height:72px;font-size:34px}
 .so-prof h2{margin:4px 0 0}
 .so-pact{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:6px}
+/* Lerngruppen nur für FH JOANNEUM (4.62) */
+.so-fh{display:flex;flex-direction:column;gap:10px}
+.so-fh p{margin:0}
+.so-fhsteps{display:flex;gap:6px;flex-wrap:wrap;list-style:none;padding:0;margin:2px 0;counter-reset:fh}
+.so-fhsteps li{counter-increment:fh;font-size:13px;padding:4px 10px 4px 6px;border-radius:999px;background:var(--card3);color:var(--muted);display:flex;align-items:center;gap:6px}
+.so-fhsteps li::before{content:counter(fh);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--card2);color:var(--muted)}
+.so-fhsteps li.now{color:var(--text);background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc-line)}
+.so-fhsteps li.now::before{background:var(--acc);color:var(--acc-ink)}
+.so-fhsteps li.done::before{content:"✓";background:var(--acc-soft);color:var(--acc)}
+.so-fhf{max-width:420px}
+.so-fhhint{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;font-size:13px;color:var(--muted);background:var(--card2);border:1px dashed var(--line2);border-radius:12px;padding:8px 12px;margin:8px 0}
+.so-wirow{flex-wrap:wrap;gap:10px}
