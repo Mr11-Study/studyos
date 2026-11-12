@@ -5,6 +5,9 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.63.4", d: "2026-11-12", t: "Testmodus für die FH-Freischaltung", items: [
+    "Admins können unter Admin → Werkzeuge einen Testmodus einschalten und die FH-Freischaltung mit E-Mail-Code und Studiengangs-Code selbst durchspielen. Braucht supabase-update-12.sql."
+  ] },
   { v: "4.63.3", d: "2026-11-12", t: "Gruppen ohne Fach-Auswahl für normale User", items: [
     "Normale User und Gäste sehen beim Entdecken und Gründen von Gruppen keine Fach-Auswahl mehr. Im Gast-Profil gibt es außerdem kein „Profil wechseln“."
   ] },

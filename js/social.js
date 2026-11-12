@@ -48,7 +48,7 @@ async function connect() {
   })();
   try { await loading; } finally { loading = null; }
 }
-const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /Nur für FH-Konten/.test(m) ? "Lerngruppen zu einem Fach gibt es nur für bestätigte FH-JOANNEUM-Konten aus Wirtschaftsinformatik." : /fh_verify|fh_join_wi|admin_wi_code|admin_fh_|fh_verified/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen." : /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
+const fail = e => { const m = String((e && (e.message || e.msg)) || e || ""); return /Nur für FH-Konten/.test(m) ? "Lerngruppen zu einem Fach gibt es nur für bestätigte FH-JOANNEUM-Konten aus Wirtschaftsinformatik." : /fh_verify|fh_join_wi|admin_wi_code|admin_fh_(?!test)|fh_verified/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-11.sql ausführen." : /admin_fh_test|fh_admin_test/i.test(m) ? "Dafür fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-12.sql ausführen." : /discover_groups|join_open_group|groups_extra_ok|column [^ ]*(open|tags|about)/i.test(m) ? "Für offene Gruppen und Tags fehlt noch ein Datenbank-Update. Im Supabase SQL Editor einmal supabase-update-4.sql ausführen." : /relation|does not exist|schema cache|PGRST20/.test(m) ? "Die Datenbank ist noch nicht eingerichtet. Im Supabase SQL Editor einmal supabase-setup.sql ausführen." : /anonymous.*disabled|disabled.*anonymous/i.test(m) ? "Anonyme Anmeldung ist in Supabase noch ausgeschaltet (Authentication → Sign In / Providers → Allow anonymous sign-ins, dann Save changes). Supabase meldet: " + m : /fetch|network|Bibliothek/i.test(m) ? "Keine Verbindung. Prüf dein Internet und versuch es nochmal." : "Fehler von Supabase: " + (m || "unbekannt"); };
 const q = async p => { const r = await p; if (r.error) throw r.error; return r.data; };
 
 /* Namen und Avatare anderer zwischenspeichern */
@@ -497,18 +497,19 @@ function browserHint(inv, cont) {
    Lerngruppen (Gruppen mit Fach) nur für Konten, die ihre Adresse @edu.fh-joanneum.at per E-Mail-Code bestätigt
    und den Studiengangs-Code (Wirtschaftsinformatik) eingegeben haben; Lehrende (@fh-joanneum.at) brauchen keinen Code.
    Geprüft wird in der Datenbank (Row Level Security), die App erklärt nur und führt durch die Schritte. */
-let fhOn = false, fhRow = null;
+let fhOn = false, fhRow = null, fhTest = false;
 const fhKind = m => /@edu\.fh-joanneum\.at$/i.test(m || "") ? "student" : /@fh-joanneum\.at$/i.test(m || "") ? "staff" : null;
 async function fhLoad() {
   const r = await settle(sb.from("fh_verified").select("*").eq("user_id", me.id).maybeSingle());
   fhOn = !r.error; fhRow = (!r.error && r.data) || null;
   if (!fhOn) return;
+  if (isAdmin) { const t = await settle(sb.from("fh_admin_test").select("user_id").eq("user_id", me.id).maybeSingle()); fhTest = !t.error && !!t.data; } else fhTest = false;
   const ok = fhOk(), was = st().fh;
   if (ok) { st().fh = true; if (!st().role) st().role = "fh"; } else delete st().fh;
   if (!!was !== ok) { App.save(); App.renderSide(); App.accessChanged && App.accessChanged(); }
 }
 /* Ohne Update 11 gibt es noch keine Sperre (fhOn = false), dann bleibt alles wie bisher */
-const fhOk = () => !fhOn || isAdmin || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.kind === "staff" || fhRow.wi));
+const fhOk = () => !fhOn || (isAdmin && !fhTest) || !!(fhRow && user && fhRow.email === String(user.email || "").toLowerCase() && (fhRow.kind === "staff" || fhRow.wi));
 async function fhConfirm() { await q(sb.rpc("fh_verify")); await fhLoad(); }
 const fhErr = e => { const t = String((e && (e.message || e.msg)) || e || "");
   return /Falscher Studiengangs-Code/.test(t) ? "Dieser Studiengangs-Code stimmt nicht. Frag in deiner Jahrgangsgruppe nach dem aktuellen Code."
@@ -920,9 +921,18 @@ async function adminPage(el) {
           : `<section class="card so-fhadm"><h3>Lerngruppen: FH-Zugang</h3><p class="muted">Lerngruppen zu Fächern sind nur für bestätigte FH-Adressen. Studierende (@edu.fh-joanneum.at) brauchen zusätzlich diesen Studiengangs-Code, Lehrende (@fh-joanneum.at) nicht. Teile ihn nur in der WI-Jahrgangsgruppe. Ein neuer Code sperrt niemanden aus, der schon drin ist.</p>
             <div class="so-row so-wirow"><span class="muted">Studiengangs-Code</span><span class="so-code">${esc(wc.data || "")}</span><span class="so-sp"></span><button class="btn sm" id="so-wicopy">Kopieren</button><button class="btn sm" id="so-wiset">Ändern</button></div>
             <h3>Bestätigt <span class="chip">${(fl.data || []).length}</span></h3>${(fl.data || []).length ? fl.data.map(v => `<div class="so-urow" data-fuid="${v.user_id}"><div class="so-utxt"><b>${esc(mask(v.name || "Studi"))}</b><small class="muted">${esc(v.email)} · ${v.kind === "staff" ? "Lehrende" : v.wi ? "Wirtschaftsinformatik" : "ohne Studiengangs-Code"}</small></div>${v.kind === "student" && v.wi ? `<div class="row so-uact"><button class="btn ghost sm" data-fhrev>Zugang entziehen</button></div>` : ""}</div>`).join("") : `<p class="muted">Noch niemand.</p>`}</section>`;
-        body.innerHTML = fhSec + `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
+        const tst = await settle(sb.from("fh_admin_test").select("user_id").eq("user_id", me.id).maybeSingle()); if (!alive()) return;
+        const tSec = wc.error ? "" : tst.error ? `<section class="card"><h3>Testmodus</h3><p class="muted">Für den Testmodus im Supabase SQL Editor einmal supabase-update-12.sql ausführen.</p></section>`
+          : `<section class="card so-fhtest"><h3>Testmodus ${tst.data ? `<span class="chip">an</span>` : ""}</h3><p class="muted">${tst.data ? "Du bist gerade wie ein normaler User ohne FH-Freischaltung. Geh die Schritte durch (FH-Adresse, Code aus der E-Mail, Studiengangs-Code oben). Die Admin-Werkzeuge bleiben hier erreichbar." : "Spiel die FH-Freischaltung selbst durch. Dein Admin-Recht zählt dann für Fächer und Lerngruppen nicht, und deine bisherige Bestätigung wird gelöscht. Nur dein Konto ist betroffen."}</p>
+            <div class="row">${tst.data ? `<button class="btn pri sm" id="so-fhtgo">Freischaltung starten</button><button class="btn sm" id="so-fhtoff">Testmodus beenden</button>` : `<button class="btn pri sm" id="so-fhton">Als Student testen</button>`}</div></section>`;
+        body.innerHTML = fhSec + tSec + `<section class="card"><h3>Stummgeschaltet</h3>${mu.length ? mu.map(x => `<div class="so-urow" data-uid="${x.user_id}">${av(names[x.user_id])}<div class="so-utxt"><b>${esc(nm(x.user_id))}</b><small class="muted">bis ${until(x.until)}${x.reason ? " · " + esc(x.reason) : ""}</small></div><div class="row so-uact"><button class="btn sm" data-ua="unmute">Aufheben</button></div></div>`).join("") : `<p class="muted">Niemand ist stummgeschaltet.</p>`}</section>
           <section class="card"><h3>Letzte Verwarnungen</h3>${no.length ? no.map(n => `<div class="so-urow">${av(names[n.user_id])}<div class="so-utxt"><b>${esc(nm(n.user_id))}</b><small class="muted">${time(n.created_at)} · ${n.seen ? "gelesen" : "noch nicht gelesen"}</small><p>${esc(n.text)}</p></div></div>`).join("") : `<p class="muted">Noch keine Verwarnungen.</p>`}</section>
           <section class="card so-danger"><h3>Global-Chat leeren</h3><p class="muted">Löscht alle Nachrichten im Global-Chat für alle. Gruppen und Direktchats bleiben.</p><button class="btn sm so-dbtn" id="so-clear">Global-Chat leeren</button></section>`;
+        const tog = async on => { try { await q(sb.rpc("admin_fh_test", { on_: on })); fhTest = on; await fhLoad(); App.renderSide(); App.accessChanged && App.accessChanged();
+            App.toast(on ? "Testmodus an" : "Testmodus aus", on ? "Du siehst StudyOS jetzt wie ein normaler User. Starte die Freischaltung über „Freischaltung starten“." : "Du hast wieder vollen Admin-Zugang.", "✓"); paint(); } catch (er) { App.toast("Fehler", fail(er), "!"); } };
+        const ton = $("#so-fhton", body); if (ton) ton.onclick = () => { if (confirm("Testmodus einschalten? Deine FH-Bestätigung wird gelöscht und du gehst den Ablauf wie ein Student neu durch.")) tog(true); };
+        const toff = $("#so-fhtoff", body); if (toff) toff.onclick = () => tog(false);
+        const tgo = $("#so-fhtgo", body); if (tgo) tgo.onclick = () => fhDialog(() => paint());
         const wcp = $("#so-wicopy", body); if (wcp) wcp.onclick = () => copy(wc.data, "Code in der Zwischenablage.");
         const wcs = $("#so-wiset", body); if (wcs) wcs.onclick = async () => {
           const v = prompt("Neuer Studiengangs-Code (4 bis 16 Buchstaben oder Ziffern):", ""); if (!v) return;
