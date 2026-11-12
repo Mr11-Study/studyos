@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.63.2", d: "2026-11-12", t: "Gast und Konto getrennt, eigene Startseite", items: [
+    "Gäste und normale User haben eine eigene Startseite „Heute“: Termine von heute, die nächste Verbindung und Global-Chat bzw. Konto, ohne Lernstoff und Lern-Statistiken.",
+    "Wer sich abmeldet oder als Gast weitermacht, landet in einem eigenen, leeren Gast-Profil. Stundenplan, Kalender, Name und Lernstand deines Kontos bleiben in deinem Profil und sind ohne Anmeldung nicht zu sehen.",
+    "Meldest du dich wieder an, öffnet StudyOS automatisch dein Profil mit allen Daten. Ein anderes Konto bekommt auf demselben Gerät sein eigenes Profil."
+  ] },
   { v: "4.63.1", d: "2026-11-12", t: "Neuigkeiten in zwei Fassungen", items: [
     "Gäste und normale User sehen in den Neuigkeiten eine allgemeine Fassung ohne Fächer und Prüfungstrainer. Studierende und Lehrende der FH JOANNEUM sehen weiter alles.",
     "Den Hinweis nach einem Update bekommen alle, ohne FH-Konto mit der allgemeinen Fassung."
@@ -376,6 +381,7 @@ App.VERSION = LOG[0].v;
    Bei jedem Update, das auch für sie etwas bringt, hier einen Eintrag ergänzen: Version -> [Titel, [Punkte]].
    Versionen ohne Eintrag sehen sie nicht; der Update-Hinweis sagt dann nur „StudyOS wurde aktualisiert“. */
 const PUB = {
+  "4.63.2": ["Neue Startseite und getrennte Profile", ["„Heute“ zeigt deine Termine, die nächste Verbindung und den Global-Chat auf einen Blick.", "Als Gast startest du mit einem eigenen, leeren Profil. Die Daten eines Kontos siehst du erst nach der Anmeldung."]],
   "4.63.1": ["Neuigkeiten für alle", ["Hier siehst du ab jetzt, was in StudyOS für dich neu ist."]],
   "4.63.0": ["Neuer Startbildschirm", ["Beim ersten Öffnen meldest du dich an, erstellst ein Konto oder machst als Gast weiter.", "Unten im Menü meldest du dich direkt an oder ab.", "Mit Konto bekommst du den Global-Chat, Freunde, Direktchats und Gruppen."]],
   "4.61.1": ["Unterwegs: dein Standort auf der Karte", ["Auf der Karte siehst du als blauen Punkt, wo du gerade bist. In „Ich fahre mit“ bleibt die Karte bei dir."]],
