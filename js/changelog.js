@@ -5,6 +5,10 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.63.1", d: "2026-11-12", t: "Neuigkeiten in zwei Fassungen", items: [
+    "Gäste und normale User sehen in den Neuigkeiten eine allgemeine Fassung ohne Fächer und Prüfungstrainer. Studierende und Lehrende der FH JOANNEUM sehen weiter alles.",
+    "Den Hinweis nach einem Update bekommen alle, ohne FH-Konto mit der allgemeinen Fassung."
+  ] },
   { v: "4.63.0", d: "2026-11-12", t: "Startbildschirm: Gast, Konto oder FH-Konto", items: [
     "Beim ersten Öffnen fragt StudyOS, wie du es nutzen willst: mit Konto anmelden bzw. eines erstellen, oder als Gast weiter.",
     "Nach der Anmeldung wählst du, wer du bist: Student:in oder Lehrende:r an der FH JOANNEUM (mit Bestätigung der FH-Adresse) oder normaler User.",
@@ -368,11 +372,28 @@ const LOG = App.CHANGELOG = [
 ];
 App.VERSION = LOG[0].v;
 
+/* Allgemeine Fassung für Gäste und normale User (ohne FH-Konto): nichts über Fächer, Lernstoff oder Prüfungen.
+   Bei jedem Update, das auch für sie etwas bringt, hier einen Eintrag ergänzen: Version -> [Titel, [Punkte]].
+   Versionen ohne Eintrag sehen sie nicht; der Update-Hinweis sagt dann nur „StudyOS wurde aktualisiert“. */
+const PUB = {
+  "4.63.1": ["Neuigkeiten für alle", ["Hier siehst du ab jetzt, was in StudyOS für dich neu ist."]],
+  "4.63.0": ["Neuer Startbildschirm", ["Beim ersten Öffnen meldest du dich an, erstellst ein Konto oder machst als Gast weiter.", "Unten im Menü meldest du dich direkt an oder ab.", "Mit Konto bekommst du den Global-Chat, Freunde, Direktchats und Gruppen."]],
+  "4.61.1": ["Unterwegs: dein Standort auf der Karte", ["Auf der Karte siehst du als blauen Punkt, wo du gerade bist. In „Ich fahre mit“ bleibt die Karte bei dir."]],
+  "4.61.0": ["Unterwegs von Tür zu Tür", ["Wohnort, Ziel und jede Suche dürfen eine genaue Adresse sein. StudyOS rechnet den ganzen Weg mit Fußwegen.", "„Ab meinem Standort“ startet die Verbindung dort, wo du gerade stehst.", "Neue Ansicht mit Zeitleiste, Fahrtverlauf, Steig und Umstiegen, dazu ein einstellbares Gehtempo."]],
+  "4.50.0": ["Unterwegs: Suche nach Tag und Uhrzeit", ["Verbindungen für jeden Tag und jede Uhrzeit suchen, mit klareren Ansichten."]],
+  "4.49.0": ["Ein Global-Chat für alle", ["Ein offener Chat für alle mit Konto. Nachrichten verschwinden nach 24 Stunden."]],
+  "4.45.0": ["Unterwegs: nächster Bus, Bim und Zug", ["Neue Seite Unterwegs mit den nächsten Verbindungen zwischen Wohnort und Ziel, auch auf „Heute“."]],
+  "4.39.0": ["Kalender auf jedem Gerät", ["Mit Konto ist dein Kalender auf allen Geräten gleich. Termine lassen sich zu Google, Apple oder Outlook exportieren."]],
+  "4.28.0": ["Neuer Kalender", ["Wochen- und Monatsansicht mit Stundenplan-Import als .ics-Datei oder Link."]]
+};
+const fhView = () => !App.tier || App.tier() === "fh";
+const entries = () => fhView() ? LOG : LOG.filter(e => PUB[e.v]).map(e => ({ v: e.v, d: e.d, t: PUB[e.v][0], items: PUB[e.v][1] }));
+
 const date = d => new Date(d + "T12:00:00").toLocaleDateString("de-AT", { day: "numeric", month: "long", year: "numeric" });
 
 PAGES.news = el => {
   el.innerHTML = `<div class="page"><div><h1>Neuigkeiten</h1><p class="muted">Was in welcher Version von StudyOS dazugekommen ist. Aktuell: Version ${esc(App.VERSION)}.</p></div>
-    <div class="cl">${LOG.map((e, i) => `<div class="card cl-e${i ? "" : " cl-new"}">
+    <div class="cl">${entries().map((e, i) => `<div class="card cl-e${i ? "" : " cl-new"}">
       <div class="cl-h"><span class="cl-v">v${esc(e.v)}</span><b>${esc(e.t)}</b><small class="cl-d">${date(e.d)}</small></div>
       <ul>${e.items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div></div>`;
   const s = App.S(); if (s.settings && s.settings.seenVer !== App.VERSION) { s.settings.seenVer = App.VERSION; App.save(); }
@@ -383,10 +404,11 @@ App.afterBoot.push(() => setTimeout(() => {
   const s = App.S(); if (!s.settings) return;
   if (!s.settings.seenVer) { s.settings.seenVer = App.VERSION; App.save(); return; }
   if (s.settings.seenVer === App.VERSION) return;
+  const pub = !fhView() && !PUB[App.VERSION]; /* ohne FH-Konto und ohne allgemeinen Eintrag: nur „aktualisiert“ */
   const box = document.querySelector("#toasts"); if (!box) return;
   const t = document.createElement("div"); t.className = "toast ach";
-  t.innerHTML = `<div class="ti">✦</div><div><div class="eyebrow">Neu in Version ${esc(App.VERSION)}</div><div>${esc(LOG[0].t)}</div></div><button class="btn sm pri">Ansehen</button>`;
-  t.querySelector("button").onclick = () => { t.remove(); App.go("news"); };
+  t.innerHTML = `<div class="ti">✦</div><div><div class="eyebrow">Neu in Version ${esc(App.VERSION)}</div><div>${pub ? "StudyOS wurde aktualisiert." : esc(entries()[0].t)}</div></div>${pub ? "" : `<button class="btn sm pri">Ansehen</button>`}`;
+  const tb = t.querySelector("button"); if (tb) tb.onclick = () => { t.remove(); App.go("news"); };
   box.appendChild(t); setTimeout(() => t.remove(), 12000);
   s.settings.seenVer = App.VERSION; App.save();
 }, 1800));
