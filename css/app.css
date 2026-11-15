@@ -608,3 +608,4 @@ tr.px-crit td{color:#a970ff;font-weight:600}
 .np-step{background:var(--card2,var(--card));border-left:3px solid var(--info,#4c9eff);border-radius:0 8px 8px 0;padding:10px 12px;font-size:14px;line-height:1.5;min-height:74px}
 .np-bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden}.np-bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
 @media (prefers-reduced-motion:reduce){.np-v.np-new{animation:none;background:#ffe08a}}
+@media print{body:has(.alt-sol) *{visibility:hidden}body:has(.alt-sol) .alt-sol,body:has(.alt-sol) .alt-sol *{visibility:visible}body:has(.alt-sol) .alt-sol{position:absolute;left:0;top:0;width:100%}.alt-noprint{display:none!important}.alt-sol .alt-q{break-inside:avoid-page}}
