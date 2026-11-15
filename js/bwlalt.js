@@ -184,7 +184,7 @@ function score(q, a, minus) {
 
 /* ---------- Darstellung einer Frage ---------- */
 function qHTML(q, k, a, mode) {
-  const head = `<div class="spread"><span class="eyebrow">Frage ${k + 1} · ${q.pts} P.</span><span class="row" style="gap:6px">${mode === "learn" && q.trap ? `<span class="chip warn">Falle aus deiner Altprüfung</span>` : ""}<small class="muted alt-flag">${answered(q, a) ? "beantwortet" : "offen"}</small></span></div>`;
+  const head = `<div class="spread"><span class="eyebrow">Frage ${k + 1} · ${q.pts} P.</span><span class="row" style="gap:6px">${(mode === "learn" || mode === "solution") && q.trap ? `<span class="chip warn">Falle aus deiner Altprüfung</span>` : ""}<small class="muted alt-flag">${answered(q, a) ? "beantwortet" : "offen"}</small></span></div>`;
   let body;
   if (q.t === "tf") body = `<small class="muted">Wählen Sie eine Antwort:</small><div class="opts">${[["Wahr", true], ["Falsch", false]].map(([t, v]) => `<button class="opt alt-o${a === v ? " sel" : ""}" data-v="${v}"><span class="k">${v ? "W" : "F"}</span><span>${t}</span></button>`).join("")}</div>`;
   else if (q.t === "match") body = `<div class="alt-match">${q.rows.map((r, i) => `<label class="alt-mrow"><span>${r[0]}</span><select data-r="${i}"><option value="-1">Auswählen …</option>${q.choices.map((c, j) => `<option value="${j}"${a && a[i] === j ? " selected" : ""}>${c}</option>`).join("")}</select></label>`).join("")}</div>`;
@@ -224,12 +224,30 @@ function intro(el) {
       <section class="card col"><h3>Lernmodus</h3><p>Ohne Zeitlimit. Jede Frage kannst du sofort prüfen und bekommst den Lösungsweg. Die 10 Fragen, die beim echten Termin danebengingen, sind markiert.</p>
         <div class="row"><button class="btn" id="al-learn">Lernmodus starten</button><button class="btn ghost" data-go="lesson" data-p="bv-1">Die 10 Fallen</button></div></section>
     </div>
+    <section class="card col"><h3>Lösungsblatt</h3><p>Die ganze Altprüfung schon richtig ausgefüllt: bei jeder Frage die richtige Antwort markiert und der Lösungsweg darunter. Zum Durchlesen, Nachrechnen oder Ausdrucken.</p>
+      <div class="row"><button class="btn" id="al-sol">Lösungsblatt öffnen</button></div></section>
     <section class="card col"><h3>Deine Versuche</h3>${hist.length ? hist.map(x => `<div class="spread"><span class="tab">${fmtP(x.total)} / ${x.max} P. · ${Math.round(1000 * x.total / x.max) / 10} % · ${grade(100 * x.total / x.max)}</span><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keiner.</p>`}</section>
     <div class="row"><button class="btn ghost" data-go="exam">← Zurück zum Prüfungstrainer</button></div></div>`;
   $("#al-m", el).onchange = e => { s.minus = +e.target.value; App.save(); };
   const start = mode => { s.run = { mode, minus: mode === "exam" ? s.minus : 0, ans: {}, tEnd: mode === "exam" ? Date.now() + 90 * 60000 : 0, checked: {} }; App.save(); attempt(el); };
   $("#al-exam", el).onclick = () => start("exam"); $("#al-learn", el).onclick = () => start("learn");
+  $("#al-sol", el).onclick = () => solutions(el);
   if (run) { $("#al-cont", el).onclick = () => attempt(el); $("#al-drop", el).onclick = () => { if (confirm("Diesen Versuch verwerfen?")) { delete s.run; App.save(); intro(el); } }; }
+}
+
+/* Lösungsblatt: alle Fragen mit markierter richtiger Antwort und Lösungsweg, ohne Punkte */
+const correct = q => q.t === "match" ? q.rows.map(r => r[1]) : q.a;
+function solutions(el) {
+  el.innerHTML = `<div class="page alt-page alt-sol"><div class="spread alt-head"><div><span class="eyebrow">BWL 2 · Altprüfung · Lösungsblatt</span><h1>31 Fragen mit Lösungen</h1></div><div class="row alt-noprint"><button class="btn ghost" id="al-print">Drucken / PDF</button><button class="btn ghost" id="al-back">← Zurück</button></div></div>
+    <p class="muted" style="max-width:70ch">Grün ist die richtige Antwort. Alle Rechnungen sind nachgerechnet. Mit <b>Falle</b> markiert sind die Fragen, die beim echten Termin falsch angekreuzt waren.</p>
+    <nav class="alt-nav alt-noprint">${Q.map((q, k) => `<a href="#aq-${k}">${k + 1}</a>`).join("")}</nav>
+    <div class="col" style="gap:14px">${Q.map((q, k) => qHTML(q, k, correct(q), "solution")).join("")}</div>
+    <div class="row alt-noprint"><button class="btn ghost" id="al-back2">← Zurück zur Altprüfung</button></div></div>`;
+  Q.forEach((q, k) => { const card = $("#aq-" + k, el), a = correct(q); markCard(card, q, a); const f = $(".alt-flag", card); if (f) f.remove();
+    $(".alt-fb", card).innerHTML = `<div class="why">${q.t === "match" ? `<div class="muted">Richtig: <ul class="alt-right">${q.rows.map(r => `<li class="y">${r[0]} <b>→ ${q.choices[r[1]]}</b></li>`).join("")}</ul></div>` : ""}<div><span class="eyebrow">Lösungsweg</span> ${q.why}</div>${q.trap ? `<div class="muted"><b>Falle aus deiner Altprüfung:</b> hier war beim echten Termin falsch angekreuzt.</div>` : ""}</div>`; });
+  $("#al-print", el).onclick = () => window.print();
+  $("#al-back", el).onclick = $("#al-back2", el).onclick = () => intro(el);
+  window.scrollTo(0, 0);
 }
 
 function attempt(el) {

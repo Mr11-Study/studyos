@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.65.0", d: "2026-11-15", t: "BWL: Lösungsblatt zur Altprüfung", items: [
+    "Die BWL-Altprüfung gibt es jetzt auch als Lösungsblatt: alle 31 Fragen schon richtig beantwortet, die richtige Antwort grün markiert und der Lösungsweg darunter.",
+    "Alle Antworten wurden noch einmal nachgerechnet (Deckungsgrad, Kapitalwert, Debitorendauer, Abnutzungsgrad usw.).",
+    "Das Lösungsblatt lässt sich direkt ausdrucken oder als PDF speichern."
+  ] },
   { v: "4.64.0", d: "2026-11-12", t: "FH-Zugang ohne Studiengangs-Code", items: [
     "Fächer und Lerngruppen schaltet jetzt jede bestätigte Adresse der FH JOANNEUM frei (@edu.fh-joanneum.at oder @fh-joanneum.at). Der Studiengangs-Code fällt weg, der Code aus der E-Mail reicht.",
     "Admins können einzelnen Personen den Zugang entziehen und wieder zurückgeben. Braucht supabase-update-13.sql."
