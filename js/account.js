@@ -100,7 +100,11 @@ const MERGE = {
   cards: (a, b) => perKey(a, b, (x, y) => { const n = c => (c.reps || 0) + (c.lapses || 0); return n(y) > n(x) || (n(y) === n(x) && (y.due || 0) > (x.due || 0)) ? y : x; }),
   srs: (a, b) => perKey(a, b, (x, y) => (y.n || 0) > (x.n || 0) || ((y.n || 0) === (x.n || 0) && String(y.last || "") > String(x.last || "")) ? y : x),
   ach: (a, b) => perKey(a, b, (x, y) => Math.min(x, y)),
-  quizHist: unionList, exams: unionList, imports: unionList
+  quizHist: unionList, exams: unionList, imports: unionList,
+  /* Laufende Prüfungsversuche (Netzplan-Prüfung, BWL-Altprüfung): der neuere Stand gewinnt ganz.
+     Nicht Feld für Feld mischen, sonst landen Antworten eines alten Versuchs im neuen, und ein
+     abgegebener Versuch (run = null) käme vom anderen Gerät wieder zurück. */
+  pmexam: (a, b) => Object.assign({}, a, b), bwlalt: (a, b) => Object.assign({}, a, b)
 };
 App.mergeStates = function (local, remote) {
   if ((remote.epoch || 0) !== (local.epoch || 0)) return (remote.epoch || 0) > (local.epoch || 0) ? remote : local;
