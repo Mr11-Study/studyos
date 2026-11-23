@@ -130,27 +130,55 @@ PAGES.courses = el => {
 
 /* ================= Kursseite ================= */
 const lDot = id => App.isDone(id) ? `<i class="ldot done" title="Verstanden">✓</i>` : touched(id) ? `<i class="ldot read" title="Gelesen"></i>` : `<i class="ldot" title="Noch nicht gelesen"></i>`;
+/* Inhaltstypen: überall gleiche Namen, Farben und Zeichen, damit man sofort sieht, was was ist (css/clarity.css) */
+const KIND_INFO = {
+  skript: { t: "Skriptum", i: "❡", d: "Der ganze Lernstoff zum Durchlesen, Kapitel für Kapitel" },
+  review: { t: "Wiederholen", i: "↻", d: "Fragen und Karteikarten, bis alles sitzt" },
+  alt: { t: "Altfragen", i: "?", d: "Echte Fragen aus alten Prüfungen, mit Lösung" },
+  prep: { t: "Prüfungs-Überblick", i: "◎", d: "Was drankommt, Checkliste und Aufgaben mit Lösung" },
+  exam: { t: "Probeprüfung", i: "⏱", d: "Prüfung wie echt: mit Zeit, Punkten und Note" },
+  practice: { t: "Interaktive Übungen", i: "λ", d: "Zuordnen, Lücken füllen und Rechnen zum Mitmachen" },
+  res: { t: "Material", i: "⎘", d: "Folien, Links und Unterlagen der Lehrveranstaltung" }
+};
+App.KINDS = KIND_INFO;
+const altCount = cid => { const c = CBY[cid]; return (ICOURSE[cid] || []).filter(i => i.ref.alt || (i.ref.multi && c && c.multiOnly)).length; };
+App.altCount = altCount;
+const kindTag = k => `<span class="kt kt-${k}"><i aria-hidden="true">${KIND_INFO[k].i}</i>${KIND_INFO[k].t}</span>`;
+App.kindTag = kindTag;
+/* Kachel: ganze Fläche klickbar, mit Typ-Zeichen, Erklärung, Zahl und „Öffnen →“ */
+const ftile = (k, go, p, meta, extra) => `<button class="ftile kk-${k}" data-go="${go}"${p ? ` data-p="${esc(p)}"` : ""}><span class="ft-ic" aria-hidden="true">${KIND_INFO[k].i}</span><span class="ft-main"><b>${KIND_INFO[k].t}</b><small>${KIND_INFO[k].d}</small>${meta ? `<span class="ft-meta">${meta}</span>` : ""}</span><span class="ft-go" aria-hidden="true">${extra || "Öffnen"} →</span></button>`;
 PAGES.course = (el, cid) => {
   const c = CBY[cid] || CBY[S().course]; if (S().course !== c.id) { S().course = c.id; App.save(); }
-  const ls = App.courseLessons(c.id), n = ls.length, u = understood(c.id), k = knowCourse(c.id), cn = counts(c.id);
+  const ls = App.courseLessons(c.id), n = ls.length, u = understood(c.id), k = knowCourse(c.id), cn = counts(c.id), altN = altCount(c.id);
   const nl = ls.find(l => !App.isDone(l.id) && !touched(l.id)) || ls.find(l => !App.isDone(l.id));
+  const nw = nl && c.worlds.find(w => w.lessons.includes(nl));
+  const qt = c.exam === "quicktest", practice = App.hasPractice ? App.hasPractice(c) : false;
   el.innerHTML = `<div class="page">
-   <div class="crumbs"><button data-go="courses">Kurse</button><span>/</span><span>${esc(c.title)}</span></div>
+   <div class="crumbs"><button data-go="courses">Alle Fächer</button><span>/</span><span>${esc(c.title)}</span></div>
    <header class="chead" style="--c:${c.color}"><div class="row">${badge(c)}${c.ects ? `<span class="chip">${ects(c)}</span>` : ""}${c.semester ? `<span class="chip">Semester ${c.semester}</span>` : ""}</div>
-     <h1>${esc(c.name)}</h1>${c.lecturers ? `<p class="muted">${esc(c.lecturers)}</p>` : ""}${c.description ? `<p style="max-width:70ch">${esc(c.description)}</p>` : ""}</header>
+     <h1>${esc(c.name)}</h1>${c.lecturers ? `<p class="muted">${esc(c.lecturers)}</p>` : ""}${c.description ? `<details class="cdesc"><summary>Worum geht es in diesem Fach?</summary><p style="max-width:70ch">${esc(c.description)}</p></details>` : ""}</header>
+   ${nl ? `<button class="card fnext" data-go="lesson" data-p="${nl.id}"><span class="ft-ic" aria-hidden="true">${KIND_INFO.skript.i}</span><span class="ft-main"><span class="eyebrow">${touched(nl.id) ? "Weiterlesen" : "Als Nächstes lesen"} · Skriptum${nw ? ", Kapitel " + nw.n : ""}</span><b>${esc(nl.title)}</b><small>${nl.min} min · ${u} von ${n} Lektionen verstanden</small></span><span class="ft-go">Lesen →</span></button>` : `<div class="card fnext done"><span class="ft-ic" aria-hidden="true">✓</span><span class="ft-main"><b>Alle ${n} Lektionen verstanden</b><small>Jetzt mit Altfragen und Probeprüfung festigen.</small></span></div>`}
+   <section class="col fsec"><div class="fsec-h"><h2>Was du in diesem Fach machen kannst</h2><small class="muted">Jede Kachel mit → kannst du antippen.</small></div>
+   <div class="ftiles">
+     ${ftile("skript", "skript", c.id, `${n} Lektionen · ${c.worlds.length} Kapitel`)}
+     ${ftile("review", "review", "c:" + c.id, cn.due ? `<em>${cn.due} heute fällig</em>` : `${(ICOURSE[c.id] || []).length} Fragen & Karten · Wissen ${k} %`, "Starten")}
+     ${altN ? ftile("alt", "review", "alt:" + c.id, `${altN} Fragen aus alten Prüfungen`, "Üben") : ""}
+     ${c.examPrep ? ftile("prep", "prep", c.id, `Prüfungsreife ${readiness(c.id).pct} % · ${(c.examPrep.tasks || []).length} Aufgaben`) : ""}
+     ${ftile("exam", "exam", "", qt ? "Quick-Tests wie in der LV" : "mit Zeitlimit und Auswertung", "Starten")}
+     ${practice ? ftile("practice", "practice", "", "zum Ausprobieren") : ""}
+     ${ftile("res", "resources", "", "")}
+   </div>
+   <span class="prep-cta" data-p="${c.id}" hidden></span></section>
    <div class="kpis">
      <div class="kpi"><b class="tab">${u}/${n}</b><span>Lektionen verstanden</span>${pbar(n ? 100 * u / n : 0, c.color)}</div>
      <div class="kpi"><b class="tab">${k} %</b><span>Wissen (aus Wiederholung)</span>${pbar(k, "var(--know)")}</div>
      <div class="kpi"><b class="tab">${cn.due}</b><span>heute fällig${cn.fresh ? ` · ${cn.fresh} neu` : ""}</span></div>
      <div class="kpi"><b class="tab">${(ICOURSE[c.id] || []).length}</b><span>Fragen & Karten</span></div>
    </div>
-   <div class="row">${nl ? `<button class="btn pri" data-go="lesson" data-p="${nl.id}">${touched(nl.id) ? "Weiterlesen" : "Lesen"}: ${esc(nl.title)} →</button>` : `<span class="chip acc">Alle Lektionen verstanden</span>`}
-     <button class="btn" data-go="skript" data-p="${c.id}">Skript lesen</button><button class="btn" data-go="review" data-p="c:${c.id}">Kurs wiederholen</button><button class="btn ghost" data-go="prep" data-p="${c.id}">Prüfung üben</button><button class="btn ghost" data-go="resources">Material</button></div>
-   ${c.examPrep ? `<button class="card prep-cta" data-go="prep" data-p="${c.id}"><div><span class="eyebrow">Prüfungsfokus</span><div class="lrow-t">Was in der Prüfung drankommt, Altfragen, Rechenaufgaben & Checkliste</div><small>${(ICOURSE[c.id] || []).filter(i => i.ref.alt).length} Prüfungsfragen · ${(c.examPrep.tasks || []).length} Aufgaben · ${(c.examPrep.checklist || []).length} Punkte auf der Checkliste</small></div><div class="prep-pct"><b>${readiness(c.id).pct} %</b><small>Prüfungsreife</small></div></button>` : ""}
-   <section class="col"><h2>Kapitel</h2>
+   <section class="col"><div class="fsec-h"><h2>${kindTag("skript")} Kapitel und Lektionen</h2><small class="muted">Tippe eine Lektion an, um sie zu lesen.</small></div>
     ${c.worlds.map(w => { const wu = w.lessons.filter(l => App.isDone(l.id)).length, b = w.boss && (S().bosses[w.boss.id] || {});
       return `<div class="card chap" id="ch-${w.id}"><div class="spread chap-h"><div><span class="eyebrow" style="color:${c.color}">Kapitel ${w.n}</span><h3>${esc(w.title)}</h3>${w.sub ? `<small>${esc(w.sub)}</small>` : ""}</div><small class="tab">${wu}/${w.lessons.length} verstanden</small></div>
-        <div class="list">${w.lessons.map(l => `<button class="lrow" data-go="lesson" data-p="${l.id}">${lDot(l.id)}<div class="lrow-main"><div class="lrow-t">${esc(l.title)}</div><small>${esc(TOPICS[l.topic] ? TOPICS[l.topic].name : "")} · ${l.min} min</small></div><span class="kn" title="Wissen in diesem Thema">${knowTopic(l.topic)} %</span></button>`).join("")}
+        <div class="list">${w.lessons.map(l => `<button class="lrow" data-go="lesson" data-p="${l.id}">${lDot(l.id)}<div class="lrow-main"><div class="lrow-t">${esc(l.title)}</div><small>${esc(TOPICS[l.topic] ? TOPICS[l.topic].name : "")} · ${l.min} min</small></div><span class="kn" title="Wissen in diesem Thema">${knowTopic(l.topic)} %</span><span class="go">Lesen →</span></button>`).join("")}
         ${!w.lessons.length ? `<p class="muted" style="padding:8px 0">Material folgt.</p>` : ""}</div>
         ${w.boss ? `<button class="lrow test" data-go="boss" data-p="${w.id}"><i class="ldot ${b.passed ? "done" : ""}">${b.passed ? "✓" : "?"}</i><div class="lrow-main"><div class="lrow-t">Kapiteltest</div><small>10 Fragen quer durchs Kapitel${b.best != null ? " · bestes Ergebnis " + b.best + " %" : ""}</small></div><span class="go">Starten →</span></button>` : ""}</div>`; }).join("")}
    </section>
@@ -268,9 +296,9 @@ PAGES.review = (el, p) => {
 
 function startSession(el, scope, size) {
   const queue = buildQueue(scope, size);
-  const title = scope.alt ? "Prüfungsfragen · " + CBY[scope.cid].title : scope.topic ? TOPICS[scope.topic].name : scope.free ? "Freies Üben · " + CBY[scope.cid].title : scope.cid ? CBY[scope.cid].title : "Alle Kurse";
+  const title = scope.alt ? "Altfragen · " + CBY[scope.cid].title : scope.topic ? TOPICS[scope.topic].name : scope.free ? "Freies Üben · " + CBY[scope.cid].title : scope.cid ? CBY[scope.cid].title : "Alle Kurse";
   el.onclick = null;
-  el.innerHTML = `<div class="page rv-page"><div class="spread"><div><span class="eyebrow">Wiederholen</span><h2>${esc(title)}</h2></div><button class="btn ghost sm" id="rv-end">Beenden</button></div><div id="rv"></div></div>`;
+  el.innerHTML = `<div class="page rv-page"><div class="spread"><div>${scope.alt && App.kindTag ? App.kindTag("alt") : `<span class="eyebrow">Wiederholen</span>`}<h2>${esc(title)}</h2></div><button class="btn ghost sm" id="rv-end">Beenden</button></div><div id="rv"></div></div>`;
   const box = $("#rv", el);
   if (!queue.length) { box.innerHTML = `<div class="empty">Hier gibt es gerade nichts zu wiederholen.<div style="margin-top:12px"><button class="btn" data-go="review">Zurück</button></div></div>`; $("#rv-end", el).onclick = () => App.go("review"); return; }
   let i = 0, phase = "ask"; const seen = new Set(), first = {}, uniq = queue.length;
@@ -403,21 +431,21 @@ PAGES.prep = (el, p) => {
   const P = c.examPrep, st = prepState(), r = readiness(c.id), ex = nextExamOf(c.id), altN = (ICOURSE[c.id] || []).filter(i => i.ref.alt || (i.ref.multi && c.multiOnly)).length;
   const dots = n => `<span class="wdots" title="Gewicht ${n}">${"●".repeat(n)}${"○".repeat(3 - n)}</span>`;
   el.innerHTML = `<div class="page">
-   <header><h1>Prüfung üben</h1><p class="muted" style="margin-top:6px;max-width:70ch">Aus deinen Altprüfungen und Fragensammlungen: was drankommt, wie es gefragt wird und was du für ein Sehr gut können musst.</p></header>
+   <header>${kindTag("prep")}<h1>Prüfungs-Überblick · ${esc(c.title)}</h1><p class="muted" style="margin-top:6px;max-width:70ch">Hier siehst du, was in der Prüfung drankommt und wie gut du vorbereitet bist. Darunter: die Themen, eine Checkliste zum Abhaken und Aufgaben wie in der Prüfung mit Lösungsblatt.</p></header>
+   <nav class="pjump" aria-label="Auf dieser Seite">${altN ? `<button class="ftile sm kk-alt" data-go="review" data-p="alt:${c.id}"><span class="ft-ic" aria-hidden="true">${KIND_INFO.alt.i}</span><span class="ft-main"><b>Altfragen üben</b><small>${altN} echte Prüfungsfragen</small></span><span class="ft-go">→</span></button>` : ""}<button class="ftile sm kk-exam" id="pr-sim2"><span class="ft-ic" aria-hidden="true">${KIND_INFO.exam.i}</span><span class="ft-main"><b>Probeprüfung</b><small>mit Zeit und Note</small></span><span class="ft-go">→</span></button>${(P.tasks || []).length ? `<a class="ftile sm kk-prep" href="#pr-tasks"><span class="ft-ic" aria-hidden="true">✎</span><span class="ft-main"><b>Aufgaben mit Lösung</b><small>${P.tasks.length} Aufgaben wie in der Prüfung</small></span><span class="ft-go">↓</span></a>` : ""}</nav>
    <div class="row fchips">${withPrep.map(x => `<button class="chip ${x.id === c.id ? "on" : ""}" data-pc="${x.id}"><span class="dot" style="--c:${x.color}"></span>${esc(x.short)} <b>${readiness(x.id).pct}%</b></button>`).join("")}</div>
    <div class="prep-top">
      <section class="card prep-ready"><span class="eyebrow">Prüfungsreife · ${esc(c.title)}</span><div class="rv-num"><b>${r.pct} %</b><span>${ex ? `Prüfung ${fmtDate(ex.date, { weekday: "short", day: "numeric", month: "long" })} · ${daysUntil(ex.date) === 0 ? "heute" : "in " + daysUntil(ex.date) + " Tagen"}` : "So gut bist du vorbereitet"}</span></div>
        <div class="col" style="gap:8px"><div class="spread"><small>Wissen in den Prüfungsthemen</small><small class="tab">${r.know} %</small></div>${pbar(r.know, "var(--know)")}
        <div class="spread"><small>Checkliste</small><small class="tab">${r.done}/${r.total}</small></div>${pbar(r.check)}
-       <div class="spread"><small>Aufgaben gelöst</small><small class="tab">${r.tdone}/${(P.tasks || []).length}</small></div>${pbar((P.tasks || []).length ? 100 * r.tdone / P.tasks.length : 0, "var(--good)")}</div>
-       <div class="row"><button class="btn pri" data-go="review" data-p="alt:${c.id}">Prüfungsfragen üben (${altN})</button><button class="btn" id="pr-sim">Prüfungssimulation</button></div></section>
-     <section class="card col"><details class="pformat"><summary class="eyebrow">So sieht die Prüfung aus</summary><p style="margin-top:8px">${esc(P.format)}</p></details>${(P.sources || []).length ? `<small class="muted">Quellen: ${P.sources.map(esc).join(" · ")}</small>` : ""}
+       <div class="spread"><small>Aufgaben gelöst</small><small class="tab">${r.tdone}/${(P.tasks || []).length}</small></div>${pbar((P.tasks || []).length ? 100 * r.tdone / P.tasks.length : 0, "var(--good)")}</div></section>
+     <section class="card col"><details class="pformat" open><summary class="eyebrow">So sieht die Prüfung aus</summary><p style="margin-top:8px">${esc(P.format).replace(/&lt;(\/?)b&gt;/g, "<$1b>")}</p></details>${(P.sources || []).length ? `<small class="muted">Quellen: ${P.sources.map(esc).join(" · ")}</small>` : ""}
        ${(P.strategy || []).length ? `<span class="eyebrow" style="margin-top:6px">Für ein Sehr gut</span><ul class="plist">${P.strategy.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</section>
    </div>
-   <section class="col"><h2>Was drankommt</h2><div class="card list">${(P.focus || []).map(f => { const T = TOPICS[f.topic], k = knowTopic(f.topic);
+   <section class="col"><div class="fsec-h"><h2>Was drankommt</h2><small class="muted">●●● = kommt sicher, ●○○ = selten. „Lesen“ öffnet das Skriptum, „Üben“ die Fragen zum Thema.</small></div><div class="card list">${(P.focus || []).map(f => { const T = TOPICS[f.topic], k = knowTopic(f.topic);
      return `<div class="trow">${dots(f.weight)}<div class="lrow-main"><div class="lrow-t">${esc(T.name)}</div><small>${esc(f.note || "")}</small></div><div class="trow-k">${pbar(k, "var(--know)")}<small class="tab">${k} %</small></div><div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm ghost" data-go="lesson" data-p="${T.lesson}">Lesen</button><button class="btn sm" data-go="review" data-p="topic:${f.topic}">Üben</button></div></div>`; }).join("")}</div></section>
-   <section class="col"><div class="spread"><h2>Checkliste</h2><small class="muted">${r.done} von ${r.total} sicher</small></div><div class="card list">${(P.checklist || []).map(x => `<label class="trow chk ${st.check[x.id] ? "on" : ""}"><input type="checkbox" data-ck="${x.id}" ${st.check[x.id] ? "checked" : ""}><div class="lrow-main"><div>${esc(x.text)}</div><small>${esc(TOPICS[x.topic] ? TOPICS[x.topic].name : "")}</small></div></label>`).join("")}</div></section>
-   ${(P.tasks || []).length ? `<section class="col"><div class="spread"><h2>Aufgaben wie in der Prüfung</h2><small class="muted">Erst selbst lösen, dann Lösung aufklappen</small></div>
+   <section class="col"><div class="spread"><h2>Checkliste</h2><small class="muted">${r.done} von ${r.total} sicher · zum Abhaken antippen</small></div><div class="card list">${(P.checklist || []).map(x => `<label class="trow chk ${st.check[x.id] ? "on" : ""}"><input type="checkbox" data-ck="${x.id}" ${st.check[x.id] ? "checked" : ""}><div class="lrow-main"><div>${esc(x.text)}</div><small>${esc(TOPICS[x.topic] ? TOPICS[x.topic].name : "")}</small></div></label>`).join("")}</div></section>
+   ${(P.tasks || []).length ? `<section class="col" id="pr-tasks"><div class="spread"><h2>Aufgaben wie in der Prüfung</h2><small class="muted">Erst selbst lösen, dann „Lösung anzeigen“ antippen</small></div>
      ${P.tasks.map((t, i) => { const s2 = st.tasks[t.id]; return `<article class="card ptask ${s2 === 1 ? "ok" : s2 === 0 ? "again" : ""}" id="pt-${t.id}"><div class="spread"><div class="row" style="gap:8px"><span class="eyebrow">Aufgabe ${i + 1}${t.pts ? ` · ${t.pts} P.` : ""}</span><small class="muted">${esc(TOPICS[t.topic] ? TOPICS[t.topic].name : "")}</small></div>${s2 === 1 ? `<span class="chip acc">✓ konnte ich</span>` : s2 === 0 ? `<span class="chip warn">nochmal üben</span>` : ""}</div>
        <h3>${esc(t.title)}</h3><div class="body ptask-q">${t.html}</div>
        <details><summary>Lösung anzeigen</summary><div class="body ptask-s">${t.solution}</div><div class="row" style="margin-top:12px"><button class="btn sm yes" data-tk="${t.id}|1">✓ Konnte ich</button><button class="btn sm" data-tk="${t.id}|0">Nochmal üben</button></div></details></article>`; }).join("")}</section>` : ""}
@@ -425,7 +453,8 @@ PAGES.prep = (el, p) => {
   el.onclick = e => {
     const pc = e.target.closest("[data-pc]"); if (pc) { App.go("prep", pc.dataset.pc); return; }
     const tk = e.target.closest("[data-tk]"); if (tk) { const [id, v] = tk.dataset.tk.split("|"); st.tasks[id] = +v; App.save(); const y = window.scrollY; App.render(); window.scrollTo(0, y); return; }
-    if (e.target.closest("#pr-sim")) { S().course = c.id; App.save(); App.go("exam"); }
+    if (e.target.closest('a[href="#pr-tasks"]')) { e.preventDefault(); const t = $("#pr-tasks", el); if (t) t.scrollIntoView({ block: "start", behavior: "smooth" }); return; }
+    if (e.target.closest("#pr-sim, #pr-sim2")) { S().course = c.id; App.save(); App.go("exam"); }
   };
   el.onchange = e => { const ck = e.target.closest("[data-ck]"); if (!ck) return; if (ck.checked) st.check[ck.dataset.ck] = Date.now(); else delete st.check[ck.dataset.ck]; App.save(); const y = window.scrollY; App.render(); window.scrollTo(0, y); };
 };

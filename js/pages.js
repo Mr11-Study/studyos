@@ -140,10 +140,12 @@ PAGES.exam = el => {
   if (c.exam === "mc") return examMC(el, c);
   return examGeneric(el, c);
 };
-function examHeader(c) { return `<div><h1>Prüfungstrainer · ${esc(c.title)}</h1></div>${courseChips(c.id)}`; }
+/* Kopf der Probeprüfung: sagt in einem Satz, was hier passiert. Bleibt das erste <div> der Seite, weil bwlalt.js und pmexam.js ihre Originalprüfung direkt dahinter einhängen. */
+const SPECIAL = { pmgt: 1, bwl2: 1 };
+function examHeader(c) { return `<div class="exhead">${App.kindTag ? App.kindTag("exam") : ""}<h1>Probeprüfung · ${esc(c.title)}</h1><p class="muted">Eine Prüfung wie echt: Du arbeitest gegen die Uhr, die Auswertung mit Note und Lösungen kommt erst nach der Abgabe.${SPECIAL[c.id] ? " Es gibt zwei Arten, wähle unten eine aus." : ""}</p></div>${courseChips(c.id)}`; }
 function examGeneric(el, c) {
   const qs = shuffle(courseQ(c.id).concat(BOSSQ.filter(q => q.course === c.id))).slice(0, 20);
-  el.innerHTML = `<div class="page">${examHeader(c)}<div class="card col"><p>Prüfungssimulation: ${qs.length} Fragen, 25 Minuten, Auswertung erst nach Abgabe.</p>${c.id === "kommu" ? `<p class="muted">KOMMU wird über Anwesenheit, Portfolio und Deep Talk beurteilt. Diese Simulation hilft beim Wiederholen der Theorie.</p>` : ""}${c.id === "eng3" ? `<p class="muted">Final assessment: 60 points. Also practise your 5–7 minute presentation with the timer below.</p>` : ""}<div class="row"><button class="btn pri" id="go">Starten</button></div></div>${c.id === "eng3" ? `<div class="card col" id="pt"></div>` : ""}</div>`;
+  el.innerHTML = `<div class="page">${examHeader(c)}<h2 class="exsec">Multiple-Choice-Test</h2><div class="card col"><p>${qs.length} Fragen, 25 Minuten, Auswertung erst nach Abgabe.</p>${c.id === "kommu" ? `<p class="muted">KOMMU wird über Anwesenheit, Portfolio und Deep Talk beurteilt. Diese Simulation hilft beim Wiederholen der Theorie.</p>` : ""}${c.id === "eng3" ? `<p class="muted">Final assessment: 60 points. Also practise your 5–7 minute presentation with the timer below.</p>` : ""}<div class="row"><button class="btn pri" id="go">Starten</button></div></div>${c.id === "eng3" ? `<div class="card col" id="pt"></div>` : ""}</div>`;
   switchCourse(el);
   if (c.id === "eng3") presTimer($("#pt", el));
   $("#go", el).onclick = () => runExamMC(el, c, qs.map(q => Object.assign({}, q, { pts: 1 })), { minutes: 25, minus: 0, pass: 0.61 });
@@ -158,12 +160,13 @@ function presTimer(box) {
 function examMC(el, c) {
   const last = S().exams.filter(x => x.course === c.id).slice(-3).reverse();
   el.innerHTML = `<div class="page">${examHeader(c)}
-    <div class="callout">Wie die Schlussklausur: Multiple Choice, Punkte je Frage, <b>Minuspunkte</b> für falsche Antworten (unbeantwortet = 0), 50 % zum Bestehen, Notenschlüssel 88/76/63/50. Excel darfst du daneben verwenden.</div>
-    <div class="grid g2"><div class="card col"><h3>Setup</h3>
+    <h2 class="exsec">${SPECIAL[c.id] ? "Oder: " : ""}Multiple-Choice-Test zur Theorie</h2>
+    <div class="callout">So läuft der Test: Multiple Choice, Punkte je Frage, <b>Minuspunkte</b> für falsche Antworten (unbeantwortet = 0), 50 % zum Bestehen, Notenschlüssel 88/76/63/50.${c.id === "bwl2" ? " Excel darfst du daneben verwenden." : ""}</div>
+    <div class="grid g2"><div class="card col"><h3>Einstellen und starten</h3>
       <label class="fld">Umfang<select id="ex-n"><option value="15">Kurz · 15 Fragen / 30 min</option><option value="25" selected>Klausur · 25 Fragen / 90 min</option></select></label>
       <label class="fld">Minuspunkte bei falscher Antwort<select id="ex-m"><option value="0">keine</option><option value="0.25">−25 % der Fragenpunkte</option><option value="0.5" selected>−50 % der Fragenpunkte</option><option value="1">−100 %</option></select></label>
-      <button class="btn pri" id="ex-go">Simulation starten</button></div>
-     <div class="card col"><h3>Letzte Durchläufe</h3>${last.length ? last.map(x => `<div class="spread"><div class="tab">${x.total} / ${x.max} P. · ${Math.round(100 * x.total / x.max)} %</div><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keine.</p>`}</div></div></div>`;
+      <button class="btn pri" id="ex-go">Test starten</button></div>
+     <div class="card col"><h3>Deine letzten Versuche</h3>${last.length ? last.map(x => `<div class="spread"><div class="tab">${x.total} / ${x.max} P. · ${Math.round(100 * x.total / x.max)} %</div><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keine.</p>`}</div></div></div>`;
   switchCourse(el);
   $("#ex-go", el).onclick = () => { const n = +$("#ex-n", el).value, minus = +$("#ex-m", el).value;
     const theory = shuffle(courseQ(c.id)).slice(0, Math.round(n * 0.6)), calc = shuffle(courseQ(c.id).filter(q => /\d/.test(q.q) && !theory.includes(q)).concat(BOSSQ.filter(q => q.course === c.id))).slice(0, n - theory.length);
@@ -172,7 +175,7 @@ function examMC(el, c) {
 }
 function runExamMC(el, c, qs, cfg) {
   const max = qs.reduce((s, q) => s + q.pts, 0), tEnd = Date.now() + cfg.minutes * 60000; let tmr, answers = {};
-  el.innerHTML = `<div class="page"><div class="spread"><div><span class="eyebrow">Simulation · ${esc(c.title)}</span><h1>${qs.length} Fragen · ${max} Punkte</h1></div><div class="row"><span class="chip warn tab" id="clk">${cfg.minutes}:00</span><button class="btn pri" id="sub">Abgeben</button></div></div><div id="qz"></div><div class="row"><button class="btn pri" id="sub2">Abgeben</button><span class="muted" id="left"></span></div></div>`;
+  el.innerHTML = `<div class="page"><div class="spread"><div><span class="eyebrow">Probeprüfung · ${esc(c.title)}</span><h1>${qs.length} Fragen · ${max} Punkte</h1></div><div class="row"><span class="chip warn tab" id="clk">${cfg.minutes}:00</span><button class="btn pri" id="sub">Abgeben</button></div></div><div id="qz"></div><div class="row"><button class="btn pri" id="sub2">Abgeben</button><span class="muted" id="left"></span></div></div>`;
   App.runQuiz($("#qz", el), { questions: qs, mode: "exam", minus: cfg.minus, onFinish: () => {}, onAnswer: a => { answers = a; $("#left", el).textContent = (qs.length - Object.keys(a).length) + " unbeantwortet"; } });
   tmr = setInterval(() => { const s = Math.max(0, Math.round((tEnd - Date.now()) / 1000)); const k = $("#clk", el); if (k) k.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); if (s <= 0) submit(); }, 1000);
   App.cleanup = (old => () => { clearInterval(tmr); old && old(); })(App.cleanup);
@@ -195,9 +198,9 @@ function examDasc(el) {
   const setup = () => { const last = S().exams.filter(x => !x.course || x.course === "dasc").slice(-3).reverse();
     el.innerHTML = `<div class="page">${examHeader(c)}<p class="muted">Probelauf für das Knowledge Assessment Teil 1: <b>Teil A</b> Quiz (10 P.), <b>Teil B</b> Python + Git (35 P.).</p>
      <div class="callout">Nur zur Vorbereitung. Im echten Assessment: Debian-Image, eingeschränktes Web, Bildschirmaufzeichnung, keine Smart Devices, keine KI.</div>
-     <div class="grid g2"><div class="card col"><h3>Setup</h3><div><span class="eyebrow">Schwierigkeit</span><div class="row" style="gap:6px;margin-top:8px">${[["easy", "Leicht"], ["normal", "Normal"], ["exam", "Prüfung"]].map(([k, t]) => `<button class="chip ${cfg.diff === k ? "on" : ""}" data-d="${k}">${t}</button>`).join("")}</div><small class="muted">${{ easy: "Hinweise gratis.", normal: "Jeder Hinweis kostet 2 Punkte.", exam: "Keine Hinweise." }[cfg.diff]}</small></div>
+     <div class="grid g2"><div class="card col"><h3>Einstellen und starten</h3><div><span class="eyebrow">Schwierigkeit</span><div class="row" style="gap:6px;margin-top:8px">${[["easy", "Leicht"], ["normal", "Normal"], ["exam", "Prüfung"]].map(([k, t]) => `<button class="chip ${cfg.diff === k ? "on" : ""}" data-d="${k}">${t}</button>`).join("")}</div><small class="muted">${{ easy: "Hinweise gratis.", normal: "Jeder Hinweis kostet 2 Punkte.", exam: "Keine Hinweise." }[cfg.diff]}</small></div>
       <label class="switch"><span>90-Minuten-Timer</span><input type="checkbox" class="tgl" id="ex-t" ${cfg.timer ? "checked" : ""}></label><button class="btn pri" id="ex-go">Starten</button></div>
-      <div class="card col"><h3>Letzte Durchläufe</h3>${last.length ? last.map(x => `<div class="spread"><div class="tab">${x.total} / ${x.max} P.</div><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keine.</p>`}</div></div></div>`;
+      <div class="card col"><h3>Deine letzten Versuche</h3>${last.length ? last.map(x => `<div class="spread"><div class="tab">${x.total} / ${x.max} P.</div><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keine.</p>`}</div></div></div>`;
     switchCourse(el);
     el.onclick = e => { const d = e.target.closest("[data-d]"); if (d) { cfg.diff = d.dataset.d; setup(); } };
     $("#ex-t", el).onchange = e => cfg.timer = e.target.checked; $("#ex-go", el).onclick = () => { el.onclick = null; run(); }; };

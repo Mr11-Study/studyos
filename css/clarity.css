@@ -1,0 +1,111 @@
+/* StudyOS · Klarheit (4.66): Was ist klickbar, was ist was?
+   1) Inhaltstypen haben überall dieselbe Farbe, dasselbe Zeichen und denselben Namen (App.KINDS in js/study.js).
+   2) Alles Anklickbare sieht wie ein Knopf oder eine Karte mit Pfeil aus. Reiner Text ist nie klickbar. */
+:root{--k-skript:#2563EB;--k-review:#059669;--k-alt:#C2410C;--k-prep:#7C3AED;--k-exam:#DC2626;--k-practice:#0E7490;--k-res:#64748B}
+@media (prefers-color-scheme:dark){:root{--k-skript:#7AA7FF;--k-review:#34D399;--k-alt:#FDBA74;--k-prep:#C4A5FF;--k-exam:#FF8A8A;--k-practice:#67E8F9;--k-res:#A7B3C5}}
+.ftile{--k:var(--acc)}
+.kk-skript{--k:var(--k-skript)}.kk-review{--k:var(--k-review)}.kk-alt{--k:var(--k-alt)}.kk-prep{--k:var(--k-prep)}.kk-exam{--k:var(--k-exam)}.kk-practice{--k:var(--k-practice)}.kk-res{--k:var(--k-res)}
+.kt-skript{--k:var(--k-skript)}.kt-review{--k:var(--k-review)}.kt-alt{--k:var(--k-alt)}.kt-prep{--k:var(--k-prep)}.kt-exam{--k:var(--k-exam)}.kt-practice{--k:var(--k-practice)}.kt-res{--k:var(--k-res)}
+
+/* Typ-Etikett */
+.kt{display:inline-flex;align-items:center;gap:6px;width:max-content;font:600 12px/1 var(--f-body,inherit);letter-spacing:.01em;color:var(--k);background:color-mix(in srgb,var(--k) 12%,transparent);border:1px solid color-mix(in srgb,var(--k) 35%,transparent);border-radius:999px;padding:5px 10px;vertical-align:middle;white-space:nowrap}
+.kt i{font-style:normal;font-weight:700}
+h2 .kt{margin-right:8px;font-size:12px}
+.klegend{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:14px}
+.klegend small{margin-right:4px}
+
+/* Kacheln: ganze Fläche klickbar, Pfeil unten rechts */
+.ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ftile{display:grid;grid-template-columns:44px 1fr;column-gap:14px;row-gap:10px;align-items:start;width:100%;text-align:left;color:inherit;font:inherit;background:var(--card);border:1px solid var(--line2);border-left:4px solid var(--k);border-radius:var(--r,12px);padding:15px 16px 13px;cursor:pointer;box-shadow:0 1px 2px rgba(15,20,40,.06);transition:transform .15s,box-shadow .15s,border-color .15s;text-decoration:none}
+.ftile:hover{transform:translateY(-2px);border-color:var(--k);box-shadow:0 8px 22px -10px color-mix(in srgb,var(--k) 55%,transparent)}
+.ftile:active{transform:translateY(0)}
+.ft-ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;font-weight:700;color:var(--k);background:color-mix(in srgb,var(--k) 13%,transparent)}
+.ft-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ft-main b{font-size:15.5px;line-height:1.25}
+.ft-main small{color:var(--muted);font-size:13px;line-height:1.4}
+.ft-meta{font-size:12.5px;color:var(--text);opacity:.85;margin-top:3px}
+.ft-meta em{font-style:normal;font-weight:700;color:var(--k)}
+.ft-go{grid-column:1/-1;justify-self:end;font-weight:700;font-size:13px;color:var(--k);background:color-mix(in srgb,var(--k) 10%,transparent);border-radius:999px;padding:5px 12px;transition:transform .15s}
+.ftile:hover .ft-go{transform:translateX(3px)}
+.ftile.sm{grid-template-columns:34px 1fr auto;align-items:center;padding:10px 12px;row-gap:0}
+.ftile.sm .ft-ic{width:34px;height:34px;font-size:16px;border-radius:9px}
+.ftile.sm .ft-go{grid-column:auto;padding:4px 10px}
+.ftile.sm .ft-main b{font-size:14.5px}
+.pjump{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+
+/* „Als Nächstes lesen“: die wichtigste Aktion der Fachseite */
+.fnext{--k:var(--k-skript);display:flex;align-items:center;gap:14px;width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer;border:1px solid color-mix(in srgb,var(--k) 45%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--k) 9%,var(--card)),var(--card));transition:transform .15s,box-shadow .15s}
+.fnext:hover{transform:translateY(-2px);box-shadow:0 10px 26px -12px color-mix(in srgb,var(--k) 60%,transparent)}
+.fnext .ft-main{flex:1}
+.fnext .ft-main b{font-size:17px}
+.fnext .ft-go{grid-column:auto;background:var(--k);color:#fff;padding:9px 16px;font-size:14px;white-space:nowrap}
+.fnext.done{--k:var(--good,#16A34A);cursor:default}
+.fnext.done:hover{transform:none;box-shadow:none}
+.fsec-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px 16px;flex-wrap:wrap}
+.fsec-h h2{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.prep-cta[hidden]{display:none!important}
+.cdesc>summary{color:var(--muted);font-size:14px}
+.cdesc[open]>summary{margin-bottom:6px}
+
+/* Originalprüfung (bwlalt.js, pmexam.js): als empfohlene Hauptkarte erkennbar */
+.prep-cta.alt-cta{--k:var(--k-exam);border:1px solid color-mix(in srgb,var(--k) 45%,var(--line));border-left:5px solid var(--k);background:linear-gradient(90deg,color-mix(in srgb,var(--k) 7%,var(--card)),var(--card));transition:transform .15s,box-shadow .15s}
+.prep-cta.alt-cta:hover{transform:translateY(-2px);box-shadow:0 10px 26px -12px color-mix(in srgb,var(--k) 60%,transparent)}
+.prep-cta.alt-cta .eyebrow{color:var(--k)}
+.prep-cta.alt-cta .eyebrow::after{content:" · Empfohlen";opacity:.8}
+.prep-cta .alt-go{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--k,var(--acc));color:#fff;font-size:18px;font-weight:700}
+.fsec .prep-cta.alt-cta{margin-top:4px}
+
+/* Probeprüfung */
+.exhead{display:flex;flex-direction:column;gap:8px}
+.exhead p{max-width:70ch}
+.exsec{margin-top:8px;font-size:19px}
+
+/* Prüfungs-Überblick */
+header .kt+h1{margin-top:8px}
+body.in-app .fchips{display:none}
+
+/* Fächer-Übersicht */
+.at-kinds{display:flex;flex-wrap:wrap;gap:5px}
+.at-kinds span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--k);background:color-mix(in srgb,var(--k) 10%,transparent);border-radius:999px;padding:3px 8px}
+.at-kinds i{font-style:normal}
+.hubtile .at-go{font-style:normal;font-weight:700;color:var(--c,var(--acc));background:color-mix(in srgb,var(--c,var(--acc)) 12%,transparent);padding:5px 11px;border-radius:999px;transition:transform .15s}
+.hubtile:hover .at-go{transform:translateX(3px)}
+
+/* Seitenleiste im Fach: Typ-Farbe am Zeichen, kurze Erklärung darunter */
+.nav button.nk .ni{color:var(--k);font-weight:700}
+.nav button.nd{align-items:center}
+.nav .nt{display:flex;flex-direction:column;line-height:1.2;text-align:left;min-width:0}
+.nav .nt small{font-size:11.5px;color:var(--muted);font-weight:400;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav button.on .nt small{color:inherit;opacity:.75}
+
+/* Knöpfe: „ghost“ sah aus wie Text, jetzt mit Rahmen */
+.btn.ghost,[data-theme=study] .btn.ghost{border-color:var(--line2);color:var(--text);background:transparent}
+.btn.ghost:hover,[data-theme=study] .btn.ghost:hover{border-color:var(--acc);background:var(--card2)}
+/* Aufklappbares sieht aufklappbar aus */
+details>summary{cursor:pointer}
+.pformat>summary,.cdesc>summary,.kinfo>summary{list-style:none}
+.pformat>summary::-webkit-details-marker,.cdesc>summary::-webkit-details-marker,.kinfo>summary::-webkit-details-marker{display:none}
+.pformat>summary::before,.cdesc>summary::before,.kinfo>summary::before{content:"▸";display:inline-block;margin-right:7px;color:var(--acc);transition:transform .15s}
+.pformat[open]>summary::before,.cdesc[open]>summary::before,.kinfo[open]>summary::before{transform:rotate(90deg)}
+.ptask details>summary{display:inline-flex;align-items:center;gap:8px;list-style:none;font-weight:600;font-size:14px;border:1px solid var(--line2);border-radius:var(--btn-r,8px);padding:8px 14px;background:var(--card2);color:var(--text)}
+.ptask details>summary::-webkit-details-marker{display:none}
+.ptask details>summary::before{content:"✎";color:var(--k-prep)}
+.ptask details>summary:hover{border-color:var(--acc)}
+.ptask details[open]>summary{margin-bottom:12px}
+/* Lektionen: „Lesen →“ immer sichtbar */
+.chap .lrow .go{opacity:.9}
+.chap .lrow:hover .go{opacity:1}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+@media (prefers-color-scheme:dark){.fnext .ft-go,.prep-cta .alt-go{color:#0B1020}}
+@media (max-width:720px){
+  .ftiles{grid-template-columns:1fr;gap:10px}
+  .ftile{grid-template-columns:40px 1fr auto;align-items:center;padding:12px 12px 12px 13px}
+  .ftile .ft-ic{width:40px;height:40px;font-size:18px}
+  .ftile .ft-go{grid-column:auto;padding:5px 10px}
+  .ftile .ft-main small{font-size:12.5px}
+  .fnext{flex-wrap:wrap}
+  .fnext .ft-main{flex:1 1 60%}
+  .fnext .ft-go{width:100%;text-align:center}
+  .exsec{font-size:17px}
+}
