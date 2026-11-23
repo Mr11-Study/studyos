@@ -212,7 +212,11 @@ function markCard(card, q, a) {
 
 /* ---------- Seiten ---------- */
 const st = () => S().bwlalt || (S().bwlalt = { minus: 0.5 });
+/* Welche Ansicht gerade offen ist: Zeichnet die App die Seite neu (z. B. nach dem Sync im Hintergrund), bleibt man im laufenden Versuch statt auf der Startseite zu landen. */
+const VIEW = { k: "intro", r: null };
+const setView = k => { VIEW.k = k; VIEW.r = App.route(); };
 function intro(el) {
+  setView("intro");
   const s = st(), hist = S().exams.filter(x => x.course === "bwl2" && x.kind === "alt").slice(-5).reverse(), run = s.run;
   el.innerHTML = `<div class="page"><header><span class="eyebrow">BWL 2 · Prüfungstrainer</span><h1>Altprüfung 1:1</h1><p class="muted" style="margin-top:6px;max-width:70ch">Deine echte Altprüfung mit allen 31 Fragen, in der Originalreihenfolge, mit den Originaltexten, Tabellen und Antwortmöglichkeiten. Bilanz und Anlagenspiegel sind als Tabellen nachgebaut, damit du sie auch am Handy lesen kannst.</p></header>
     ${run ? `<div class="callout"><b>Ein Versuch läuft noch</b> (${run.mode === "exam" ? "Prüfungsmodus" : "Lernmodus"}, ${Object.keys(run.ans).length} von ${Q.length} beantwortet${run.tEnd ? `, noch ${Math.max(0, Math.round((run.tEnd - Date.now()) / 60000))} Minuten` : ""}).<div class="row" style="margin-top:8px"><button class="btn pri" id="al-cont">Fortsetzen</button><button class="btn ghost" id="al-drop">Verwerfen</button></div></div>` : ""}
@@ -232,12 +236,13 @@ function intro(el) {
   const start = mode => { s.run = { mode, minus: mode === "exam" ? s.minus : 0, ans: {}, tEnd: mode === "exam" ? Date.now() + 90 * 60000 : 0, checked: {} }; App.save(); attempt(el); };
   $("#al-exam", el).onclick = () => start("exam"); $("#al-learn", el).onclick = () => start("learn");
   $("#al-sol", el).onclick = () => solutions(el);
-  if (run) { $("#al-cont", el).onclick = () => attempt(el); $("#al-drop", el).onclick = () => { if (confirm("Diesen Versuch verwerfen?")) { delete s.run; App.save(); intro(el); } }; }
+  if (run) { $("#al-cont", el).onclick = () => attempt(el); $("#al-drop", el).onclick = () => { if (confirm("Diesen Versuch verwerfen?")) { s.run = null; App.save(); intro(el); } }; }
 }
 
 /* Lösungsblatt: alle Fragen mit markierter richtiger Antwort und Lösungsweg, ohne Punkte */
 const correct = q => q.t === "match" ? q.rows.map(r => r[1]) : q.a;
 function solutions(el) {
+  setView("sol");
   el.innerHTML = `<div class="page alt-page alt-sol"><div class="spread alt-head"><div><span class="eyebrow">BWL 2 · Altprüfung · Lösungsblatt</span><h1>31 Fragen mit Lösungen</h1></div><div class="row alt-noprint"><button class="btn ghost" id="al-print">Drucken / PDF</button><button class="btn ghost" id="al-back">← Zurück</button></div></div>
     <p class="muted" style="max-width:70ch">Grün ist die richtige Antwort. Alle Rechnungen sind nachgerechnet. Mit <b>Falle</b> markiert sind die Fragen, die beim echten Termin falsch angekreuzt waren.</p>
     <nav class="alt-nav alt-noprint">${Q.map((q, k) => `<a href="#aq-${k}">${k + 1}</a>`).join("")}</nav>
@@ -251,17 +256,19 @@ function solutions(el) {
 }
 
 function attempt(el) {
-  const s = st(), run = s.run, learn = run.mode === "learn"; let tmr, done = false;
+  const s = st(), run0 = s.run; if (!run0) return intro(el);
+  /* Nach einem Sync ist S() ein neues Objekt: immer den aktuellen Versuch nehmen, nicht den beim Öffnen */
+  const cur = () => st().run || run0, run = run0, learn = run.mode === "learn"; let tmr, done = false; setView("attempt");
   if (run.tEnd && Date.now() >= run.tEnd) return finish(el);
   el.innerHTML = `<div class="page alt-page"><div class="spread alt-head"><div><span class="eyebrow">BWL 2 · Altprüfung · ${learn ? "Lernmodus" : "Prüfungsmodus"}</span><h1>31 Fragen · ${MAX} Punkte</h1></div><div class="row">${run.tEnd ? `<span class="chip warn tab" id="al-clk"></span>` : ""}<button class="btn pri" id="al-sub">${learn ? "Auswerten" : "Abgeben"}</button></div></div>
     <nav class="alt-nav">${Q.map((q, k) => `<a href="#aq-${k}" data-n="${k}">${k + 1}</a>`).join("")}</nav>
     <div class="col" style="gap:14px" id="al-qs">${Q.map((q, k) => qHTML(q, k, run.ans[k], run.mode)).join("")}</div>
     <div class="row"><button class="btn pri" id="al-sub2">${learn ? "Auswerten" : "Abgeben"}</button><span class="muted" id="al-left"></span><button class="btn ghost" id="al-pause">Pausieren</button></div></div>`;
   const qs = $("#al-qs", el);
-  const sync = () => { const n = Object.keys(run.ans).filter(k => answered(Q[k], run.ans[k])).length; $("#al-left", el).textContent = `${Q.length - n} offen`;
+  const sync = () => { const run = cur(), n = Object.keys(run.ans).filter(k => answered(Q[k], run.ans[k])).length; $("#al-left", el).textContent = `${Q.length - n} offen`;
     $$(".alt-nav a", el).forEach(a => { const k = +a.dataset.n; a.classList.toggle("on", answered(Q[k], run.ans[k])); a.classList.toggle("chk", !!run.checked[k]); }); };
-  const setA = (k, v) => { if (v == null) delete run.ans[k]; else run.ans[k] = v; const card = $("#aq-" + k, el), f = $(".alt-flag", card); if (f) f.textContent = answered(Q[k], run.ans[k]) ? "beantwortet" : "offen"; App.save(); sync(); };
-  const check = k => { const card = $("#aq-" + k, el), q = Q[k]; run.checked[k] = true; markCard(card, q, run.ans[k]); $(".alt-fb", card).innerHTML = fbHTML(q, run.ans[k], 0); App.save(); sync(); };
+  const setA = (k, v) => { const run = cur(); if (v == null) delete run.ans[k]; else run.ans[k] = v; const card = $("#aq-" + k, el), f = $(".alt-flag", card); if (f) f.textContent = answered(Q[k], run.ans[k]) ? "beantwortet" : "offen"; App.save(); sync(); };
+  const check = k => { const run = cur(), card = $("#aq-" + k, el), q = Q[k]; run.checked[k] = true; markCard(card, q, run.ans[k]); $(".alt-fb", card).innerHTML = fbHTML(q, run.ans[k], 0); App.save(); sync(); };
   qs.onclick = e => {
     const card = e.target.closest(".alt-q"); if (!card || card.classList.contains("alt-done")) return; const k = +card.dataset.k, q = Q[k];
     if (e.target.closest("[data-check]")) return check(k);
@@ -275,7 +282,7 @@ function attempt(el) {
   Object.keys(run.checked).forEach(k => check(+k));
   sync();
   const submit = () => { if (done) return; done = true; clearInterval(tmr); finish(el); };
-  const ask = () => { const open = Q.length - Object.keys(run.ans).filter(k => answered(Q[k], run.ans[k])).length; if (confirm(open ? `Noch ${open} Fragen offen. Trotzdem ${learn ? "auswerten" : "abgeben"}?` : `Prüfung jetzt ${learn ? "auswerten" : "abgeben"}?`)) submit(); };
+  const ask = () => { const run = cur(), open = Q.length - Object.keys(run.ans).filter(k => answered(Q[k], run.ans[k])).length; if (confirm(open ? `Noch ${open} Fragen offen. Trotzdem ${learn ? "auswerten" : "abgeben"}?` : `Prüfung jetzt ${learn ? "auswerten" : "abgeben"}?`)) submit(); };
   $("#al-sub", el).onclick = ask; $("#al-sub2", el).onclick = ask; $("#al-pause", el).onclick = () => { clearInterval(tmr); intro(el); };
   if (run.tEnd) { const clk = $("#al-clk", el), tick = () => { const sec = Math.max(0, Math.round((run.tEnd - Date.now()) / 1000)); if (!clk.isConnected) return clearInterval(tmr); clk.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; clk.classList.toggle("bad", sec < 300); if (!sec) submit(); }; tick(); tmr = setInterval(tick, 1000); App.cleanup = (old => () => { clearInterval(tmr); old && old(); })(App.cleanup); }
 }
@@ -286,7 +293,11 @@ function finish(el) {
   Q.forEach((q, k) => App.rec(q.topic, Math.max(0, pts[k]) / q.pts));
   const traps = Q.map((q, k) => k).filter(k => Q[k].trap), trapOk = traps.filter(k => pts[k] >= Q[k].pts - 1e-9).length;
   S().exams.push({ ts: Date.now(), course: "bwl2", kind: "alt", total, max: MAX, weak: [...new Set(Q.filter((q, k) => pts[k] < q.pts).map(q => q.topic))] });
-  App.addXP(20 + Math.round(pct / 100 * 40), "exam"); delete s.run; App.save();
+  App.addXP(20 + Math.round(pct / 100 * 40), "exam"); s.run = null; App.save();
+  VIEW.res = { run, pts, total, pct, traps, trapOk }; result(el);
+}
+function result(el) {
+  setView("result"); const { run, pts, total, pct, traps, trapOk } = VIEW.res;
   const pass = pct > 60 + 1e-9;
   el.innerHTML = `<div class="page alt-page"><div><span class="eyebrow">Ergebnis · BWL 2 · Altprüfung ${run.mode === "exam" ? "(Prüfungsmodus)" : "(Lernmodus)"}</span><h1>${fmtP(total)} / ${MAX} Punkte</h1></div>
     <div class="grid g3"><div class="card stat"><b class="result-big" style="font-size:38px;color:${pass ? "var(--acc)" : "var(--bad)"}">${Math.round(pct * 10) / 10} %</b><span>${pass ? "bestanden" : "nicht bestanden"}</span></div><div class="card stat"><b>${grade(pct)}</b><span>Notenschlüssel der VO</span></div><div class="card stat"><b>${trapOk} / ${traps.length}</b><span>Fallen diesmal richtig</span></div></div>
@@ -305,7 +316,10 @@ document.addEventListener("click", e => { const a = e.target.closest('a[href^="#
 const cta = () => `<button class="card prep-cta alt-cta" data-go="exam" data-p="bwlalt"><div><span class="eyebrow">Originalprüfung</span><div class="lrow-t">Altprüfung 1:1: alle 31 Fragen wie am echten Termin</div><small>90 Minuten · 90 Punkte · Minuspunkte · Lernmodus mit Lösungswegen${st().run ? " · ein Versuch läuft" : ""}</small></div><span class="alt-go">→</span></button>`;
 const prevExam = PAGES.exam;
 PAGES.exam = (el, p) => {
-  if (p === "bwlalt") { if (S().course !== "bwl2" && CBY.bwl2) { S().course = "bwl2"; App.save(); App.renderSide && App.renderSide(); } return intro(el); }
+  if (p === "bwlalt") { if (S().course !== "bwl2" && CBY.bwl2) { S().course = "bwl2"; App.save(); App.renderSide && App.renderSide(); }
+    /* gleiche Route neu gezeichnet (Sync, Sprache …): dort bleiben, wo man war */
+    if (VIEW.r === App.route()) { if (VIEW.k === "attempt" && st().run) return attempt(el); if (VIEW.k === "sol") return solutions(el); if (VIEW.k === "result" && VIEW.res) return result(el); }
+    return intro(el); }
   const r = prevExam(el, p), c = CBY[S().course], head = el.querySelector(".page > div");
   if (c && c.id === "bwl2" && head) head.insertAdjacentHTML("afterend", cta());
   return r;

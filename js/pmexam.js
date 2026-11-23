@@ -60,6 +60,27 @@ const NETS = [
     ["Netzwerk verkabeln", 4, 10, [3]], ["Neue Hardware bestellen", 5, 14, [4]], ["Testumgebung aufbauen", 3, 8, [5, 6, 7]], ["Migrationstest", 2, 6, [8]], ["Mitarbeitende informieren", 1, 3, [4]],
     ["Umzugswochenende vorbereiten", 2, 5, [9, 10]], ["Umzug durchführen", 2, 4, [11]], ["Abnahme & Übergabe", 1, 2, [12]]],
     ms: "z. B. <b>Nr. 4 Umzugskonzept freigegeben</b>, <b>Nr. 8 Testumgebung steht</b> (die Zweige Technik und Beschaffung laufen zusammen), <b>Nr. 9 Migrationstest bestanden</b> und <b>Nr. 13 Abnahme & Übergabe</b>." }
+  ,
+  { id: "app", name: "Entwicklung einer Fitness-App", w: 1, intro: "Eine Agentur entwickelt für einen Kunden eine Fitness-App mit Anbindung an Fitness-Armbänder.", v: [
+    ["Projektstart", 1, 2, []], ["Anforderungsanalyse", 4, 8, [1]], ["UX-Konzept & Mockups", 3, 7, [2]], ["Datenbank entwerfen", 2, 5, [2]], ["Backend programmieren", 8, 16, [4]],
+    ["App-Oberfläche programmieren", 8, 15, [3]], ["Schnittstelle Fitness-Armband", 4, 9, [4]], ["Integration", 2, 5, [5, 6, 7]], ["Store-Texte & Screenshots", 2, 4, [3]], ["Beta-Test", 3, 7, [8]],
+    ["Fehler beheben", 2, 6, [10]], ["Store-Freigabe", 1, 3, [9, 11]]],
+    ms: "z. B. <b>Nr. 2 Anforderungen abgenommen</b>, <b>Nr. 3 Mockups vom Kunden freigegeben</b>, <b>Nr. 8 Integration fertig</b> (Backend, Oberfläche und Armband laufen zusammen) und <b>Nr. 12 Store-Freigabe</b>." },
+  { id: "filiale", name: "Eröffnung einer neuen Filiale", w: 1, intro: "Eine Handelskette eröffnet eine neue Filiale in Graz.", v: [
+    ["Standortentscheidung", 2, 4, []], ["Mietvertrag verhandeln", 3, 8, [1]], ["Ladenbau planen", 3, 6, [2]], ["Umbau durchführen", 10, 20, [3]], ["Personal suchen", 6, 14, [1]],
+    ["Personal schulen", 3, 6, [5]], ["Kassensystem bestellen", 3, 9, [2]], ["Kassensystem installieren", 1, 3, [4, 7]], ["Ware bestellen", 4, 10, [2]], ["Ware einräumen", 2, 4, [4, 9]],
+    ["Werbung zur Eröffnung", 4, 10, [3]], ["Eröffnung", 1, 1, [6, 8, 10, 11]]],
+    ms: "z. B. <b>Nr. 2 Mietvertrag unterschrieben</b>, <b>Nr. 4 Umbau abgenommen</b> (danach laufen Kasse und Ware zusammen) und <b>Nr. 12 Eröffnung</b>." },
+  { id: "konf", name: "Fachkonferenz organisieren", w: 1, intro: "Die FH organisiert eine eintägige Fachkonferenz mit externen Vortragenden.", v: [
+    ["Konferenz beschließen", 1, 2, []], ["Location buchen", 3, 6, [1]], ["Speaker anfragen", 5, 12, [1]], ["Programm fixieren", 3, 7, [3]], ["Website & Anmeldung", 4, 9, [2]],
+    ["Einladungen versenden", 1, 3, [4, 5]], ["Catering beauftragen", 2, 5, [2]], ["Technik buchen", 2, 6, [2]], ["Unterlagen drucken", 2, 4, [4, 6]], ["Generalprobe", 1, 2, [8, 9]],
+    ["Konferenztag", 1, 1, [7, 10]]],
+    ms: "z. B. <b>Nr. 2 Location gebucht</b>, <b>Nr. 4 Programm fixiert</b> (alle Speaker bestätigt), <b>Nr. 10 Generalprobe bestanden</b> und <b>Nr. 11 Konferenztag</b>." },
+  { id: "halle", name: "Bau einer Lagerhalle", w: 1, intro: "Ein Logistikunternehmen lässt eine neue Lagerhalle bauen.", v: [
+    ["Baugenehmigung", 8, 20, []], ["Baustelle einrichten", 2, 4, [1]], ["Erdarbeiten", 3, 7, [2]], ["Fundament", 4, 8, [3]], ["Stahlbau bestellen", 10, 25, [1]],
+    ["Stahlkonstruktion montieren", 5, 10, [4, 5]], ["Dach & Fassade", 6, 12, [6]], ["Elektroinstallation", 4, 9, [7]], ["Bodenplatte", 3, 6, [6]], ["Regale liefern", 8, 20, [1]],
+    ["Regale montieren", 3, 6, [9, 10]], ["Abnahme", 1, 2, [8, 11]]],
+    ms: "z. B. <b>Nr. 1 Baugenehmigung erteilt</b>, <b>Nr. 6 Stahlkonstruktion steht</b> (Fundament und Stahlbau laufen zusammen), <b>Nr. 7 Gebäude dicht</b> und <b>Nr. 12 Abnahme</b>." }
 ];
 /* ---------- Fallbeispiele für Theorie ---------- */
 const PSP = [
@@ -407,12 +428,13 @@ const KEY = [[90, "Sehr gut (1)"], [80, "Gut (2)"], [70, "Befriedigend (3)"], [6
 const grade = pct => (KEY.find(([t]) => pct > t + 1e-9) || [0, "Nicht genügend (5)"])[1];
 
 /* ---------- Eingaben ---------- */
-function bind(root, ex, run, onChange) {
+function bind(root, ex, gr, onChange) {
+  const R = typeof gr === "function" ? gr : () => gr;
   const items = {}; ex.A.forEach(p => p.items.forEach(it => items[it.id] = it));
-  const set = (id, v) => { if (v == null) delete run.ans[id]; else run.ans[id] = v; App.save(); onChange && onChange(id); };
+  const set = (id, v) => { const run = R(); if (v == null) delete run.ans[id]; else run.ans[id] = v; App.save(); onChange && onChange(id); };
   root.addEventListener("input", e => {
     const t = e.target, id = t.dataset && t.dataset.id; if (!id || !items[id]) return;
-    if (t.dataset.c) { const o = run.ans[id] || {}; o[t.dataset.c] = t.value; set(id, o); }
+    if (t.dataset.c) { const o = R().ans[id] || {}; o[t.dataset.c] = t.value; set(id, o); }
     else if (t.tagName === "INPUT" || t.tagName === "TEXTAREA") set(id, t.value);
   });
   root.addEventListener("keydown", e => { const t = e.target; if (e.key !== "Enter" || !t.classList.contains("np-in")) return; e.preventDefault(); const all = $$(".np-in:not(:disabled)", t.closest(".np-canvas")); const n = all[all.indexOf(t) + 1]; if (n) n.focus(); });
@@ -423,9 +445,10 @@ function bind(root, ex, run, onChange) {
     b.classList.toggle("sel"); const v = $$(`button[data-id="${it.id}"]`, root).map((x, j) => x.classList.contains("sel") ? j : -1).filter(j => j >= 0); set(it.id, v.length ? v : null);
   });
 }
-function bindKP(root, ex, run, after) {
+function bindKP(root, ex, gr, after) {
+  const R = typeof gr === "function" ? gr : () => gr;
   root.addEventListener("change", e => {
-    const t = e.target; if (!t.matches("input[data-kp]")) return;
+    const t = e.target; if (!t.matches("input[data-kp]")) return; const run = R();
     const id = t.dataset.kp, it = ex.A.flatMap(p => p.items).find(x => x.id === id);
     const arr = ticks(it, run.ans[id], run.self).slice(); arr[+t.dataset.k] = t.checked; (run.self || (run.self = {}))[id] = arr; App.save();
     $(".px-got", t.closest(".px-it")).textContent = `${fmtP(score(ex, it, run.ans[id], run.self))} von ${fmtP(it.pts)} P.`;
@@ -437,7 +460,12 @@ function bindKP(root, ex, run, after) {
 const st = () => S().pmexam || (S().pmexam = {});
 const newSeed = () => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
 const runGen = run => gen(run.seed, run.opt || {});
+/* Welche Ansicht offen ist. Zeichnet die App dieselbe Route neu (Sync im Hintergrund, Sprache, Update),
+   bleibt man im laufenden Versuch, im Ergebnis oder im Lösungsblatt, statt auf die Startseite zu fallen. */
+const VIEW = { k: "intro", r: null };
+const setView = (k, x) => { VIEW.k = k; VIEW.r = App.route(); VIEW.x = x; };
 function intro(el) {
+  setView("intro");
   const s = st(), hist = (S().exams || []).filter(x => x.course === "pmgt" && x.kind === "sim").slice(-5).reverse(), run = s.run;
   el.innerHTML = `<div class="page"><header><span class="eyebrow">Projektmanagement · Prüfungstrainer</span><h1>Prüfung: Netzplan</h1><p class="muted" style="margin-top:6px;max-width:72ch">Wie bei Prof. Fritz: Du bekommst einen <b>fertig gezeichneten Netzplan</b> mit leeren Kästchen (wie Prüfungsbeispiel 1 vom 10.03.2023) und trägst <b>Frühester Anfang, Freie Pufferzeit, Frühestes Ende, Spätester Anfang, Gesamte Pufferzeit und Spätestes Ende</b> selbst ein. Danach beantwortest du Fragen, die du aus dem Netzplan ableitest: kritischer Pfad, Dauer, wann beginnt und endet was, Puffer, Verzögerung, verkürzen, Prozesszweige, Meilensteine. Dazu ein kritischer Pfad direkt aus der Angabe und Bonusfragen aus der VO. Jeder Versuch hat neue Zahlen.</p></header>
     ${run ? `<div class="callout"><b>Ein Versuch läuft noch</b> (${run.mode === "exam" ? "Prüfungsmodus" : "Lernmodus"}${run.tEnd ? `, noch ${Math.max(0, Math.round((run.tEnd - Date.now()) / 60000))} Minuten` : ""}).<div class="row" style="margin-top:8px"><button class="btn pri" id="px-cont">Fortsetzen</button><button class="btn ghost" id="px-drop">Verwerfen</button></div></div>` : ""}
@@ -450,6 +478,12 @@ function intro(el) {
       <section class="card col"><h3>Lernmodus</h3><p>Ohne Zeitlimit. Jede Aufgabe einzeln prüfen: falsche Felder im Netzplan werden rot, darunter steht der richtige Wert, der kritische Pfad wird lila.</p>
         <div class="row"><button class="btn" id="px-learn">Lernmodus starten</button><button class="btn ghost" data-go="lesson" data-p="pmg3-3">Netzplan Schritt für Schritt</button></div></section>
     </div>
+    <div class="grid g2">
+      <section class="card col"><h3>Lösungsblatt</h3><p>Alle Aufgaben fertig gelöst: ausgefüllter Netzplan mit kritischem Pfad, derselbe Plan als Balkenplan und jede Frage mit Lösung und Lösungsweg. Zum Nachrechnen oder Ausdrucken.</p>
+        <div class="row"><button class="btn" id="px-osol">Original vom 10.03.2023</button>${s.last ? `<button class="btn ghost" id="px-lastsol">Zu deinem letzten Versuch (${new Date(s.last.ts).toLocaleDateString("de-AT")})</button>` : ""}</div></section>
+      <section class="card col"><h3>Netzpläne üben</h3><p>${NETS.length} verschiedene Netzpläne als Grafik: vorrechnen lassen, selbst ausfüllen und prüfen, als Balkenplan ansehen.</p>
+        <div class="row"><button class="btn" data-go="exam" data-p="pmnetz">Netzplan-Übungen öffnen</button></div></section>
+    </div>
     <small class="muted">Punkteverteilung und ${MINUTES} Minuten sind geschätzt.</small>
     <section class="card col"><h3>Deine Versuche</h3>${hist.length ? hist.map(x => `<div class="spread"><span class="tab">${fmtP(x.total)} / ${x.max} P. · ${grade(100 * x.total / x.max)}</span><small>${new Date(x.ts).toLocaleDateString("de-AT")}</small></div>`).join(`<div class="divider"></div>`) : `<p class="muted">Noch keiner.</p>`}</section>
     <div class="row"><button class="btn ghost" data-go="exam">← Zurück zum Prüfungstrainer</button></div></div>`;
@@ -457,27 +491,32 @@ function intro(el) {
   $("#px-orig", el).onchange = e => { s.orig = e.target.value; App.save(); };
   const start = mode => { s.run = { seed: newSeed(), opt: { orig: s.orig === "1", cal: s.cal || "" }, mode, ans: {}, self: {}, checked: {}, tEnd: mode === "exam" ? Date.now() + MINUTES * 60000 : 0 }; App.save(); attempt(el); };
   $("#px-exam", el).onclick = () => start("exam"); $("#px-learn", el).onclick = () => start("learn");
-  if (run) { $("#px-cont", el).onclick = () => attempt(el); $("#px-drop", el).onclick = () => { if (confirm("Diesen Versuch verwerfen?")) { delete s.run; App.save(); intro(el); } }; }
+  $("#px-osol", el).onclick = () => solution(el, ORIG_SOL);
+  const lsb = $("#px-lastsol", el); if (lsb) lsb.onclick = () => solution(el, { seed: s.last.seed, opt: s.last.opt, title: "Lösungsblatt zu deinem letzten Versuch" });
+  if (run) { $("#px-cont", el).onclick = () => attempt(el); $("#px-drop", el).onclick = () => { if (confirm("Diesen Versuch verwerfen?")) { s.run = null; App.save(); intro(el); } }; }
 }
 
 function attempt(el) {
-  const s = st(), run = s.run, learn = run.mode === "learn"; let tmr, done = false;
+  const s = st(), run = s.run; if (!run) return intro(el);
+  /* Nach einem Sync ist S() ein neues Objekt: Eingaben immer in den aktuellen Versuch schreiben */
+  const cur = () => st().run || run, learn = run.mode === "learn"; let tmr, done = false; setView("attempt");
   if (run.tEnd && Date.now() >= run.tEnd) return finish(el);
   const ex = runGen(run);
   el.innerHTML = `<div class="page alt-page px-page"><div class="spread alt-head"><div><span class="eyebrow">Projektmanagement · Prüfung · ${learn ? "Lernmodus" : "Prüfungsmodus"} · ${ex.cal ? "Kalendertage" : "Zeiteinheiten"}${ex.orig ? " · Original 10.03.2023" : ""}</span><h1>Netzplan · 100 Punkte + Bonus</h1></div><div class="row">${run.tEnd ? `<span class="chip warn tab" id="px-clk"></span>` : ""}<button class="btn pri" id="px-sub">${learn ? "Auswerten" : "Abgeben"}</button></div></div>
     <nav class="alt-nav">${ex.A.map((p, k) => `<a href="#aq-${k}" data-n="${k}">A${k + 1}</a>`).join("")}</nav>
     <div class="col" style="gap:14px" id="px-qs">${ex.A.map((p, k) => partHTML(ex, k, run, run.checked[k] ? "review" : run.mode)).join("")}</div>
-    <div class="row"><button class="btn pri" id="px-sub2">${learn ? "Auswerten" : "Abgeben"}</button><button class="btn ghost" id="px-pause">Pausieren</button></div></div>`;
+    <div class="row"><button class="btn pri" id="px-sub2">${learn ? "Auswerten" : "Abgeben"}</button><button class="btn ghost" id="px-pause">Pausieren</button>${learn ? `<button class="btn ghost" id="px-lsol">Lösungsblatt ansehen</button>` : ""}</div></div>`;
   const qs = $("#px-qs", el);
-  const sync = () => $$(".alt-nav a", el).forEach(a => { const k = +a.dataset.n; a.classList.toggle("on", ex.A[k].items.some(it => ansd(it, run.ans[it.id]))); a.classList.toggle("chk", !!run.checked[k]); });
-  const psum = k => { const b = $(`#aq-${k} .px-psum`, el); if (b) b.textContent = `${fmtP(partPts(ex, k, run))} / ${fmtP(ex.A[k].pts)} P.`; };
-  bind(qs, ex, run, sync); bindKP(qs, ex, run, () => Object.keys(run.checked).forEach(k => psum(+k)));
+  const sync = () => $$(".alt-nav a", el).forEach(a => { const k = +a.dataset.n, run = cur(); a.classList.toggle("on", ex.A[k].items.some(it => ansd(it, run.ans[it.id]))); a.classList.toggle("chk", !!run.checked[k]); });
+  const psum = k => { const b = $(`#aq-${k} .px-psum`, el); if (b) b.textContent = `${fmtP(partPts(ex, k, cur()))} / ${fmtP(ex.A[k].pts)} P.`; };
+  bind(qs, ex, cur, sync); bindKP(qs, ex, cur, () => Object.keys(cur().checked).forEach(k => psum(+k)));
   qs.addEventListener("click", e => { const b = e.target.closest("[data-check]"); if (!b) return; const card = b.closest(".px-part"), k = +card.dataset.k;
-    run.checked[k] = true; App.save(); card.outerHTML = partHTML(ex, k, run, "review"); psum(k); sync(); });
+    const r = cur(); r.checked[k] = true; App.save(); card.outerHTML = partHTML(ex, k, r, "review"); psum(k); sync(); });
   Object.keys(run.checked).forEach(k => psum(+k)); sync();
   const submit = () => { if (done) return; done = true; clearInterval(tmr); finish(el); };
-  const ask = () => { const open = ex.A.flatMap(p => p.items).filter(it => !ansd(it, run.ans[it.id])).length; if (confirm(open ? `Noch ${open} Teilfragen offen. Trotzdem ${learn ? "auswerten" : "abgeben"}?` : `Jetzt ${learn ? "auswerten" : "abgeben"}?`)) submit(); };
+  const ask = () => { const run = cur(), open = ex.A.flatMap(p => p.items).filter(it => !ansd(it, run.ans[it.id])).length; if (confirm(open ? `Noch ${open} Teilfragen offen. Trotzdem ${learn ? "auswerten" : "abgeben"}?` : `Jetzt ${learn ? "auswerten" : "abgeben"}?`)) submit(); };
   $("#px-sub", el).onclick = ask; $("#px-sub2", el).onclick = ask; $("#px-pause", el).onclick = () => { clearInterval(tmr); intro(el); };
+  const ls = $("#px-lsol", el); if (ls) ls.onclick = () => { clearInterval(tmr); solution(el, { seed: run.seed, opt: run.opt || {}, title: "Lösungsblatt zu diesem Versuch", back: "attempt" }); };
   if (run.tEnd) { const clk = $("#px-clk", el), tick = () => { const sec = Math.max(0, Math.round((run.tEnd - Date.now()) / 1000)); if (!clk.isConnected) return clearInterval(tmr); clk.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; clk.classList.toggle("bad", sec < 300); if (!sec) submit(); }; tick(); tmr = setInterval(tick, 1000); App.cleanup = (old => () => { clearInterval(tmr); old && old(); })(App.cleanup); }
 }
 
@@ -489,17 +528,18 @@ function finish(el) {
   ex.A.flatMap(p => p.items).forEach(it => App.rec(it.topic, score(ex, it, run.ans[it.id], run.self) / it.pts));
   (S().exams || (S().exams = [])).push(rec); const t0 = upd();
   App.addXP(20 + Math.round(t0.total / LIMIT * 40), "exam");
-  const done = { ...run }; delete s.run; App.save();
+  const done = { ...run }; s.run = null; s.last = { seed: run.seed, opt: run.opt || {}, ts: rec.ts }; App.save();
   render(el, ex, done, upd);
 }
 function render(el, ex, run, upd) {
+  setView("result"); VIEW.res = { ex, run, upd };
   const bonusMax = ex.A.filter(p => p.bonus).reduce((s, p) => s + p.pts, 0);
   el.innerHTML = `<div class="page alt-page px-page"><div><span class="eyebrow">Ergebnis · Projektmanagement · ${run.mode === "exam" ? "Prüfungsmodus" : "Lernmodus"} · ${ex.cal ? "Kalendertage" : "Zeiteinheiten"}</span><h1 id="px-tot"></h1></div>
     <div class="grid g3"><div class="card stat"><b class="result-big" id="px-pct" style="font-size:38px"></b><span id="px-pass"></span></div><div class="card stat"><b id="px-grade"></b><span>Notenschlüssel der VO</span></div><div class="card stat"><b id="px-raw"></b><span>Punkte inkl. Bonus (max. ${fmtP(100 + bonusMax)}, gezählt bis ${LIMIT})</span></div></div>
     <small class="muted">Freitextfragen sind nach Stichworten vorbewertet. Hake bei den Musterantworten ehrlich ab, was in deiner Antwort steht; das Ergebnis passt sich sofort an.</small>
     <div class="card col"><h3>Punkte je Aufgabe</h3><div class="alt-grid" id="px-grid"></div></div>
     <h2>Auswertung mit Lösungsweg</h2><div class="col" style="gap:14px" id="px-qs">${ex.A.map((p, k) => partHTML(ex, k, run, "review")).join("")}</div>
-    <div class="row"><button class="btn pri" id="px-again">Neue Prüfung mit neuen Zahlen</button><button class="btn ghost" data-go="exam">Prüfungstrainer</button></div></div>`;
+    <div class="row"><button class="btn pri" id="px-again">Neue Prüfung mit neuen Zahlen</button><button class="btn" id="px-rsol">Lösungsblatt zu diesem Versuch</button><button class="btn ghost" data-go="exam">Prüfungstrainer</button></div></div>`;
   const paint = () => { const { raw, total } = upd(), pct = total / LIMIT * 100, pass = pct > 60 + 1e-9;
     $("#px-tot", el).textContent = `${fmtP(total)} / ${LIMIT} Punkte`; const pc = $("#px-pct", el); pc.textContent = `${Math.round(pct * 10) / 10} %`; pc.style.color = pass ? "var(--acc)" : "var(--bad)";
     $("#px-pass", el).textContent = pass ? "bestanden" : "nicht bestanden"; $("#px-grade", el).textContent = grade(pct); $("#px-raw", el).textContent = fmtP(raw);
@@ -507,6 +547,7 @@ function render(el, ex, run, upd) {
     ex.A.forEach((p, k) => { const b = $(`#aq-${k} .px-psum`, el); if (b) b.textContent = `${fmtP(partPts(ex, k, run))} / ${fmtP(p.pts)} P.`; }); };
   bindKP($("#px-qs", el), ex, run, paint); paint();
   $("#px-again", el).onclick = () => intro(el);
+  $("#px-rsol", el).onclick = () => solution(el, { seed: run.seed, opt: run.opt || {}, title: "Lösungsblatt zu deinem Versuch", back: "result" });
   window.scrollTo(0, 0);
 }
 
@@ -543,7 +584,7 @@ W.netzplan = (el, b) => {
   let kind = b.net === "orig" ? "orig" : "small", cal = b.cal != null ? b.cal : kind === "orig", net, S, k = 0, play = null, seed = (Math.random() * 1e9) >>> 0;
   const build = () => {
     const R = mk(rng(seed));
-    net = kind === "orig" ? makeNet(R, NETS[0], { orig: true, cal: cal ? "1" : "0" }) : makeNet(R, R.pick(NETS.slice(1)), { cal: cal ? "1" : "0" });
+    net = b.make ? b.make() : kind === "orig" ? makeNet(R, NETS[0], { orig: true, cal: cal ? "1" : "0" }) : makeNet(R, R.pick(NETS.slice(1)), { cal: cal ? "1" : "0" });
     S = steps(net); k = 0;
   };
   const PH = ["Vorwärts", "Rückwärts", "Puffer", "Kritischer Pfad"];
@@ -553,12 +594,12 @@ W.netzplan = (el, b) => {
     S.slice(0, k + 1).forEach((s, j) => s.n != null && s.f.forEach(f => { shown.add(s.n + ":" + f); if (j === k) anim.add(s.n + ":" + f); }));
     const s = S[k], ph = s.ph;
     el.innerHTML = `<div class="w np-w">${App.whead(esc(b.title || (kind === "orig" ? "Prüfungs-Netzplan vom 10.03.2023 Schritt für Schritt" : "Netzplan Schritt für Schritt")), "Animation")}
-      <div class="row np-ctl"><button class="chip ${kind === "orig" ? "on" : ""}" data-k="orig">Prüfung 10.03.2023</button><button class="chip ${kind === "small" ? "on" : ""}" data-k="small">Anderes Projekt</button><span class="np-sep"></span><button class="chip ${cal ? "on" : ""}" data-c="1">Kalendertage</button><button class="chip ${!cal ? "on" : ""}" data-c="0">Zeiteinheiten</button>${kind === "small" ? `<button class="chip" data-new>Neue Zahlen ↻</button>` : ""}</div>
+      ${b.make ? "" : `<div class="row np-ctl"><button class="chip ${kind === "orig" ? "on" : ""}" data-k="orig">Prüfung 10.03.2023</button><button class="chip ${kind === "small" ? "on" : ""}" data-k="small">Anderes Projekt</button><span class="np-sep"></span><button class="chip ${cal ? "on" : ""}" data-c="1">Kalendertage</button><button class="chip ${!cal ? "on" : ""}" data-c="0">Zeiteinheiten</button>${kind === "small" ? `<button class="chip" data-new>Neue Zahlen ↻</button>` : ""}<button class="chip" data-go="exam" data-p="pmnetz">Alle ${NETS.length} Netzpläne →</button></div>`}
       <div class="row np-ph">${PH.map((p, i) => `<button class="chip ${i === ph ? "on" : ""}" data-ph="${i}">${i + 1}. ${p}</button>`).join("")}</div>
       <div class="np-step" aria-live="polite"><small class="muted">Schritt ${k + 1} von ${S.length}</small><div>${s.t}</div></div>
       <div class="np-bar"><i style="width:${Math.round(100 * (k + 1) / S.length)}%"></i></div>
       ${sheet(net, { mode: "show", shown, anim, cur: s.n, rel: new Set(s.rel || []), crit: !!s.crit })}
-      <div class="row"><button class="btn ghost sm" data-go-step="-1"${k ? "" : " disabled"}>◀ Zurück</button><button class="btn sm" data-play>${play ? "❚❚ Pause" : "▶ Abspielen"}</button><button class="btn pri sm" data-go-step="1"${k < S.length - 1 ? "" : " disabled"}>Weiter ▶</button><button class="btn ghost sm" data-go="exam" data-p="pmexam">Selbst rechnen →</button></div></div>`;
+      <div class="row"><button class="btn ghost sm" data-go-step="-1"${k ? "" : " disabled"}>◀ Zurück</button><button class="btn sm" data-play>${play ? "❚❚ Pause" : "▶ Abspielen"}</button><button class="btn pri sm" data-go-step="1"${k < S.length - 1 ? "" : " disabled"}>Weiter ▶</button>${b.make ? "" : `<button class="btn ghost sm" data-go="exam" data-p="pmexam">Selbst rechnen →</button>`}</div></div>`;
     if (s.n != null) scrollTo($(".np-wrap", el), net, s.n);
   };
   const go = d => { k = Math.max(0, Math.min(S.length - 1, k + d)); if (k === S.length - 1) { stop(); if (App.wdone("netzplan-" + kind)) App.addXP(15, "netzplan", el); } draw(); };
@@ -574,11 +615,333 @@ W.netzplan = (el, b) => {
   build(); draw();
 };
 
+/* ---------- Balkenplan (Gantt) aus dem Netzplan ----------
+   Balken = frühester Anfang bis frühestes Ende, heller Anhang = Gesamtpuffer, lila = kritisch. */
+function gantt(net, o = {}) {
+  const { nodes, res, cal } = net, R = res.R, PE = res.PE, n = nodes.length;
+  const LW = 168, RH = 24, TOP = 26, W0 = 560, span = cal ? PE : PE, dw = Math.max(6, Math.min(26, W0 / span)), W = LW + span * dw + 14, H = TOP + n * RH + 10;
+  const x = k => LW + (cal ? k - 1 : k) * dw;
+  const step = [1, 2, 5, 7, 10, 14, 20, 30].find(s => s * dw >= 34) || 30;
+  let g = `<svg class="gt-svg" viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="Balkenplan">`;
+  for (let k = 0; k <= span; k += step) { const xx = LW + k * dw; g += `<line x1="${xx}" y1="${TOP - 4}" x2="${xx}" y2="${H - 6}" class="gt-grid"/><text x="${xx + 2}" y="${TOP - 9}" class="gt-ax">${cal ? net.fd(k + 1) : k}</text>`; }
+  nodes.forEach((v, i) => {
+    const r = R[i], y = TOP + i * RH, crit = r.krit, x1 = x(r.FAZ), x2 = cal ? x(r.FEZ) + dw : x(r.FEZ);
+    if (i % 2 === 0) g += `<rect x="0" y="${y}" width="${W}" height="${RH}" class="gt-row"/>`;
+    g += `<text x="6" y="${y + 16}" class="gt-lbl${crit ? " c" : ""}">${i + 1} ${esc(v.name.length > 24 ? v.name.slice(0, 23) + "…" : v.name)}</text>`;
+    if (r.GP > 0) g += `<rect x="${x2}" y="${y + 8}" width="${r.GP * dw}" height="${RH - 16}" rx="2" class="gt-buf"><title>Gesamtpuffer ${r.GP}</title></rect>`;
+    g += `<rect x="${x1}" y="${y + 4}" width="${Math.max(2, x2 - x1)}" height="${RH - 8}" rx="3" class="gt-bar${crit ? " c" : ""}${o.hi === i ? " h" : ""}"><title>Nr. ${i + 1}: ${net.fmt(r.FAZ)} bis ${net.fmt(r.FEZ)}${r.GP ? `, Puffer ${r.GP}` : ", kritisch"}</title></rect>`;
+    if (x2 - x1 > 18) g += `<text x="${(x1 + x2) / 2}" y="${y + 16}" class="gt-d">${v.d}</text>`;
+  });
+  const xe = cal ? x(PE) + dw : x(PE);
+  g += `<path d="M${xe},${TOP - 2} l5,6 l-5,6 l-5,-6 z" class="gt-ms"/><line x1="${xe}" y1="${TOP + 4}" x2="${xe}" y2="${H - 6}" class="gt-end"/></svg>`;
+  return `<div class="gt-wrap"><div class="gt-scroll">${g}</div><div class="gt-leg"><span><i class="gt-k c"></i>kritischer Vorgang</span><span><i class="gt-k"></i>Vorgang mit Puffer</span><span><i class="gt-k b"></i>Gesamtpuffer</span><span><i class="gt-k m"></i>Projektende ${net.fmt(PE)}</span></div></div>`;
+}
+/* Kleine Vorschau eines Netzplans (Kacheln in der Übungs-Übersicht) */
+function thumb(net) {
+  const L = layout(net), s = 0.16, R = net.res.R, o1 = net.cal ? 1 : 0;
+  let g = `<svg class="np-th" viewBox="0 0 ${L.w * s} ${L.h * s}" aria-hidden="true">`;
+  net.nodes.forEach((nd, j) => nd.pre.forEach(i => { const a = L.pos[i], b = L.pos[j], c = R[i].krit && R[j].krit && R[j].FAZ === R[i].FEZ + o1;
+    g += `<path d="M${(a.x + BW) * s},${(a.y + BH / 2) * s} H${(b.x - GX / 2) * s} V${(b.y + BH / 2) * s} H${b.x * s}" class="th-e${c ? " c" : ""}"/>`; }));
+  net.nodes.forEach((_, i) => { const p = L.pos[i]; g += `<rect x="${p.x * s}" y="${p.y * s}" width="${BW * s}" height="${BH * s}" rx="3" class="th-n${R[i].krit ? " c" : ""}"/>`; });
+  return g + "</svg>";
+}
+const tplById = id => NETS.find(t => t.id === id) || NETS[0];
+
+/* ---------- Lösungsblatt ---------- */
+function solRight(ex, it) {
+  if (it.t === "num") return `${de(it.a, 2)} ${it.unit || ""}`;
+  if (it.t === "date") return ex.net.fmt(it.a);
+  if (it.t === "pick") return it.a.map(i => it.opts[i]).join(", ");
+  if (it.t === "one") return `<b>${LET(it.a)}</b> ${it.opts[it.a]}`;
+  if (it.t === "multi") return `<ul class="px-sl">${it.a.map(i => `<li>${it.opts[i]}</li>`).join("")}</ul>`;
+  if (it.t === "match") return `<ul class="alt-right">${it.rows.map(r => `<li class="y">${r[0]} <b>→ ${it.choices[r[1]]}</b></li>`).join("")}</ul>`;
+  return "";
+}
+function solItem(ex, it) {
+  if (it.t === "sheet") {
+    const c = ex.net.res.R.map((r, i) => r.krit ? i + 1 : 0).filter(Boolean);
+    return `<div class="px-it">${sheet(ex.net, { mode: "show", crit: true })}
+      <div class="px-solbox"><span class="eyebrow">Ergebnis</span><div class="px-facts"><div><small>Kritischer Pfad</small><b>${c.join(" → ")}</b></div><div><small>Projektdauer</small><b>${ex.net.res.PE} ${ex.net.unit}</b></div><div><small>Projektende</small><b>${ex.net.fmt(ex.net.res.PE)}</b></div></div>
+      <div><span class="eyebrow">So rechnest du</span> <b>Vorwärts</b> (links nach rechts): ${ex.cal ? "FEZ = FAZ + Dauer − 1; ein Nachfolger beginnt am Tag nach dem <b>größten</b> FEZ seiner Vorgänger." : "FEZ = FAZ + Dauer; ein Nachfolger beginnt beim <b>größten</b> FEZ seiner Vorgänger."} <b>Rückwärts</b> (rechts nach links, ab dem Projektende): ${ex.cal ? "SAZ = SEZ − Dauer + 1; ein Vorgänger endet spätestens am Tag vor dem <b>kleinsten</b> SAZ seiner Nachfolger." : "SAZ = SEZ − Dauer; SEZ eines Vorgängers = <b>kleinster</b> SAZ der Nachfolger."} <b>Puffer</b>: GP = SAZ − FAZ, FP = kleinster FAZ der Nachfolger − FEZ${ex.cal ? " − 1" : ""}. Kritisch (lila) = GP 0.</div></div>
+      <h4 class="px-h4">Derselbe Netzplan als Balkenplan</h4>${gantt(ex.net)}</div>`;
+  }
+  const right = solRight(ex, it);
+  return `<div class="px-it"><div class="spread"><div class="check-q alt-text">${it.q}</div><small class="muted px-ip">${fmtP(it.pts)} P.</small></div>
+    <div class="px-solbox">${it.t === "text" ? `<span class="eyebrow">Musterantwort</span><div>${it.model}</div><div class="px-kp2"><span class="eyebrow">Das muss drinstehen</span><ul>${it.kp.map(k => `<li>${k.t}</li>`).join("")}</ul></div>`
+      : `<div class="px-right"><span class="eyebrow">Lösung</span> ${right}</div><div><span class="eyebrow">Lösungsweg</span> ${it.why}</div>`}</div></div>`;
+}
+function solution(el, o) {
+  setView("sol", o);
+  const ex = gen(o.seed, o.opt || {});
+  el.innerHTML = `<div class="page alt-page px-page alt-sol"><div class="spread alt-head"><div><span class="eyebrow">Projektmanagement · Lösungsblatt · ${ex.cal ? "Kalendertage" : "Zeiteinheiten"}</span><h1>${esc(o.title || "Lösungsblatt")}</h1></div><div class="row alt-noprint"><button class="btn ghost" id="px-print">Drucken / PDF</button><button class="btn ghost" id="px-sback">← Zurück</button></div></div>
+    <p class="muted" style="max-width:72ch">Alle Aufgaben fertig gelöst: der ausgefüllte Netzplan mit kritischem Pfad (lila), derselbe Plan als Balkenplan und bei jeder Frage die Lösung mit Lösungsweg. ${ex.net.tpl.intro ? esc(ex.net.tpl.intro) : ""}</p>
+    <nav class="alt-nav alt-noprint">${ex.A.map((p, k) => `<a href="#aq-${k}">A${k + 1}</a>`).join("")}</nav>
+    <div class="col" style="gap:14px">${ex.A.map((p, k) => `<article class="card col alt-q px-part" id="aq-${k}"><span class="eyebrow">Aufgabe ${k + 1} · ${fmtP(p.pts)} P.${p.bonus ? " · Bonus" : ""}</span><h3>${p.title}</h3>${p.intro && k !== 0 ? `<div class="alt-text">${p.intro}</div>` : ""}<div class="col px-items">${p.items.map(it => solItem(ex, it)).join(`<div class="divider"></div>`)}</div></article>`).join("")}</div>
+    <div class="row alt-noprint"><button class="btn ghost" id="px-sback2">← Zurück</button></div></div>`;
+  $("#px-print", el).onclick = () => window.print();
+  $("#px-sback", el).onclick = $("#px-sback2", el).onclick = () => { if (o.back === "result" && VIEW.res) return render(el, VIEW.res.ex, VIEW.res.run, VIEW.res.upd); if (o.back === "attempt" && st().run) return attempt(el); intro(el); };
+  window.scrollTo(0, 0);
+}
+const ORIG_SOL = { seed: 20230310, opt: { orig: true, cal: "1" }, title: "Lösungsblatt: Prüfung vom 10.03.2023 (Originalwerte)" };
+
+/* ---------- Netzplan-Übungen: alle Netzpläne zum Ansehen, Ausfüllen, als Balkenplan ---------- */
+const NPM = [["step", "▶ Schritt für Schritt"], ["fill", "✎ Selbst ausfüllen"], ["gantt", "▤ Balkenplan"], ["sol", "✓ Lösung"]];
+const npSt = () => { const s = st(); return s.np || (s.np = { id: "prod", seed: 1, cal: true, orig: true, mode: "step", ans: {}, chk: false }); };
+const npNet = np => makeNet(mk(rng(np.seed)), tplById(np.id), { orig: np.id === "prod" && np.orig, cal: np.cal ? "1" : "0" });
+function netzGallery(el) {
+  setView("np-list");
+  const cards = NETS.map(t => { const net = makeNet(mk(rng(7)), t, { orig: t.id === "prod", cal: "1" });
+    return `<button class="card np-card" data-np="${t.id}"><div class="np-thw">${thumb(net)}</div><div class="np-ct"><b>${esc(t.name)}</b><small class="muted">${t.v.length} Vorgänge${t.id === "prod" ? " · aus der Prüfung 10.03.2023" : ""}</small></div><span class="np-go" aria-hidden="true">Öffnen →</span></button>`; }).join("");
+  el.innerHTML = `<div class="page"><header><span class="eyebrow">Projektmanagement · Netzplan-Übungen</span><h1>${NETS.length} Netzpläne zum Üben</h1>
+    <p class="muted" style="margin-top:6px;max-width:72ch">Tippe einen Netzplan an. Du kannst ihn dir <b>Schritt für Schritt</b> vorrechnen lassen, ihn <b>selbst ausfüllen</b> und prüfen, als <b>Balkenplan</b> sehen oder gleich die <b>Lösung</b> aufschlagen. Lila ist immer der kritische Pfad.</p></header>
+    <div class="np-cards">${cards}</div>
+    <div class="row"><button class="btn pri" data-go="exam" data-p="pmexam">Zur Netzplan-Prüfung →</button><button class="btn ghost" data-go="lesson" data-p="pmg3-3">Lektion Netzplantechnik</button></div></div>`;
+  $$("[data-np]", el).forEach(b => b.onclick = () => { const np = npSt(); if (np.id !== b.dataset.np) Object.assign(np, { id: b.dataset.np, seed: (Math.random() * 1e9) >>> 0, orig: true, ans: {}, chk: false, mode: "step" }); App.save(); netzPractice(el); });
+}
+function netzPractice(el) {
+  setView("np");
+  const np = npSt(), tpl = tplById(np.id), net = npNet(np), isOrig = np.id === "prod" && np.orig;
+  const c = sheetCount(net, np.ans);
+  el.innerHTML = `<div class="page np-page"><div class="spread"><div><span class="eyebrow">Netzplan-Übungen · ${tpl.v.length} Vorgänge</span><h1>${esc(tpl.name)}</h1></div><button class="btn ghost" id="np-back">← Alle Netzpläne</button></div>
+    <p class="muted" style="max-width:72ch">${esc(tpl.intro)} ${isOrig ? "Dauern wie in der Prüfung." : "Dauern neu ausgelost."}</p>
+    <div class="np-modes" role="tablist">${NPM.map(([k, t]) => `<button class="np-mode${np.mode === k ? " on" : ""}" data-m="${k}" role="tab" aria-selected="${np.mode === k}">${t}</button>`).join("")}</div>
+    <div class="row np-opts"><button class="chip ${np.cal ? "on" : ""}" data-c="1">Kalendertage</button><button class="chip ${!np.cal ? "on" : ""}" data-c="0">Zeiteinheiten</button>${np.id === "prod" ? `<button class="chip ${np.orig ? "on" : ""}" data-o="1">Originaldauern</button>` : ""}<button class="chip" data-new>Neue Zahlen ↻</button></div>
+    <div id="np-body"></div></div>`;
+  const body = $("#np-body", el);
+  if (np.mode === "step") { const box = document.createElement("div"); box.className = "card"; body.appendChild(box); W.netzplan(box, { make: () => npNet(np), title: tpl.name, topic: "pmg-netz" }); }
+  else if (np.mode === "fill") {
+    body.innerHTML = `<div class="card col"><p class="np-how">Trag in jeden Kasten die sechs Werte ein${net.cal ? " (Termine als Datum, z. B. 24.4)" : ""}. <b>Enter</b> springt ins nächste Feld. Dann <b>Prüfen</b>: richtige Felder werden grün, falsche rot mit dem richtigen Wert daneben.</p>
+      ${sheet(net, { mode: np.chk ? "review" : "input", id: "np", ans: np.ans, crit: np.chk })}
+      <div class="row">${np.chk ? `<b class="np-score">${c.ok} von ${c.tot} Feldern richtig</b><button class="btn" id="np-edit">Weiter ausfüllen</button><button class="btn ghost" id="np-clear">Leeren</button>` : `<button class="btn pri" id="np-check">Prüfen</button><small class="muted" id="np-cnt">${Object.values(np.ans).filter(v => String(v).trim()).length} von ${c.tot} Feldern ausgefüllt</small><button class="btn ghost" id="np-clear">Leeren</button>`}</div></div>`;
+    body.addEventListener("input", e => { const t = e.target; if (!t.dataset.c) return; npSt().ans[t.dataset.c] = t.value; App.save(); const k = $("#np-cnt", el); if (k) k.textContent = `${Object.values(npSt().ans).filter(v => String(v).trim()).length} von ${c.tot} Feldern ausgefüllt`; });
+    body.addEventListener("keydown", e => { const t = e.target; if (e.key !== "Enter" || !t.classList.contains("np-in")) return; e.preventDefault(); const all = $$(".np-in:not(:disabled)", body); const n = all[all.indexOf(t) + 1]; if (n) n.focus(); });
+    const ck = $("#np-check", el); if (ck) ck.onclick = () => { npSt().chk = true; App.save(); const ok = sheetCount(net, npSt().ans); App.rec("pmg-netz", ok.ok / ok.tot); if (ok.ok === ok.tot && App.wdone("np-" + np.id)) App.addXP(20, "netzplan"); netzPractice(el); };
+    const ed = $("#np-edit", el); if (ed) ed.onclick = () => { npSt().chk = false; App.save(); netzPractice(el); };
+    $("#np-clear", el).onclick = () => { if (!confirm("Alle Eingaben in diesem Netzplan löschen?")) return; Object.assign(npSt(), { ans: {}, chk: false }); App.save(); netzPractice(el); };
+  } else if (np.mode === "gantt") {
+    body.innerHTML = `<div class="card col"><p class="np-how">Derselbe Netzplan als <b>Balkenplan</b> (Gantt-Diagramm): Jeder Balken läuft vom frühesten Anfang bis zum frühesten Ende. Der helle Anhang ist der <b>Gesamtpuffer</b>, so weit darf der Vorgang nach hinten rutschen, ohne das Projektende zu verschieben. Lila Balken haben keinen Puffer: das ist der kritische Pfad.</p>${gantt(net)}</div>`;
+  } else {
+    const crit = net.res.R.map((r, i) => r.krit ? i + 1 : 0).filter(Boolean);
+    body.innerHTML = `<div class="card col"><div class="px-facts"><div><small>Kritischer Pfad</small><b>${crit.join(" → ")}</b></div><div><small>Projektdauer</small><b>${net.res.PE} ${net.unit}</b></div><div><small>Projektende</small><b>${net.fmt(net.res.PE)}</b></div></div>${sheet(net, { mode: "show", crit: true })}</div>`;
+  }
+  if (np.mode === "fill" || np.mode === "sol") requestAnimationFrame(() => { const w = $(".np-wrap", body); if (w) { const sc = $(".np-scroll", w); if (sc) sc.scrollTo({ left: 0, top: Math.max(0, layout(net).pos[0].y - 20) }); } });
+  $("#np-back", el).onclick = () => netzGallery(el);
+  $$("[data-m]", el).forEach(b => b.onclick = () => { npSt().mode = b.dataset.m; App.save(); netzPractice(el); });
+  $$("[data-c]", el).forEach(b => b.onclick = () => { Object.assign(npSt(), { cal: b.dataset.c === "1", ans: {}, chk: false }); App.save(); netzPractice(el); });
+  const ob = $("[data-o]", el); if (ob) ob.onclick = () => { Object.assign(npSt(), { orig: !npSt().orig, ans: {}, chk: false }); App.save(); netzPractice(el); };
+  $("[data-new]", el).onclick = () => { Object.assign(npSt(), { seed: (Math.random() * 1e9) >>> 0, orig: false, ans: {}, chk: false }); App.save(); netzPractice(el); };
+}
+
+/* ---------- Grafiken für den PM-Stoff (Lernwidgets) ---------- */
+const svgT = (x, y, t, cls = "", anchor = "middle") => `<text x="${x}" y="${y}" text-anchor="${anchor}" class="${cls}">${t}</text>`;
+const wrapT = (x, y, t, cls, max = 14, lh = 13) => { const words = t.split(" "), lines = []; let cur = ""; words.forEach(w => { if ((cur + " " + w).trim().length > max && cur) { lines.push(cur); cur = w; } else cur = (cur + " " + w).trim(); }); lines.push(cur); const y0 = y - (lines.length - 1) * lh / 2; return lines.map((l, i) => svgT(x, y0 + i * lh, esc(l), cls)).join(""); };
+
+/* Magisches Dreieck: eine Ecke verändern, die Folgen für die anderen sehen */
+W.pmdreieck = (el, b) => {
+  const CASES = [
+    ["Mehr Qualität", [1.3, 1.15, 1.15], "Mehr <b>Leistung/Qualität</b> (z. B. zusätzliche Funktionen) braucht mehr Arbeit: Das Projekt wird <b>teurer</b> und/oder <b>dauert länger</b>."],
+    ["Früher fertig", [0.85, 1.25, 0.7], "Ein <b>früherer Termin</b> geht nur mit mehr Personal, Überstunden oder externer Hilfe (<b>höhere Kosten</b>) oder mit <b>weniger Leistung</b>."],
+    ["Weniger Budget", [0.85, 0.7, 1.2], "Wird das <b>Budget gekürzt</b>, muss man <b>Leistung streichen</b> oder mit weniger Leuten <b>länger brauchen</b>."],
+    ["Ausgewogen", [1, 1, 1], "Die drei Ziele <b>Leistung/Qualität</b>, <b>Kosten</b> und <b>Termine</b> hängen zusammen. Ändert man eines, ändern sich die anderen mit. In der Mitte steht die <b>Steuerung</b> durch die Projektleitung."]];
+  let k = 3;
+  const draw = () => {
+    const [q, c, t] = CASES[k][1], cx = 170, cy = 128, P = [[cx, cy - 92 * q], [cx - 104 * c, cy + 58 * c], [cx + 104 * t, cy + 58 * t]], B = [[cx, cy - 92], [cx - 104, cy + 58], [cx + 104, cy + 58]];
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Magisches Dreieck"), "Grafik")}
+      <div class="row pv-chips">${CASES.map((x, i) => `<button class="chip ${i === k ? "on" : ""}" data-i="${i}">${x[0]}</button>`).join("")}</div>
+      <div class="pv-split"><svg class="pv-svg" viewBox="0 0 340 236" role="img" aria-label="Magisches Dreieck">
+        <polygon points="${B.map(p => p.join(",")).join(" ")}" class="pv-ghost"/>
+        <polygon points="${P.map(p => p.join(",")).join(" ")}" class="pv-tri"/>
+        <circle cx="${cx}" cy="${cy + 8}" r="30" class="pv-core"/>${svgT(cx, cy + 12, "Steuerung", "pv-ct")}
+        ${[["Leistung / Qualität", P[0][0], P[0][1] - 10], ["Kosten", P[1][0] - 4, P[1][1] + 20], ["Termine / Zeit", P[2][0] + 4, P[2][1] + 20]].map(([l, x, y], i) => `<circle cx="${P[i][0]}" cy="${P[i][1]}" r="7" class="pv-dot${CASES[k][1][i] > 1.01 ? " up" : CASES[k][1][i] < 0.99 ? " dn" : ""}"/>${svgT(Math.max(40, Math.min(300, x)), Math.max(12, Math.min(232, y)), l, "pv-lab")}`).join("")}
+      </svg><div class="pv-note">${CASES[k][2]}</div></div></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+  };
+  draw();
+};
+
+/* Phasen eines Projekts mit Meilensteinen und den PM-Aufgaben je Phase */
+W.pmphasen = (el, b) => {
+  const PH = [["Projektdefinition", "Initialisierung", ["Projektgründung, Projektantrag", "Projektziel, Pflichtenheft", "Wirtschaftlichkeitsanalyse", "Projekt- und Prozessorganisation"], "Projektauftrag erteilt"],
+    ["Projektplanung", "Planung", ["Strukturplan (PSP)", "Aufwandsschätzung", "Netzplan, Terminplan", "Einsatzmittel- und Kostenplan"], "Pläne freigegeben"],
+    ["Projektkontrolle", "Durchführung", ["Termin-, Aufwands-, Kostenkontrolle", "Sachfortschritt, Qualitätssicherung", "Berichte und Dokumentation", "Steuern bei Abweichungen"], "Ergebnis fertig"],
+    ["Projektabschluss", "Abschluss", ["Abnahme", "Abschlussanalyse", "Erfahrungssicherung", "Projektauflösung"], "Projekt abgeschlossen"]];
+  let k = 0;
+  const draw = () => {
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Projektphasen und Meilensteine"), "Grafik")}
+      <div class="pv-phases">${PH.map((p, i) => `<button class="pv-ph${i === k ? " on" : ""}" data-i="${i}"><small>${i + 1}. ${p[1]}</small><b>${p[0]}</b></button>${`<span class="pv-ms" title="Meilenstein: ${p[3]}">◆</span>`}`).join("")}</div>
+      <div class="pv-support">Projektunterstützung über die ganze Laufzeit: Konfigurationsmanagement, PM-Software, Arbeitstechniken</div>
+      <div class="pv-detail"><span class="eyebrow">Aufgaben in „${PH[k][0]}“</span><ul class="keys">${PH[k][2].map(x => `<li><span>${x}</span></li>`).join("")}</ul><p><span class="pv-ms">◆</span> <b>Meilenstein am Ende:</b> ${PH[k][3]}. Ein Meilenstein ist ein <b>Termin mit überprüfbarem Ergebnis</b>.</p></div>
+      <small class="muted">Tippe eine Phase an.</small></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+  };
+  draw();
+};
+
+/* PM-Regelkreis: Planen → Durchführen → Kontrollieren → Steuern */
+W.pmregelkreis = (el, b) => {
+  const N = [["Planung", "liefert die <b>Sollwerte</b>: Termine, Aufwand, Kosten, Ergebnisse (Mengengerüst)."], ["Durchführung", "Das Team arbeitet die Arbeitspakete ab."], ["Kontrolle", "erhebt die <b>Istwerte</b> (Rückmeldungen, Stundenzettel) und macht den <b>Soll-Ist-Vergleich</b>."], ["Steuerung", "Bei Abweichungen setzt die Projektleitung <b>Maßnahmen</b> (mehr Personal, Umplanen, Umfang ändern). Änderungen fließen zurück in die <b>Planung</b>."]];
+  let k = 0;
+  const draw = () => {
+    const cx = 170, cy = 120, r = 82, pos = N.map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 2; return [cx + r * Math.cos(a) * 1.35, cy + r * Math.sin(a)]; });
+    let arcs = ""; for (let i = 0; i < 4; i++) { const a1 = -Math.PI / 2 + i * Math.PI / 2 + 0.38, a2 = a1 + Math.PI / 2 - 0.76; arcs += `<path d="M${cx + r * Math.cos(a1) * 1.35},${cy + r * Math.sin(a1)} A${r * 1.35},${r} 0 0 1 ${cx + r * Math.cos(a2) * 1.35},${cy + r * Math.sin(a2)}" class="pv-arc${i === k ? " on" : ""}" marker-end="url(#pvah)"/>`; }
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Der PM-Regelkreis"), "Grafik")}
+      <div class="pv-split"><svg class="pv-svg" viewBox="0 0 340 240" role="img" aria-label="Regelkreis"><defs><marker id="pvah" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ah"/></marker></defs>${arcs}
+        ${svgT(cx, cy - 4, "Soll-Ist-", "pv-ct")}${svgT(cx, cy + 12, "Vergleich", "pv-ct")}
+        ${pos.map((p, i) => `<g class="pv-node${i === k ? " on" : ""}" data-i="${i}"><rect x="${p[0] - 50}" y="${p[1] - 16}" width="100" height="32" rx="16"/>${svgT(p[0], p[1] + 5, N[i][0])}</g>`).join("")}</svg>
+        <div class="pv-note"><b>${N[k][0]}</b>: ${N[k][1]}<div class="row" style="margin-top:10px"><button class="btn sm pri" data-nx>Weiter im Kreis ↻</button></div></div></div></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+    $("[data-nx]", el).onclick = () => { k = (k + 1) % 4; draw(); };
+  };
+  draw();
+};
+
+/* Projektorganisationsformen als Organigramm: durchgezogen = disziplinarisch, gestrichelt = fachlich */
+W.pmorg = (el, b) => {
+  const box = (x, y, t, cls = "", w = 84, h = 30) => `<g class="pv-ob ${cls}"><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="6"/>${wrapT(x, y + 4, t, "", Math.round(w / 6.4), 11)}</g>`;
+  const ln = (x1, y1, x2, y2, cls = "") => `<path d="M${x1},${y1} V${y1 + 18} H${x2} V${y2}" class="pv-ol ${cls}"/>`;
+  const GL = box(180, 22, "Geschäftsleitung", "gl", 110);
+  const depts = (xs, names, ma = true) => xs.map((x, i) => ln(180, 37, x, 77) + (ma ? `<path d="M${x},107 V141" class="pv-ol"/>` : "")).join("") + xs.map((x, i) => box(x, 92, names[i]) + (ma ? box(x, 156, "Mitarbeitende", "ma") : "")).join("");
+  const D3 = ["Entwicklung", "Vertrieb", "Produktion"];
+  const F = [
+    ["Reine PO", 5, "Das Projekt ist eine eigene Abteilung: Mitarbeitende werden aus der Linie <b>herausgelöst</b> und der Projektleitung voll unterstellt.", "Kürzeste Wege, volle Ausrichtung auf das Ziel.", "Rückkehr in die Linie nach Projektende schwierig.",
+      () => `<path d="M48,171 C48,212 318,212 318,171" class="pv-ol mv"/>` + svgT(183, 216, "Versetzung ins Projekt", "pv-sm") + depts([48, 138, 228], D3) + ln(180, 37, 318, 77) + `<path d="M318,107 V141" class="pv-ol"/>` + GL + box(318, 92, "Projektleitung", "pl") + box(318, 156, "Projektteam", "pt")],
+    ["Einfluss-PO", 1, "Die Projektleitung ist nur <b>Koordinator:in</b> in einer Stabsstelle, ohne Weisungsrecht. Entscheidungen treffen die Linienvorgesetzten.", "Kaum Änderung der Organisation.", "Kaum Befugnis, unklare Verantwortung, viel Koordination.",
+      () => `<path d="M235,22 H262" class="pv-ol"/>` + [60, 180, 300].map(x => `<path d="M310,37 L${x + 24},77" class="pv-ol inf"/>`).join("") + svgT(92, 54, "berät, koordiniert", "pv-sm") + depts([60, 180, 300], D3) + GL + box(310, 22, "Koordinator:in", "pl", 92)],
+    ["Matrix-PO", 3, "Die Mitarbeitenden bleiben in ihrer Abteilung (<b>disziplinarisch</b>), arbeiten aber <b>fachlich</b> für die Projektleitung: zwei Vorgesetzte.", "Schnelle interdisziplinäre Teams, keine Versetzung.", "„Diener zweier Herren“, Konflikte Linie gegen Projekt.",
+      () => `<path d="M180,37 V55 H44 V141" class="pv-ol"/><path d="M86,156 H340" class="pv-ol fx"/>` + svgT(228, 196, "fachliche Weisung (gestrichelt)", "pv-sm") + depts([138, 228, 318], D3) + GL + box(44, 156, "Projektleitung", "pl", 80)],
+    ["Auftrags-PO", 4, "Eine eigene <b>PM-Einheit</b> leitet die Projekte und vergibt <b>Aufträge</b> an die Fachabteilungen, wie an interne Lieferanten.", "Klare Abgrenzung, flexibel, Externe leicht einzubinden.", "Eigene Einheit nötig, Bürokratie, Konkurrenzdenken.",
+      () => `<path d="M48,107 V192 H318" class="pv-ol fx"/>` + [138, 228, 318].map(x => `<path d="M${x},192 V174" class="pv-ol fx" marker-end="url(#pvah2)"/>`).join("") + svgT(92, 208, "Aufträge", "pv-sm") + ln(180, 37, 48, 77) + depts([138, 228, 318], D3) + GL + box(48, 92, "PM-Einheit", "pl", 80)],
+    ["PM in der Linie", 5, "Ein kleines Projekt bleibt in der Abteilung: Die <b>Abteilungsleitung ist zugleich Projektleitung</b>.", "Kürzeste Wege, keine Versetzung.", "Nur für kleine Projekte einer Abteilung, Projekt konkurriert mit dem Tagesgeschäft.",
+      () => `<rect x="10" y="132" width="100" height="50" rx="8" class="pv-zone"/>` + svgT(60, 200, "Projekt in der Abteilung", "pv-sm") + depts([180, 300], D3.slice(1)) + ln(180, 37, 60, 75) + `<path d="M60,109 V141" class="pv-ol"/>` + GL + box(60, 92, "Entwicklung leitet das Projekt", "pl", 100, 34) + box(60, 156, "Mitarbeitende", "ma")]];
+  let k = 0;
+  const draw = () => {
+    const f = F[k];
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Projektorganisationsformen als Organigramm"), "Grafik")}
+      <div class="row pv-chips">${F.map((x, i) => `<button class="chip ${i === k ? "on" : ""}" data-i="${i}">${x[0]}</button>`).join("")}</div>
+      <div class="pv-split"><svg class="pv-svg" viewBox="0 0 360 222" role="img" aria-label="Organigramm ${f[0]}"><defs><marker id="pvah2" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ahc"/></marker></defs>${f[5]()}</svg>
+        <div class="pv-note"><b>${f[0]}</b>: ${f[2]}<div class="pv-meter"><small>Befugnis der Projektleitung</small><div class="pv-mbar"><i style="width:${f[1] * 20}%"></i></div></div><div class="pv-pm"><span class="pv-plus">+</span> ${f[3]}</div><div class="pv-pm"><span class="pv-minus">−</span> ${f[4]}</div></div></div>
+      <div class="pv-leg"><span><i class="pv-lk"></i>disziplinarisch unterstellt</span><span><i class="pv-lk fx"></i>fachliche Weisung / Auftrag</span><span><i class="pv-lk pl"></i>Projektleitung</span></div></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+  };
+  draw();
+};
+
+/* Projektstrukturplan als Baum: gleiche Arbeitspakete, anders gegliedert */
+W.pmpsp = (el, b) => {
+  const ps = PSP[0], T = [["objektorientiert", "nach <b>Teilen des Produkts</b>", "O", 1], ["ablauforientiert", "nach <b>Phasen</b>", "P", 2], ["funktionsorientiert", "nach <b>Funktionen</b> (Tätigkeiten)", "F", -1]];
+  let k = 0;
+  const draw = () => {
+    const [nm, how, key, ix] = T[k];
+    const kids = ps[key].map((x, j) => `<div class="pv-pn"><div class="pv-pl2">${j + 1} ${x}</div>${ix > 0 ? `<div class="pv-aps">${ps.ap.filter(a => a[ix] === j).map((a, m) => `<span>${j + 1}.${m + 1} ${a[0]}</span>`).join("")}</div>` : ""}</div>`).join("");
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Projektstrukturplan: drei Arten zu gliedern"), "Grafik")}
+      <div class="row pv-chips">${T.map((x, i) => `<button class="chip ${i === k ? "on" : ""}" data-i="${i}">${x[0]}</button>`).join("")}</div>
+      <div class="pv-psp"><div class="pv-proot">${ps.p}</div><div class="pv-pkids">${kids}</div></div>
+      <p class="pv-note">Ein <b>${nm}er</b> PSP gliedert die 2. Ebene ${how}. Die untersten Kästchen sind die <b>Arbeitspakete</b>.${ix > 0 ? " Dieselben 9 Arbeitspakete landen je nach Gliederung unter einem anderen Ast." : " Mischform: auf verschiedenen Ebenen verschiedene Arten, z. B. erst Phasen, darunter Objekte."}</p></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+  };
+  draw();
+};
+
+/* Balkenplan zu einem beliebigen Netzplan */
+W.pmgantt = (el, b) => {
+  let id = b.net || "prod", seed = 3, cal = true;
+  const draw = () => {
+    const t = tplById(id), net = makeNet(mk(rng(seed)), t, { orig: id === "prod", cal: cal ? "1" : "0" });
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Vom Netzplan zum Balkenplan"), "Grafik")}
+      <div class="row pv-chips">${NETS.map(n => `<button class="chip ${n.id === id ? "on" : ""}" data-n="${n.id}">${esc(n.name)}</button>`).join("")}</div>
+      <p class="pv-note">Gleiche Daten wie im Netzplan, nur über der Zeitachse: Balken = frühester Anfang bis frühestes Ende, heller Anhang = <b>Gesamtpuffer</b>, lila = <b>kritischer Pfad</b> (kein Puffer). Am Balkenplan siehst du sofort, was gleichzeitig läuft und wo Luft ist.</p>
+      ${gantt(net)}<div class="row"><button class="btn sm ghost" data-go="exam" data-p="pmnetz">Alle Netzpläne üben →</button></div></div>`;
+    $$("[data-n]", el).forEach(x => x.onclick = () => { id = x.dataset.n; seed = (Math.random() * 1e9) >>> 0; draw(); });
+  };
+  draw();
+};
+
+/* Meilensteintrendanalyse: Verlauf wählen, Deutung sehen */
+W.pmmta = (el, b) => {
+  const PAT = [["waagrecht", [6, 6, 6, 6, 6, 6], "Der Termin wird stabil gehalten: Die Planung war realistisch."], ["stark steigend", [4, 4.6, 5.3, 6.1, 7, 8], "Der Fertigtermin rutscht bei jedem Bericht nach hinten: <b>zu optimistische Schätzungen</b>."],
+    ["gleichmäßig fallend", [8, 7.6, 7.2, 6.8, 6.4, 6], "Der Termin wird immer früher: Es wurde mit <b>zu großen Sicherheitspuffern</b> geplant."], ["Zick-Zack", [6, 7.2, 5.6, 7.4, 5.8, 7], "Mal früher, mal später: <b>große Unsicherheit</b> in den Terminaussagen."],
+    ["Trendwende", [5, 5, 5.1, 6.2, 7.3, 8], "Lange stabil, dann plötzlich steigend: <b>frühzeitig realistische Terminaussagen fehlten</b>, Probleme wurden spät erkannt."]];
+  let k = 1;
+  const draw = () => {
+    const X = i => 44 + i * 50, Y = v => 196 - (v - 3) * 26, p = PAT[k][1];
+    let g = `<svg class="pv-svg" viewBox="0 0 340 228" role="img" aria-label="Meilensteintrendanalyse"><path d="M44,196 L${X(6)},${Y(9)}" class="pv-diag"/>${svgT(272, 30, "Erreichungslinie", "pv-sm")}`;
+    for (let v = 3; v <= 9; v++) g += `<line x1="40" y1="${Y(v)}" x2="${X(6)}" y2="${Y(v)}" class="gt-grid"/>${svgT(34, Y(v) + 4, "M" + v, "pv-sm", "end")}`;
+    for (let i = 0; i < 6; i++) g += svgT(X(i), 214, "B" + (i + 1), "pv-sm");
+    g += `<polyline points="${p.map((v, i) => X(i) + "," + Y(v)).join(" ")}" class="pv-mta"/>${p.map((v, i) => `<path d="M${X(i)},${Y(v) - 6} l6,6 l-6,6 l-6,-6 z" class="pv-mtad"/>`).join("")}`;
+    g += svgT(170, 226, "Berichtszeitpunkt →", "pv-sm") + `<text x="10" y="110" transform="rotate(-90 10 110)" text-anchor="middle" class="pv-sm">geschätzter Fertigtermin →</text></svg>`;
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Meilensteintrendanalyse lesen"), "Grafik")}
+      <div class="row pv-chips">${PAT.map((x, i) => `<button class="chip ${i === k ? "on" : ""}" data-i="${i}">${x[0]}</button>`).join("")}</div>
+      <div class="pv-split">${g}<div class="pv-note">Bei jedem Bericht (B1, B2 …) wird neu geschätzt, in welchem Monat der Meilenstein fertig wird, und als ◆ eingetragen.<br><br><b>${PAT[k][0]}</b>: ${PAT[k][2]}</div></div></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+  };
+  draw();
+};
+
+/* Belastungsdiagramm: termintreu (Termine halten, Kapazität überschreiten) oder kapazitätstreu (Kapazität halten, später fertig) */
+W.pmlast = (el, b) => {
+  const T = [["A Konzept", 3, 2, []], ["B Backend", 5, 2, [0]], ["C Oberfläche", 4, 2, [0]], ["D Testdaten", 2, 1, [0]], ["E Integration", 2, 3, [1, 2, 3]]], CAP = 4;
+  const plan = capOn => { const st = [], use = []; const at = d => use[d] || 0;
+    T.forEach((t, i) => { let s = t[3].length ? Math.max(...t[3].map(p => st[p] + T[p][1])) : 0;
+      if (capOn) while (Array.from({ length: t[1] }, (_, j) => at(s + j) + t[2]).some(v => v > CAP)) s++;
+      st[i] = s; for (let j = 0; j < t[1]; j++) use[s + j] = at(s + j) + t[2]; });
+    return { st, use, end: Math.max(...T.map((t, i) => st[i] + t[1])) }; };
+  let cap = false;
+  const draw = () => {
+    const p = plan(cap), D = 13, dw = 20, LW = 88, X = d => LW + d * dw;
+    let g = `<svg class="pv-svg" viewBox="0 0 ${LW + D * dw + 10} 250" role="img" aria-label="Belastungsdiagramm">`;
+    T.forEach((t, i) => { const y = 8 + i * 20; g += svgT(4, y + 13, t[0], "pv-sm", "start") + `<rect x="${X(p.st[i])}" y="${y + 2}" width="${t[1] * dw - 2}" height="14" rx="3" class="gt-bar${i === 1 || i === 4 || i === 0 ? " c" : ""}"/>` + svgT(X(p.st[i]) + t[1] * dw / 2, y + 13, t[2] + " P.", "gt-d"); });
+    const base = 236, hh = 22;
+    for (let d = 0; d < D; d++) { const v = p.use[d] || 0; if (v) g += `<rect x="${X(d)}" y="${base - v * hh}" width="${dw - 2}" height="${v * hh}" class="pv-load${v > CAP ? " over" : ""}"/>`; if (d % 2 === 0) g += svgT(X(d) + dw / 2, 248, d + 1, "pv-sm"); }
+    g += `<line x1="${LW - 4}" y1="${base - CAP * hh}" x2="${X(D)}" y2="${base - CAP * hh}" class="pv-cap"/>${svgT(LW - 6, base - CAP * hh + 4, "Kapazität 4", "pv-sm", "end")}${svgT(LW - 6, base - 6, "Personen", "pv-sm", "end")}</svg>`;
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Termintreu oder kapazitätstreu?"), "Grafik")}
+      <div class="row pv-chips"><button class="chip ${!cap ? "on" : ""}" data-c="0">termintreu</button><button class="chip ${cap ? "on" : ""}" data-c="1">kapazitätstreu</button></div>
+      <div class="pv-split">${g}<div class="pv-note">${cap ? `<b>Kapazitätstreu</b>: Es arbeiten nie mehr als 4 Personen gleichzeitig. Dafür werden Vorgänge nach hinten geschoben, zuerst die mit Puffer. Das Projekt endet nach <b>${p.end} Tagen</b>.` : `<b>Termintreu</b>: Alle Vorgänge starten so früh wie möglich, der Endtermin (<b>Tag ${p.end}</b>) hält. Dafür wird die Kapazität von 4 Personen <b>überschritten</b> (rot): Überstunden, Leihpersonal oder Externe nötig.`}</div></div></div>`;
+    $$("[data-c]", el).forEach(x => x.onclick = () => { cap = x.dataset.c === "1"; draw(); });
+  };
+  draw();
+};
+
+/* Scrum-Ablauf als Kreislauf */
+W.pmscrum = (el, b) => {
+  const N = [["Product Backlog", "Geordnete Liste von allem, was das Produkt braucht. Commitment: <b>Produkt-Ziel</b>. Verantwortlich: Product Owner:in.", "laufend"],
+    ["Sprint Planning", "Das Scrum Team plant den Sprint: <b>Warum</b> (Sprint-Ziel), <b>was</b> (Einträge aus dem Product Backlog) und <b>wie</b> (Plan der Developer:innen).", "max. 8 Std."],
+    ["Sprint Backlog", "Sprint-Ziel + ausgewählte Einträge + Plan. Commitment: <b>Sprint-Ziel</b>. Gehört den Developer:innen.", "für den Sprint"],
+    ["Sprint + Daily Scrum", "Der Sprint ist der Container für alle Events. Jeden Tag 15 Minuten <b>Daily Scrum</b> der Developer:innen: Fortschritt zum Sprint-Ziel, Plan anpassen.", "≤ 1 Monat · Daily 15 Min."],
+    ["Increment", "Nutzbares, überprüftes Ergebnis. Commitment: <b>Definition of Done</b>.", "mind. 1 je Sprint"],
+    ["Sprint Review", "Ergebnis mit den Stakeholdern ansehen, Product Backlog anpassen.", "max. 4 Std."],
+    ["Retrospektive", "Das Team verbessert seine Zusammenarbeit und Arbeitsweise.", "max. 3 Std."]];
+  let k = 0;
+  const draw = () => {
+    const cx = 170, cy = 124, rx = 112, ry = 94, pos = N.map((_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N.length; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
+    let g = `<svg class="pv-svg" viewBox="0 0 340 250" role="img" aria-label="Scrum-Ablauf"><defs><marker id="pvah3" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ah"/></marker></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="pv-ring"/>`;
+    g += `<circle cx="${cx}" cy="${cy}" r="30" class="pv-core"/>${svgT(cx, cy - 2, "Sprint", "pv-ct")}${svgT(cx, cy + 12, "≤ 1 Monat", "pv-sm")}`;
+    pos.forEach((p, i) => { g += `<g class="pv-node${i === k ? " on" : ""}" data-i="${i}"><rect x="${p[0] - 54}" y="${p[1] - 17}" width="108" height="34" rx="17"/>${wrapT(p[0], p[1] + 4, N[i][0], "", 14, 12)}</g>`; });
+    g += "</svg>";
+    el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Scrum als Kreislauf"), "Grafik")}
+      <div class="pv-split">${g}<div class="pv-note"><b>${N[k][0]}</b> <span class="chip">${N[k][2]}</span><br>${N[k][1]}<div class="row" style="margin-top:10px"><button class="btn sm pri" data-nx>Nächster Schritt ↻</button></div></div></div><small class="muted">Tippe ein Element an.</small></div>`;
+    $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
+    $("[data-nx]", el).onclick = () => { k = (k + 1) % N.length; draw(); };
+  };
+  draw();
+};
+
 /* ---------- Einhängen: Prüfungstrainer, Prüfung üben, Kursseite ---------- */
-const cta = () => `<button class="card prep-cta alt-cta" data-go="exam" data-p="pmexam"><div><span class="eyebrow">Prüfung</span><div class="lrow-t">Netzplan-Prüfung wie am 10.03.2023, jedes Mal mit neuen Zahlen</div><small>Netzplan selbst ausfüllen · kritischer Pfad · Dauer · Puffer · verkürzen · Prozesszweige · Meilensteine · Bonusfragen${st().run ? " · ein Versuch läuft" : ""}</small></div><span class="alt-go">→</span></button>`;
+const cta = () => `<button class="card prep-cta alt-cta" data-go="exam" data-p="pmexam"><div><span class="eyebrow">Prüfung</span><div class="lrow-t">Netzplan-Prüfung wie am 10.03.2023, jedes Mal mit neuen Zahlen</div><small>Netzplan selbst ausfüllen · kritischer Pfad · Dauer · Puffer · verkürzen · Prozesszweige · Meilensteine · Bonusfragen · Lösungsblatt${st().run ? " · ein Versuch läuft" : ""}</small></div><span class="alt-go">→</span></button>
+  <button class="card prep-cta alt-cta" data-go="exam" data-p="pmnetz"><div><span class="eyebrow">Üben</span><div class="lrow-t">${NETS.length} Netzpläne als Grafik: ansehen, ausfüllen, Balkenplan</div><small>Schritt für Schritt vorrechnen · selbst ausfüllen und prüfen · Lösung</small></div><span class="alt-go">→</span></button>`;
 const prevExam = PAGES.exam;
 PAGES.exam = (el, p) => {
-  if (p === "pmexam") { if (S().course !== "pmgt" && CBY.pmgt) { S().course = "pmgt"; App.save(); App.renderSide && App.renderSide(); } return intro(el); }
+  if (p === "pmexam" || p === "pmnetz") {
+    if (S().course !== "pmgt" && CBY.pmgt) { S().course = "pmgt"; App.save(); App.renderSide && App.renderSide(); }
+    /* Dieselbe Route wird neu gezeichnet (Sync im Hintergrund, Update, Sprache): in der offenen Ansicht bleiben */
+    const same = VIEW.r && VIEW.r === App.route();
+    if (p === "pmnetz") return same && VIEW.k === "np" ? netzPractice(el) : netzGallery(el);
+    if (same) {
+      if (VIEW.k === "attempt" && st().run) return attempt(el);
+      if (VIEW.k === "result" && VIEW.res) return render(el, VIEW.res.ex, VIEW.res.run, VIEW.res.upd);
+      if (VIEW.k === "sol" && VIEW.x) return solution(el, VIEW.x);
+    }
+    return intro(el);
+  }
   const r = prevExam(el, p), c = CBY[S().course], head = el.querySelector(".page > div");
   if (c && c.id === "pmgt" && head) head.insertAdjacentHTML("afterend", cta());
   return r;
@@ -587,5 +950,5 @@ const prevPrep = PAGES.prep;
 PAGES.prep = (el, p) => { const r = prevPrep(el, p), top = el.querySelector(".prep-top"); if (top && el.querySelector('[data-pc="pmgt"].on')) top.insertAdjacentHTML("beforebegin", cta()); return r; };
 const prevCourse = PAGES.course;
 PAGES.course = (el, cid) => { const r = prevCourse(el, cid), pc = el.querySelector('.prep-cta[data-p="pmgt"]'); if (pc) pc.insertAdjacentHTML("afterend", cta()); return r; };
-App.PMEXAM = { gen, cpm, makeNet, score, totals, grade, sheet, steps, NETS };
+App.PMEXAM = { gen, cpm, makeNet, score, totals, grade, sheet, steps, NETS, gantt, solution, VIEW };
 })();

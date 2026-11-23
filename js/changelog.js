@@ -5,6 +5,11 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.67.0", d: "2026-11-23", t: "Projektmanagement: mehr Netzpläne, mehr Grafiken, Prüfung repariert", items: [
+    "Prüfung repariert: Nach 15 bis 30 Sekunden flog man aus der Netzplan-Prüfung und landete wieder auf der Startseite. Grund war der Abgleich mit dem zweiten Gerät im Hintergrund, der die Seite neu gezeichnet hat. Jetzt bleibt man im laufenden Versuch, und Antworten eines alten Versuchs mischen sich nicht mehr in einen neuen. Dasselbe gilt für die BWL-Altprüfung.",
+    "Lösungsblatt zur Netzplan-Prüfung: ausgefüllter Netzplan mit kritischem Pfad, derselbe Plan als Balkenplan und jede Aufgabe mit Lösung und Lösungsweg. Für das Original vom 10.03.2023, für den letzten Versuch, im Lernmodus und nach der Abgabe. Lässt sich drucken oder als PDF speichern.",
+    "Netzplan-Übungen: 8 verschiedene Netzpläne (4 neu: Fitness-App, neue Filiale, Fachkonferenz, Lagerhalle) als Grafik. Jeden kann man Schritt für Schritt vorrechnen lassen, selbst ausfüllen und prüfen, als Balkenplan sehen oder die Lösung aufschlagen. Die neuen Netzpläne kommen auch in der Prüfung vor.",
+    "Mehr Grafiken im Projektmanagement-Skriptum: magisches Dreieck zum Antippen, Projektphasen mit Meilensteinen, PM-Regelkreis, die fünf Organisationsformen als Organigramm, Projektstrukturplan als Baum, Balkenplan aus dem Netzplan, Belastungsdiagramm (termintreu oder kapazitätstreu), Meilensteintrendanalyse und Scrum als Kreislauf."] },
   { v: "4.66.0", d: "2026-11-23", t: "Klarer aufgebaut: was ist was, was kann ich antippen", items: [
     "Jedes Fach startet mit einer Übersicht aus Kacheln: Skriptum, Wiederholen, Altfragen, Prüfungs-Überblick, Probeprüfung und Material. Jede Kachel sagt in einem Satz, was drin ist, und hat unten rechts einen Knopf mit Pfeil.",
     "Jeder Inhaltstyp hat überall dieselbe Farbe und dasselbe Zeichen: Skriptum blau, Wiederholen grün, Altfragen orange, Prüfungs-Überblick lila, Probeprüfung rot. Die gleichen Farben stehen in der Seitenleiste, auf der Fächer-Seite und in den Seitenköpfen.",
