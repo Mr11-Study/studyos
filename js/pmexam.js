@@ -724,6 +724,7 @@ function netzPractice(el) {
     const crit = net.res.R.map((r, i) => r.krit ? i + 1 : 0).filter(Boolean);
     body.innerHTML = `<div class="card col"><div class="px-facts"><div><small>Kritischer Pfad</small><b>${crit.join(" → ")}</b></div><div><small>Projektdauer</small><b>${net.res.PE} ${net.unit}</b></div><div><small>Projektende</small><b>${net.fmt(net.res.PE)}</b></div></div>${sheet(net, { mode: "show", crit: true })}</div>`;
   }
+  if (np.mode === "fill" || np.mode === "sol") requestAnimationFrame(() => { const w = $(".np-wrap", body); if (w) { const sc = $(".np-scroll", w); if (sc) sc.scrollTo({ left: 0, top: Math.max(0, layout(net).pos[0].y - 20) }); } });
   $("#np-back", el).onclick = () => netzGallery(el);
   $$("[data-m]", el).forEach(b => b.onclick = () => { npSt().mode = b.dataset.m; App.save(); netzPractice(el); });
   $$("[data-c]", el).forEach(b => b.onclick = () => { Object.assign(npSt(), { cal: b.dataset.c === "1", ans: {}, chk: false }); App.save(); netzPractice(el); });
@@ -796,27 +797,28 @@ W.pmregelkreis = (el, b) => {
 
 /* Projektorganisationsformen als Organigramm: durchgezogen = disziplinarisch, gestrichelt = fachlich */
 W.pmorg = (el, b) => {
-  const box = (x, y, t, cls = "", w = 92) => `<g class="pv-ob ${cls}"><rect x="${x - w / 2}" y="${y - 15}" width="${w}" height="30" rx="6"/>${wrapT(x, y + 4, t, "", 15, 11)}</g>`;
-  const ln = (x1, y1, x2, y2, cls = "") => `<path d="M${x1},${y1} V${(y1 + y2) / 2} H${x2} V${y2}" class="pv-ol ${cls}"/>`;
-  const dept = ["Entwicklung", "Vertrieb", "Produktion"], DX = [70, 170, 270];
-  const base = (skip = []) => box(170, 24, "Geschäftsleitung", "gl") + DX.map((x, i) => ln(170, 39, x, 76) + box(x, 92, dept[i]) + (skip.includes(i) ? "" : ln(x, 107, x, 140) + box(x, 156, "Mitarbeitende", "ma", 84))).join("");
+  const box = (x, y, t, cls = "", w = 84, h = 30) => `<g class="pv-ob ${cls}"><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="6"/>${wrapT(x, y + 4, t, "", Math.round(w / 6.4), 11)}</g>`;
+  const ln = (x1, y1, x2, y2, cls = "") => `<path d="M${x1},${y1} V${y1 + 18} H${x2} V${y2}" class="pv-ol ${cls}"/>`;
+  const GL = box(180, 22, "Geschäftsleitung", "gl", 110);
+  const depts = (xs, names, ma = true) => xs.map((x, i) => ln(180, 37, x, 77) + (ma ? `<path d="M${x},107 V141" class="pv-ol"/>` : "")).join("") + xs.map((x, i) => box(x, 92, names[i]) + (ma ? box(x, 156, "Mitarbeitende", "ma") : "")).join("");
+  const D3 = ["Entwicklung", "Vertrieb", "Produktion"];
   const F = [
     ["Reine PO", 5, "Das Projekt ist eine eigene Abteilung: Mitarbeitende werden aus der Linie <b>herausgelöst</b> und der Projektleitung voll unterstellt.", "Kürzeste Wege, volle Ausrichtung auf das Ziel.", "Rückkehr in die Linie nach Projektende schwierig.",
-      () => box(170, 24, "Geschäftsleitung", "gl") + [[50, "Entwicklung"], [130, "Vertrieb"], [290, "Produktion"]].map(([x, t]) => ln(170, 39, x, 76) + box(x, 92, t, "", 76)).join("") + ln(170, 39, 220, 76) + box(220, 92, "Projektleitung", "pl", 84) + ln(220, 107, 220, 140) + box(220, 156, "Projektteam", "pt", 84) + `<path d="M50,107 C50,190 180,190 196,172" class="pv-ol mv"/>${svgT(110, 200, "Versetzung ins Projekt", "pv-sm")}`],
-    ["Einfluss-PO", 1, "Die Projektleitung ist nur <b>Koordinator:in</b> (Stabsstelle) ohne Weisungsrecht. Entscheidungen treffen die Linienvorgesetzten.", "Kaum Änderung der Organisation.", "Kaum Befugnis, unklare Verantwortung, viel Koordination.",
-      () => base() + `<path d="M170,39 V54 H290" class="pv-ol"/>` + box(300, 54, "Projekt-koordination", "pl", 70) + DX.map(x => `<path d="M300,69 C300,120 ${x + 30},120 ${x + 30},146" class="pv-ol inf"/>`).join("") + svgT(300, 92, "berät, koordiniert", "pv-sm")],
+      () => `<path d="M48,171 C48,212 318,212 318,171" class="pv-ol mv"/>` + svgT(183, 216, "Versetzung ins Projekt", "pv-sm") + depts([48, 138, 228], D3) + ln(180, 37, 318, 77) + `<path d="M318,107 V141" class="pv-ol"/>` + GL + box(318, 92, "Projektleitung", "pl") + box(318, 156, "Projektteam", "pt")],
+    ["Einfluss-PO", 1, "Die Projektleitung ist nur <b>Koordinator:in</b> in einer Stabsstelle, ohne Weisungsrecht. Entscheidungen treffen die Linienvorgesetzten.", "Kaum Änderung der Organisation.", "Kaum Befugnis, unklare Verantwortung, viel Koordination.",
+      () => `<path d="M235,22 H262" class="pv-ol"/>` + [60, 180, 300].map(x => `<path d="M310,37 L${x + 24},77" class="pv-ol inf"/>`).join("") + svgT(92, 54, "berät, koordiniert", "pv-sm") + depts([60, 180, 300], D3) + GL + box(310, 22, "Koordinator:in", "pl", 92)],
     ["Matrix-PO", 3, "Die Mitarbeitenden bleiben in ihrer Abteilung (<b>disziplinarisch</b>), arbeiten aber <b>fachlich</b> für die Projektleitung: zwei Vorgesetzte.", "Schnelle interdisziplinäre Teams, keine Versetzung.", "„Diener zweier Herren“, Konflikte Linie gegen Projekt.",
-      () => base() + `<path d="M170,39 V54 H22 V196" class="pv-ol"/>` + box(46, 196, "Projektleitung", "pl", 84) + `<path d="M88,196 H300" class="pv-ol fx"/>` + DX.map(x => `<path d="M${x},171 V196" class="pv-ol fx"/><circle cx="${x}" cy="196" r="4" class="pv-x"/>`).join("") + svgT(220, 214, "fachliche Weisung", "pv-sm")],
-    ["Auftrags-PO", 4, "Eine eigene <b>PM-Einheit</b> leitet die Projekte und vergibt <b>Aufträge</b> an die Fachabteilungen (wie an interne Lieferanten).", "Klare Abgrenzung, flexibel, Externe leicht einzubinden.", "Eigene Einheit nötig, Bürokratie, Konkurrenzdenken.",
-      () => box(170, 24, "Geschäftsleitung", "gl") + ln(170, 39, 40, 76) + box(40, 92, "PM-Einheit", "pl", 70) + [[150, "Entwicklung"], [230, "Vertrieb"], [306, "Produktion"]].map(([x, t]) => ln(170, 39, x, 76) + box(x, 92, t, "", 70) + ln(x, 107, x, 140) + box(x, 156, "Mitarbeitende", "ma", 70)).join("") + `<path d="M75,92 C100,92 100,130 112,150" class="pv-ol fx" marker-end="url(#pvah2)"/>` + svgT(66, 132, "Aufträge", "pv-sm")],
+      () => `<path d="M180,37 V55 H44 V141" class="pv-ol"/><path d="M86,156 H340" class="pv-ol fx"/>` + svgT(228, 196, "fachliche Weisung (gestrichelt)", "pv-sm") + depts([138, 228, 318], D3) + GL + box(44, 156, "Projektleitung", "pl", 80)],
+    ["Auftrags-PO", 4, "Eine eigene <b>PM-Einheit</b> leitet die Projekte und vergibt <b>Aufträge</b> an die Fachabteilungen, wie an interne Lieferanten.", "Klare Abgrenzung, flexibel, Externe leicht einzubinden.", "Eigene Einheit nötig, Bürokratie, Konkurrenzdenken.",
+      () => `<path d="M48,107 V192 H318" class="pv-ol fx"/>` + [138, 228, 318].map(x => `<path d="M${x},192 V174" class="pv-ol fx" marker-end="url(#pvah2)"/>`).join("") + svgT(92, 208, "Aufträge", "pv-sm") + ln(180, 37, 48, 77) + depts([138, 228, 318], D3) + GL + box(48, 92, "PM-Einheit", "pl", 80)],
     ["PM in der Linie", 5, "Ein kleines Projekt bleibt in der Abteilung: Die <b>Abteilungsleitung ist zugleich Projektleitung</b>.", "Kürzeste Wege, keine Versetzung.", "Nur für kleine Projekte einer Abteilung, Projekt konkurriert mit dem Tagesgeschäft.",
-      () => base() + box(70, 92, "Entwicklung = Projektleitung", "pl", 100) + `<rect x="24" y="138" width="92" height="36" rx="8" class="pv-zone"/>` + svgT(70, 194, "Projekt in der Abteilung", "pv-sm")]];
+      () => `<rect x="10" y="132" width="100" height="50" rx="8" class="pv-zone"/>` + svgT(60, 200, "Projekt in der Abteilung", "pv-sm") + depts([180, 300], D3.slice(1)) + ln(180, 37, 60, 75) + `<path d="M60,109 V141" class="pv-ol"/>` + GL + box(60, 92, "Entwicklung leitet das Projekt", "pl", 100, 34) + box(60, 156, "Mitarbeitende", "ma")]];
   let k = 0;
   const draw = () => {
     const f = F[k];
     el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Projektorganisationsformen als Organigramm"), "Grafik")}
       <div class="row pv-chips">${F.map((x, i) => `<button class="chip ${i === k ? "on" : ""}" data-i="${i}">${x[0]}</button>`).join("")}</div>
-      <div class="pv-split"><svg class="pv-svg" viewBox="0 0 340 222" role="img" aria-label="Organigramm ${f[0]}"><defs><marker id="pvah2" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ah"/></marker></defs>${f[5]()}</svg>
+      <div class="pv-split"><svg class="pv-svg" viewBox="0 0 360 222" role="img" aria-label="Organigramm ${f[0]}"><defs><marker id="pvah2" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ahc"/></marker></defs>${f[5]()}</svg>
         <div class="pv-note"><b>${f[0]}</b>: ${f[2]}<div class="pv-meter"><small>Befugnis der Projektleitung</small><div class="pv-mbar"><i style="width:${f[1] * 20}%"></i></div></div><div class="pv-pm"><span class="pv-plus">+</span> ${f[3]}</div><div class="pv-pm"><span class="pv-minus">−</span> ${f[4]}</div></div></div>
       <div class="pv-leg"><span><i class="pv-lk"></i>disziplinarisch unterstellt</span><span><i class="pv-lk fx"></i>fachliche Weisung / Auftrag</span><span><i class="pv-lk pl"></i>Projektleitung</span></div></div>`;
     $$("[data-i]", el).forEach(x => x.onclick = () => { k = +x.dataset.i; draw(); });
@@ -885,7 +887,7 @@ W.pmlast = (el, b) => {
     return { st, use, end: Math.max(...T.map((t, i) => st[i] + t[1])) }; };
   let cap = false;
   const draw = () => {
-    const p = plan(cap), D = 16, dw = 17, LW = 92, X = d => LW + d * dw;
+    const p = plan(cap), D = 13, dw = 20, LW = 88, X = d => LW + d * dw;
     let g = `<svg class="pv-svg" viewBox="0 0 ${LW + D * dw + 10} 250" role="img" aria-label="Belastungsdiagramm">`;
     T.forEach((t, i) => { const y = 8 + i * 20; g += svgT(4, y + 13, t[0], "pv-sm", "start") + `<rect x="${X(p.st[i])}" y="${y + 2}" width="${t[1] * dw - 2}" height="14" rx="3" class="gt-bar${i === 1 || i === 4 || i === 0 ? " c" : ""}"/>` + svgT(X(p.st[i]) + t[1] * dw / 2, y + 13, t[2] + " P.", "gt-d"); });
     const base = 236, hh = 22;
@@ -910,10 +912,10 @@ W.pmscrum = (el, b) => {
     ["Retrospektive", "Das Team verbessert seine Zusammenarbeit und Arbeitsweise.", "max. 3 Std."]];
   let k = 0;
   const draw = () => {
-    const cx = 170, cy = 124, rx = 132, ry = 92, pos = N.map((_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N.length; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
+    const cx = 170, cy = 124, rx = 112, ry = 94, pos = N.map((_, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N.length; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)]; });
     let g = `<svg class="pv-svg" viewBox="0 0 340 250" role="img" aria-label="Scrum-Ablauf"><defs><marker id="pvah3" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="pv-ah"/></marker></defs><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="pv-ring"/>`;
     g += `<circle cx="${cx}" cy="${cy}" r="30" class="pv-core"/>${svgT(cx, cy - 2, "Sprint", "pv-ct")}${svgT(cx, cy + 12, "≤ 1 Monat", "pv-sm")}`;
-    pos.forEach((p, i) => { g += `<g class="pv-node${i === k ? " on" : ""}" data-i="${i}"><rect x="${p[0] - 50}" y="${p[1] - 15}" width="100" height="30" rx="15"/>${wrapT(p[0], p[1] + 4, N[i][0], "", 14, 11)}</g>`; });
+    pos.forEach((p, i) => { g += `<g class="pv-node${i === k ? " on" : ""}" data-i="${i}"><rect x="${p[0] - 54}" y="${p[1] - 17}" width="108" height="34" rx="17"/>${wrapT(p[0], p[1] + 4, N[i][0], "", 14, 12)}</g>`; });
     g += "</svg>";
     el.innerHTML = `<div class="w">${App.whead(esc(b.title || "Scrum als Kreislauf"), "Grafik")}
       <div class="pv-split">${g}<div class="pv-note"><b>${N[k][0]}</b> <span class="chip">${N[k][2]}</span><br>${N[k][1]}<div class="row" style="margin-top:10px"><button class="btn sm pri" data-nx>Nächster Schritt ↻</button></div></div></div><small class="muted">Tippe ein Element an.</small></div>`;

@@ -613,7 +613,7 @@ tr.px-crit td{color:#a970ff;font-weight:600}
 /* ---------- Projektmanagement: Balkenplan, Netzplan-Übungen, Lösungsblatt, Grafiken (4.66) ---------- */
 .gt-wrap{display:flex;flex-direction:column;gap:8px}
 .gt-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card2,var(--card));-webkit-overflow-scrolling:touch}
-.gt-svg{display:block;min-width:100%;height:auto}
+.gt-svg{display:block;min-width:100%;max-width:none!important;height:auto}
 .gt-row{fill:var(--text);opacity:.035}
 .gt-grid{stroke:var(--line);stroke-width:1}
 .gt-ax{font:10px var(--f-mono,monospace);fill:var(--muted)}
@@ -665,7 +665,7 @@ tr.px-crit td{color:#a970ff;font-weight:600}
 .pv-core{fill:var(--card3);stroke:var(--line2)}
 .pv-dot{fill:var(--info,#4c9eff)}.pv-dot.up{fill:var(--bad)}.pv-dot.dn{fill:var(--warn,#f0b429)}
 .pv-arc{fill:none;stroke:var(--line2);stroke-width:2.5}.pv-arc.on{stroke:var(--acc)}
-.pv-ah{fill:var(--muted)}
+.pv-ah{fill:var(--muted)}.pv-ahc{fill:var(--acc)}
 .pv-node{cursor:pointer}.pv-node rect{fill:var(--card2,var(--card));stroke:var(--line2);stroke-width:1.5}
 .pv-node.on rect{fill:var(--acc-soft);stroke:var(--acc);stroke-width:2}.pv-node text{font-weight:600}
 .pv-ring{fill:none;stroke:var(--line2);stroke-width:2;stroke-dasharray:6 5}
@@ -698,3 +698,4 @@ tr.px-crit td{color:#a970ff;font-weight:600}
 .pv-mta{fill:none;stroke:var(--info,#4c9eff);stroke-width:2.4}.pv-mtad{fill:var(--info,#4c9eff)}
 .pv-load{fill:var(--info,#4c9eff);opacity:.8}.pv-load.over{fill:var(--bad);opacity:.9}
 .pv-cap{stroke:var(--acc);stroke-width:2;stroke-dasharray:6 4}
+@media (max-width:720px){.pv-phases{flex-direction:column;align-items:stretch}.pv-ph{clip-path:none;min-width:0}.pv-phases .pv-ms{align-self:center;line-height:1}}
