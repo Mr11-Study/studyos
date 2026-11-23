@@ -5,6 +5,15 @@
 const { esc, PAGES } = App;
 
 const LOG = App.CHANGELOG = [
+  { v: "4.66.0", d: "2026-11-23", t: "Klarer aufgebaut: was ist was, was kann ich antippen", items: [
+    "Jedes Fach startet mit einer Übersicht aus Kacheln: Skriptum, Wiederholen, Altfragen, Prüfungs-Überblick, Probeprüfung und Material. Jede Kachel sagt in einem Satz, was drin ist, und hat unten rechts einen Knopf mit Pfeil.",
+    "Jeder Inhaltstyp hat überall dieselbe Farbe und dasselbe Zeichen: Skriptum blau, Wiederholen grün, Altfragen orange, Prüfungs-Überblick lila, Probeprüfung rot. Die gleichen Farben stehen in der Seitenleiste, auf der Fächer-Seite und in den Seitenköpfen.",
+    "Die Seitenleiste im Fach erklärt jeden Eintrag mit einer kurzen Zeile. „Altfragen“ hat jetzt einen eigenen Eintrag, „Skript“ heißt „Skriptum“, „Prüfungssimulation“ heißt „Probeprüfung“ und „Üben“ heißt „Wiederholen“.",
+    "Die Probeprüfung sagt oben, was passiert. Bei Projektmanagement und BWL ist die Originalprüfung als empfohlene Karte markiert, der Multiple-Choice-Test steht klar darunter als zweite Möglichkeit.",
+    "Der Prüfungs-Überblick hat oben drei Abkürzungen: Altfragen üben, Probeprüfung und ein Sprung zu den Aufgaben mit Lösungsblatt. „Lösung anzeigen“ sieht jetzt wie ein Knopf aus.",
+    "Knöpfe, die bisher wie normaler Text aussahen, haben jetzt einen Rahmen. Aufklappbare Bereiche zeigen einen Pfeil.",
+    "Die Fächer-Karten zeigen, was im Fach steckt (Lektionen, Altfragen, Probeprüfung)."
+  ] },
   { v: "4.65.0", d: "2026-11-15", t: "BWL: Lösungsblatt zur Altprüfung", items: [
     "Die BWL-Altprüfung gibt es jetzt auch als Lösungsblatt: alle 31 Fragen schon richtig beantwortet, die richtige Antwort grün markiert und der Lösungsweg darunter.",
     "Alle Antworten wurden noch einmal nachgerechnet (Deckungsgrad, Kapitalwert, Debitorendauer, Abnutzungsgrad usw.).",

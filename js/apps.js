@@ -39,12 +39,14 @@ PAGES.prep = (el, p) => { const c = CBY[p || app()]; if (c && !c.examPrep) retur
 const counts = cid => App.reviewCounts ? App.reviewCounts(cid) : { due: 0, fresh: 0 };
 const GENERIC_W = ["sorter", "pairs", "gapfill"];
 const hasPractice = c => ["dasc", "bwl2", "eng3", "kommu"].includes(c.id) || (c.ktLabs || []).length || App.courseLessons(c.id).some(l => l.blocks.some(b => b.t === "widget" && GENERIC_W.includes(b.w)));
+App.hasPractice = hasPractice;
+/* Einträge: [Seite, Parameter, Name, Zeichen, Inhaltstyp (Farbe aus css/clarity.css), kurze Erklärung] */
 function appNav(c) {
-  const qt = c.exam === "quicktest";
+  const qt = c.exam === "quicktest", altN = App.altCount ? App.altCount(c.id) : 0;
   return [
-    ["Lernen", [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skript", "❡"], ["review", "c:" + c.id, "Üben", "↻"]]],
-    ["Prüfung", [c.examPrep && ["prep", c.id, qt ? "Quick-Test-Vorbereitung" : "Prüfung üben", "✎"], ["exam", "", qt ? "Quick-Test" : "Prüfungssimulation", "⏱"]].filter(Boolean)],
-    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Übungen", "λ"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], c.maple && ["maple", "", "Maple-Labor", "▸"], ["coursechat", c.id, "Lerngruppen", "◎"], ["resources", "", "Material", "⎘"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
+    ["Lernen", [["course", c.id, "Übersicht", "◐", "", "Alles zu diesem Fach"], ["skript", c.id, "Skriptum", "❡", "skript", "Lernstoff lesen"], ["review", "c:" + c.id, "Wiederholen", "↻", "review", "Fragen & Karteikarten"]]],
+    ["Prüfung", [altN && ["review", "alt:" + c.id, "Altfragen", "?", "alt", "Echte Prüfungsfragen"], c.examPrep && ["prep", c.id, qt ? "Quick-Test-Vorbereitung" : "Prüfungs-Überblick", "◎", "prep", "Was drankommt, Aufgaben"], ["exam", "", qt ? "Quick-Test" : "Probeprüfung", "⏱", "exam", "Mit Zeit und Note"]].filter(Boolean)],
+    ["Werkzeuge", [hasPractice(c) && ["practice", "", "Interaktive Übungen", "λ", "practice"], c.id === "mappdev" && ["ktlab", "", "Kotlin-Labor", "K"], c.id === "dasc" && ["gitlab", "", "Git-Labor", "⑂"], c.maple && ["maple", "", "Maple-Labor", "▸"], ["coursechat", c.id, "Lerngruppen", "◎"], ["resources", "", "Material", "⎘", "res"], ["settings", "", "Einstellungen", "⚙"]].filter(Boolean)]
   ];
 }
 const HUBNAV = [["Überblick", [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"]]],
@@ -54,7 +56,7 @@ const navOk = x => App.pageOk ? App.pageOk(x[0]) : true;
 /* Gemeinsam hat drei Einträge: Übersicht (""), Global-Chat und (nur für Admins) Admin */
 const togSub = p => /^(global|c:)/.test(String(p || "")) ? "global" : /^admin/.test(String(p || "")) ? "admin" : "";
 const ACT = { lesson: "course", path: "course", boss: "course", quiz: "review", flash: "review", challenges: "review" };
-const btn = ([v, p, t, i], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}"><span class="ni">${i}</span>${t}${badge || ""}</button>`;
+const btn = ([v, p, t, i, k, d], on, badge) => `<button data-go="${v}"${p ? ` data-p="${esc(p)}"` : ""} class="${on ? "on" : ""}${k ? " nk kk-" + k : ""}${d ? " nd" : ""}"><span class="ni">${i}</span>${d ? `<span class="nt">${t}<small>${d}</small></span>` : t}${badge || ""}</button>`;
 
 const oldSide = App.SIDE;
 App.SIDE = () => {
@@ -62,10 +64,10 @@ App.SIDE = () => {
   const R = App.route(), v = ACT[R.v] || R.v, a = app(), c = a && CBY[a], st = App.streak();
   const me = side.querySelector(".me"), meHTML = me ? me.outerHTML : "";
   if (c) {
-    const due = counts(c.id).due;
+    const due = counts(c.id).due, isAlt = R.v === "review" && String(R.p || "").startsWith("alt:");
     side.innerHTML = `<button class="app-back" data-go="courses">← Alle Fächer</button>
       <div class="brand app-brand"><div class="logo">${esc(c.icon || c.short[0])}</div><div><b>${esc(c.title)}</b><small>${esc(c.short)}${c.ects ? " · " + String(c.ects).replace(".", ",") + " ECTS" : ""}</small></div></div>
-      <nav class="nav" aria-label="${esc(c.title)}">${appNav(c).map(([g, items]) => items.length ? `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0], x[0] === "review" && due ? `<span class="badge">${due}</span>` : "")).join("") : "").join("")}</nav>${meHTML}`;
+      <nav class="nav" aria-label="${esc(c.title)}">${appNav(c).map(([g, items]) => items.length ? `<div class="eyebrow lbl">${g}</div>` + items.map(x => btn(x, v === x[0] && (x[0] !== "review" || isAlt === (String(x[1]).startsWith("alt:"))), x[0] === "review" && x[1].startsWith("c:") && due ? `<span class="badge">${due}</span>` : "")).join("") : "").join("")}</nav>${meHTML}`;
   } else {
     const due = counts().due, alerts = App.urgentCount ? App.urgentCount() : 0;
     side.innerHTML = `<div class="brand"><div class="logo">${window.STUDYOS_LOGO || "S"}</div><div><b>StudyOS</b><small class="muted">Wirtschaftsinformatik · FH JOANNEUM</small></div></div>
@@ -83,7 +85,7 @@ App.SIDE = () => {
   const tba = $(".topbar .tb-app"); if (tba) tba.innerHTML = c ? `<i></i>${esc(c.title)}` : "StudyOS";
   const due = counts(c ? c.id : undefined).due, tb = $("#tb-stats"); if (tb) tb.innerHTML = due ? `<button class="chip acc" data-go="review" data-p="${c ? "c:" + c.id : "all"}">↻ ${due} fällig</button>` : "";
   const bn = $("#bnav"); if (bn) {
-    const items = c ? [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skript", "❡"], ["review", "c:" + c.id, "Üben", "↻"], c.examPrep ? ["prep", c.id, "Prüfung", "⏱"] : ["exam", "", "Prüfung", "⏱"]]
+    const items = c ? [["course", c.id, "Übersicht", "◐"], ["skript", c.id, "Skriptum", "❡"], ["review", "c:" + c.id, "Wiederholen", "↻"], c.examPrep ? ["prep", c.id, "Prüfung", "⏱"] : ["exam", "", "Prüfung", "⏱"]]
       : navOk(["courses"]) ? [["dash", "", "Heute", "◐"], ["courses", "", "Fächer", "▦"], ["review", "all", "Wiederholen", "↻"], ["calendar", "", "Kalender", "▦"]]
       : [["dash", "", "Heute", "◐"], ["calendar", "", "Kalender", "▦"], ["transit", "", "Unterwegs", "⇆"]].concat(navOk(["together"]) ? [["together", "global", "Chat", "◌"]] : []);
     bn.innerHTML = items.map(x => `<button data-go="${x[0]}"${x[1] ? ` data-p="${esc(x[1])}"` : ""} class="${v === x[0] || (x[0] === "prep" && v === "exam") ? "on" : ""}"><span class="ni">${x[3]}${x[0] === "review" && due ? `<i class="bdot"></i>` : ""}</span>${x[2]}</button>`).join("") + `<button id="bmore"><span class="ni">☰</span>Mehr</button>`;
@@ -93,13 +95,15 @@ App.SIDE = () => {
 
 /* ---------- Fächer: Launcher im neutralen Design der Übersicht, jedes Fach nur über seine Farbe erkennbar ---------- */
 PAGES.courses = (el) => {
-  el.innerHTML = `<div class="page"><header><span class="eyebrow">${esc(App.SEMLABEL || "")}</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Tippe ein Fach an, um seine App zu öffnen. Jedes Fach ist eine eigene App mit eigenem Skript, Üben und Prüfungstraining. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p></header>
+  el.innerHTML = `<div class="page"><header><span class="eyebrow">${esc(App.SEMLABEL || "")}</span><h1>Deine Fächer</h1><p class="muted" style="margin-top:6px;max-width:66ch">Ein Fach ist eine Lehrveranstaltung. Tippe eine Karte an, dann öffnet sich das Fach mit allem, was dazugehört. Über „← Alle Fächer“ kommst du jederzeit hierher zurück.</p>
+   ${App.KINDS ? `<div class="klegend"><small class="muted">In den Fächern findest du:</small>${["skript", "review", "alt", "prep", "exam"].map(k => App.kindTag(k)).join("")}</div>` : ""}</header>
    ${App.TRACK === "uni" && window.StudyProfiles && StudyProfiles.active() ? `<div class="semtabs" role="tablist" aria-label="Semester">${App.SEMS.map(x => { const n = App.semCount(x.n); return `<button class="semtab ${x.n === App.SEM ? "on" : ""}" data-sem="${x.n}" role="tab" aria-selected="${x.n === App.SEM}" ${n ? "" : "disabled"}><b>Semester ${x.n}</b><small>${x.term} · ${n ? n + (n === 1 ? " Fach" : " Fächer") : "noch keine Fächer"}</small></button>`; }).join("")}</div>` : ""}
    <div class="appgrid">${COURSES.map(c => { const ls = App.courseLessons(c.id), n = ls.length, u = ls.filter(l => App.isDone(l.id)).length, k = App.knowCourse ? App.knowCourse(c.id) : 0, cn = counts(c.id);
      return `<button class="apptile hubtile" style="--c:${c.color}" data-go="course" data-p="${c.id}"><div class="spread"><div class="at-ic">${esc(c.icon || c.short[0])}</div><small>${esc(c.short)}</small></div>
        <div><h3>${esc(c.title)}</h3><small>${esc(c.name)}</small></div>
        <div class="col" style="gap:5px"><div class="spread"><small>Wissen</small><small class="tab">${k} %</small></div><div class="at-bar"><i style="width:${k}%"></i></div></div>
-       <div class="at-meta"><span>${u}/${n} Lektionen</span>${cn.due ? `<span class="w">${cn.due} fällig</span>` : ""}${c.exam === "quicktest" ? `<span>Quick-Tests</span>` : ""}<em class="at-go">App öffnen <span aria-hidden="true">→</span></em></div></button>`; }).join("")}</div></div>`;
+       <div class="at-kinds" aria-label="Inhalt">${[["skript", n + " Lektionen"], App.altCount && App.altCount(c.id) ? ["alt", App.altCount(c.id) + " Altfragen"] : null, ["exam", c.exam === "quicktest" ? "Quick-Tests" : "Probeprüfung"]].filter(Boolean).map(([k, t]) => `<span class="kk-${k}"><i aria-hidden="true">${App.KINDS ? App.KINDS[k].i : ""}</i>${t}</span>`).join("")}</div>
+       <div class="at-meta"><span>${u}/${n} verstanden</span>${cn.due ? `<span class="w">${cn.due} fällig</span>` : ""}<em class="at-go">Fach öffnen <span aria-hidden="true">→</span></em></div></button>`; }).join("")}</div></div>`;
 };
 document.addEventListener("click", e => { const b = e.target.closest(".semtab[data-sem]"); if (!b || b.disabled || +b.dataset.sem === App.SEM) return; StudyProfiles.setSem(+b.dataset.sem); });
 wrapPage("courses"); // setApp läuft ohnehin
